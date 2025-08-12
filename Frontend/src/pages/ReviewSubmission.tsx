@@ -194,15 +194,13 @@ const ReviewSubmission = () => {
               </div>
               
               {/* Uploaded Files Preview */}
-              {uploadedFiles.length > 0 && (
-                <div className="mt-4">
-                  <MediaCarousel 
-                    files={uploadedFiles} 
-                    onRemove={removeFile}
-                    editable={true}
-                  />
-                </div>
-              )}
+              <div className="mt-4">
+                <MediaCarousel 
+                  files={uploadedFiles} 
+                  onRemove={removeFile}
+                  editable={true}
+                />
+              </div>
               
               {uploadError && (
                 <div className="mt-2 text-red-600 text-sm">

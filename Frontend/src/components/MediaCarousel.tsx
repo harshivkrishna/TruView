@@ -21,9 +21,6 @@ const MediaCarousel: React.FC<MediaCarouselProps> = ({
   editable = false,
   autoPlay = false 
 }) => {
-  // Early return check must come BEFORE hooks
-  if (files.length === 0) return null;
-
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [failedImages, setFailedImages] = useState<Set<number>>(new Set());
@@ -92,8 +89,20 @@ const MediaCarousel: React.FC<MediaCarouselProps> = ({
   };
 
   useEffect(() => {
-    scrollToIndex(currentIndex);
-  }, [currentIndex]);
+    // Only run scroll effect if we have files and a valid index
+    if (files.length > 0 && currentIndex < files.length) {
+      scrollToIndex(currentIndex);
+    }
+  }, [currentIndex, files.length]);
+
+  // Early return check must come AFTER hooks
+  if (files.length === 0) {
+    return (
+      <div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center">
+        <p className="text-gray-500 text-sm">No media files uploaded yet</p>
+      </div>
+    );
+  }
 
   return (
     <div className="relative w-full">
