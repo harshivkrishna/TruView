@@ -161,6 +161,17 @@ const UserProfile = () => {
       // Update local profile state
       setProfile(prev => prev ? { ...prev, ...profileData } : null);
       
+      // Refresh profile data from backend to ensure consistency (including avatar)
+      try {
+        const refreshedProfile = await getUserProfile(userId || '');
+        if (refreshedProfile) {
+          setProfile(refreshedProfile);
+          console.log('Profile refreshed after save:', refreshedProfile);
+        }
+      } catch (refreshError) {
+        console.error('Error refreshing profile after save:', refreshError);
+      }
+      
       // Show success message (you can use toast here)
       console.log('Profile updated successfully');
       
@@ -213,7 +224,7 @@ const UserProfile = () => {
       }
       
       if (newPhotoUrl && profile) {
-        // Update the profile state with the new photo URL
+        // Update the profile state with the new photo URL immediately
         setProfile(prev => prev ? { ...prev, avatar: newPhotoUrl } : null);
         console.log('Profile updated with new photo:', newPhotoUrl);
         
@@ -227,9 +238,11 @@ const UserProfile = () => {
         } catch (refreshError) {
           console.error('Error refreshing profile:', refreshError);
         }
+      } else {
+        console.error('No valid photo URL received from upload response:', response);
       }
       
-      // Clear file and preview
+      // Clear file and preview only after successful update
       setPhotoFile(null);
       setPhotoPreview(null);
       
@@ -327,6 +340,7 @@ const UserProfile = () => {
           <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-4 sm:space-y-0 sm:space-x-6">
             <div className="relative">
               <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
+                {/* Show uploaded avatar if available */}
                 {profile.avatar ? (
                   <img 
                     key={profile.avatar} // Force re-render when avatar changes
@@ -342,6 +356,7 @@ const UserProfile = () => {
                   />
                 ) : null}
                 
+                {/* Show photo preview if no avatar and preview exists */}
                 {photoPreview && !profile.avatar ? (
                   <img 
                     src={photoPreview} 
@@ -350,6 +365,7 @@ const UserProfile = () => {
                   />
                 ) : null}
                 
+                {/* Show default user icon if no avatar and no preview */}
                 {!profile.avatar && !photoPreview && (
                   <User className="w-8 h-8 sm:w-12 sm:h-12 text-gray-400" />
                 )}
