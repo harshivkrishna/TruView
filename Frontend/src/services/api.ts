@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getAnonymousId } from '../utils/anonymousId';
 
 const API_BASE_URL = 'http://localhost:5000/api';
 
@@ -47,24 +48,11 @@ export const getReviews = async (params = {}) => {
 
 export const getTrendingReviews = async () => {
   try {
-    console.log('Making API request to:', `${API_BASE_URL}/reviews/trending`);
     const response = await api.get('/reviews/trending');
-    console.log('API response:', response);
     return response.data;
-  } catch (error: any) {
+  } catch (error) {
     console.error('API Error - getTrendingReviews:', error);
-    if (error.response) {
-      // Server responded with error status
-      console.error('Error response:', error.response.data);
-      console.error('Error status:', error.response.status);
-    } else if (error.request) {
-      // Request was made but no response received
-      console.error('No response received:', error.request);
-    } else {
-      // Something else happened
-      console.error('Error message:', error.message);
-    }
-    throw error; // Re-throw to let component handle it
+    return [];
   }
 };
 
@@ -75,6 +63,22 @@ export const getReview = async (id: string) => {
   } catch (error) {
     console.error('API Error - getReview:', error);
     throw error;
+  }
+};
+
+export const incrementReviewView = async (id: string) => {
+  try {
+    // Get anonymous ID for unauthenticated users
+    const anonymousId = getAnonymousId();
+    
+    const response = await api.patch(`/reviews/${id}/view`, {
+      anonymousId: anonymousId
+    });
+    
+    return response.data;
+  } catch (error: any) {
+    // Don't throw error for view increment - it shouldn't break the page
+    return null;
   }
 };
 
@@ -132,7 +136,6 @@ export const uploadMedia = async (formData: FormData) => {
         'Content-Type': 'multipart/form-data',
       },
     });
-    console.log('Upload response:', response.data);
     return response.data;
   } catch (error) {
     console.error('API Error - uploadMedia:', error);

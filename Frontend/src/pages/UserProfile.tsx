@@ -122,9 +122,45 @@ const UserProfile = () => {
     fetchUserData();
   }, [userId]);
 
+  // Refresh profile data when component becomes active (e.g., after navigation)
+  useEffect(() => {
+    const handleFocus = () => {
+      if (userId) {
+        // Refresh profile data when user returns to the page
+        const refreshData = async () => {
+          try {
+            const [profileData, reviewsData] = await Promise.all([
+              getUserProfile(userId),
+              getUserReviews(userId)
+            ]);
+            
+            setProfile(profileData);
+            setUserReviews(reviewsData);
+          } catch (error) {
+            console.error('Error refreshing profile data:', error);
+          }
+        };
+        
+        refreshData();
+      }
+    };
+
+    // Listen for page focus events
+    window.addEventListener('focus', handleFocus);
+    
+    // Also refresh when component mounts (in case user navigated back)
+    if (userId) {
+      handleFocus();
+    }
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [userId]);
+
   // Debug: Log profile changes
   useEffect(() => {
-    console.log('Profile state updated:', profile);
+    // Profile state updated
   }, [profile]);
 
   const handleEditToggle = () => {
@@ -166,14 +202,10 @@ const UserProfile = () => {
         const refreshedProfile = await getUserProfile(userId || '');
         if (refreshedProfile) {
           setProfile(refreshedProfile);
-          console.log('Profile refreshed after save:', refreshedProfile);
         }
       } catch (refreshError) {
         console.error('Error refreshing profile after save:', refreshError);
       }
-      
-      // Show success message (you can use toast here)
-      console.log('Profile updated successfully');
       
     } catch (error) {
       console.error('Error updating profile:', error);
@@ -207,8 +239,6 @@ const UserProfile = () => {
       
       const response = await uploadProfilePhoto(formData);
       
-      console.log('Upload response:', response); // Debug log
-      
       // Update profile with new photo URL - handle different response structures
       let newPhotoUrl = '';
       if (response.photoUrl) {
@@ -226,14 +256,12 @@ const UserProfile = () => {
       if (newPhotoUrl && profile) {
         // Update the profile state with the new photo URL immediately
         setProfile(prev => prev ? { ...prev, avatar: newPhotoUrl } : null);
-        console.log('Profile updated with new photo:', newPhotoUrl);
         
         // Also refresh the profile data from backend to ensure consistency
         try {
           const refreshedProfile = await getUserProfile(userId || '');
           if (refreshedProfile) {
             setProfile(refreshedProfile);
-            console.log('Profile refreshed from backend:', refreshedProfile);
           }
         } catch (refreshError) {
           console.error('Error refreshing profile:', refreshError);
@@ -245,9 +273,6 @@ const UserProfile = () => {
       // Clear file and preview only after successful update
       setPhotoFile(null);
       setPhotoPreview(null);
-      
-      // Show success message
-      console.log('Profile photo uploaded successfully');
       
     } catch (error) {
       console.error('Error uploading photo:', error);
@@ -272,6 +297,27 @@ const UserProfile = () => {
     logout();
     navigate('/');
   };
+
+  // Manual refresh function for profile data
+  const refreshProfileData = async () => {
+    if (!userId) return;
+    
+    try {
+      const [profileData, reviewsData] = await Promise.all([
+        getUserProfile(userId),
+        getUserReviews(userId)
+      ]);
+      
+      setProfile(profileData);
+      setUserReviews(reviewsData);
+    } catch (error) {
+      console.error('Error refreshing profile data:', error);
+    }
+  };
+
+  // Calculate current review count from userReviews state for real-time updates
+  const currentReviewCount = userReviews.length;
+  const displayReviewCount = profile?.reviewCount || currentReviewCount;
 
   // Show loading state
   if (loading) {
@@ -478,7 +524,7 @@ const UserProfile = () => {
                 </div>
                 <div className="flex items-center space-x-1 sm:space-x-2">
                   <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500" />
-                  <span className="text-gray-700">{profile.reviewCount} Reviews</span>
+                  <span className="text-gray-700">{displayReviewCount} Reviews</span>
                 </div>
                 <div className="flex items-center space-x-1 sm:space-x-2">
                   <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-green-500" />

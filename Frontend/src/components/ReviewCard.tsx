@@ -5,6 +5,7 @@ import { Star, ThumbsUp, Eye, Calendar, User, Share2, Award, TrendingUp } from '
 import SocialShareModal from './SocialShareModal';
 import MediaCarousel from './MediaCarousel';
 import { calculateTrustScore, getTrustLevel } from '../utils/trustPrediction';
+import { useReviewContext } from '../contexts/ReviewContext';
 
 interface ReviewCardProps {
   review: {
@@ -35,9 +36,13 @@ interface ReviewCardProps {
 const ReviewCard: React.FC<ReviewCardProps> = ({ review, showRank = false }) => {
   const navigate = useNavigate();
   const [showShareModal, setShowShareModal] = useState(false);
+  const { getReview } = useReviewContext();
+
+  // Get the most up-to-date review data from global state
+  const currentReview = getReview(review._id) || review;
 
   // Calculate AI trust score if not provided
-  const trustScore = review.trustScore || calculateTrustScore(review);
+  const trustScore = currentReview.trustScore || calculateTrustScore(currentReview);
   const trustLevel = getTrustLevel(trustScore);
 
   const formatDate = (dateString: string) => {
@@ -60,8 +65,8 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showRank = false }) => 
   const handleAuthorClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (review.author?.userId) {
-      navigate(`/profile/${review.author.userId}`);
+    if (currentReview.author?.userId) {
+      navigate(`/profile/${currentReview.author.userId}`);
     }
   };
 
@@ -120,15 +125,15 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showRank = false }) => 
           </div>
 
           {/* Media Preview with Overlay */}
-          {review.media && review.media.length > 0 && (
+          {currentReview.media && currentReview.media.length > 0 && (
             <div className="relative h-48 overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent z-10"></div>
-              <MediaCarousel files={review.media.slice(0, 1)} />
+              <MediaCarousel files={currentReview.media.slice(0, 1)} />
               
               {/* Category Badge on Media */}
               <div className="absolute bottom-4 left-4 z-20">
-                <div className={`px-3 py-1 bg-gradient-to-r ${getCategoryGradient(review.category)} rounded-full text-white text-xs font-semibold shadow-lg backdrop-blur-sm`}>
-                  {review.category}
+                <div className={`px-3 py-1 bg-gradient-to-r ${getCategoryGradient(currentReview.category)} rounded-full text-white text-xs font-semibold shadow-lg backdrop-blur-sm`}>
+                  {currentReview.category}
                 </div>
               </div>
             </div>
@@ -137,7 +142,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showRank = false }) => 
           <div className="p-6 flex-1 flex flex-col relative z-10">
             {/* Tags */}
             <div className="flex items-center gap-2 mb-4 flex-wrap">
-              {review.tags.slice(0, 2).map((tag, index) => (
+              {currentReview.tags.slice(0, 2).map((tag, index) => (
                 <motion.span
                   key={tag}
                   initial={{ opacity: 0, scale: 0.8 }}
@@ -149,21 +154,21 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showRank = false }) => 
                   {tag}
                 </motion.span>
               ))}
-              {!review.media && (
-                <span className={`px-3 py-1 text-xs font-semibold rounded-full bg-gradient-to-r ${getCategoryGradient(review.category)} text-white shadow-lg ml-auto`}>
-                  {review.category}
+              {!currentReview.media && (
+                <span className={`px-3 py-1 text-xs font-semibold rounded-full bg-gradient-to-r ${getCategoryGradient(currentReview.category)} text-white shadow-lg ml-auto`}>
+                  {currentReview.category}
                 </span>
               )}
             </div>
 
             {/* Title */}
-            <Link to={`/review/${review._id}`} className="block mb-4">
+            <Link to={`/review/${currentReview._id}`} className="block mb-4">
               <motion.h3 
                 className="text-xl font-bold text-gray-900 line-clamp-2 hover:text-orange-600 transition-colors duration-300"
                 whileHover={{ x: 4 }}
                 transition={{ duration: 0.2 }}
               >
-                {review.title}
+                {currentReview.title}
               </motion.h3>
             </Link>
 
@@ -178,35 +183,35 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showRank = false }) => 
                     transition={{ delay: i * 0.1 }}
                   >
                     <Star
-                      className={`w-5 h-5 ${i < review.rating ? 'text-orange-500 fill-current' : 'text-gray-300'}`}
+                      className={`w-5 h-5 ${i < currentReview.rating ? 'text-orange-500 fill-current' : 'text-gray-300'}`}
                     />
                   </motion.div>
                 ))}
               </div>
-              <span className="text-sm font-semibold text-gray-700 ml-2">({review.rating}/5)</span>
+              <span className="text-sm font-semibold text-gray-700 ml-2">({currentReview.rating}/5)</span>
             </div>
 
             {/* Description */}
             <p className="text-gray-600 text-sm mb-6 line-clamp-3 flex-1 leading-relaxed">
-              {truncateText(review.description, 140)}
+              {truncateText(currentReview.description, 140)}
             </p>
 
             {/* Footer */}
             <div className="mt-auto space-y-4">
               {/* Author Info */}
               <div className="flex items-center justify-between">
-                <div className={`flex items-center ${review.author?.userId ? 'group/profile' : ''}`}>
+                <div className={`flex items-center ${currentReview.author?.userId ? 'group/profile' : ''}`}>
                   {/* Profile Picture */}
                   <div className="relative mr-3">
-                    {review.author?.avatar ? (
+                    {currentReview.author?.avatar ? (
                       <motion.img
-                        src={review.author.avatar}
-                        alt={review.author.name}
-                        className={`w-10 h-10 rounded-full object-cover border-2 border-white shadow-lg ${review.author?.userId ? 'cursor-pointer group-hover/profile:border-orange-300' : ''}`}
+                        src={currentReview.author.avatar}
+                        alt={currentReview.author.name}
+                        className={`w-10 h-10 rounded-full object-cover border-2 border-white shadow-lg ${currentReview.author?.userId ? 'cursor-pointer group-hover/profile:border-orange-300' : ''}`}
                         whileHover={{ scale: 1.1 }}
                         transition={{ duration: 0.2 }}
-                        onClick={review.author?.userId ? handleAuthorClick : undefined}
-                        title={review.author?.userId ? `View ${review.author.name}'s profile` : review.author.name}
+                        onClick={currentReview.author?.userId ? handleAuthorClick : undefined}
+                        title={currentReview.author?.userId ? `View ${currentReview.author.name}'s profile` : currentReview.author.name}
                         onError={(e) => {
                           // Fallback to default avatar if image fails to load
                           e.currentTarget.style.display = 'none';
@@ -215,11 +220,11 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showRank = false }) => 
                       />
                     ) : null}
                     <motion.div
-                      className={`w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center shadow-lg ${review.author?.avatar ? 'hidden' : ''} ${review.author?.userId ? 'cursor-pointer group-hover/profile:from-orange-600 group-hover/profile:to-red-600' : ''}`}
+                      className={`w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center shadow-lg ${currentReview.author?.avatar ? 'hidden' : ''} ${currentReview.author?.userId ? 'cursor-pointer group-hover/profile:from-orange-600 group-hover/profile:to-red-600' : ''}`}
                       whileHover={{ scale: 1.1 }}
                       transition={{ duration: 0.2 }}
-                      onClick={review.author?.userId ? handleAuthorClick : undefined}
-                      title={review.author?.userId ? `View ${review.author?.name}'s profile` : review.author?.name || 'Anonymous'}
+                      onClick={currentReview.author?.userId ? handleAuthorClick : undefined}
+                      title={currentReview.author?.userId ? `View ${currentReview.author?.name}'s profile` : currentReview.author?.name || 'Anonymous'}
                     >
                       <User className="w-5 h-5 text-white" />
                     </motion.div>
@@ -229,21 +234,21 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showRank = false }) => 
                   </div>
                   
                   <div>
-                    {review.author?.userId ? (
+                    {currentReview.author?.userId ? (
                       <motion.button
                         onClick={handleAuthorClick}
                         className="text-sm font-semibold text-gray-900 hover:text-orange-600 transition-colors cursor-pointer group-hover/profile:text-orange-600"
                         whileHover={{ x: 2 }}
-                        title={`View ${review.author.name}'s profile`}
+                        title={`View ${currentReview.author.name}'s profile`}
                       >
-                        {review.author.name}
+                        {currentReview.author.name}
                       </motion.button>
                     ) : (
-                      <span className="text-sm font-semibold text-gray-900">{review.author?.name || 'Anonymous'}</span>
+                      <span className="text-sm font-semibold text-gray-900">{currentReview.author?.name || 'Anonymous'}</span>
                     )}
                     <div className="flex items-center text-xs text-gray-500">
                       <Calendar className="w-3 h-3 mr-1" />
-                      {formatDate(review.createdAt)}
+                      {formatDate(currentReview.createdAt)}
                     </div>
                   </div>
                 </div>
@@ -259,7 +264,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showRank = false }) => 
                     <div className="w-8 h-8 bg-gradient-to-r from-green-100 to-green-200 rounded-full flex items-center justify-center mr-2">
                       <ThumbsUp className="w-4 h-4 text-green-600" />
                     </div>
-                    <span className="text-sm font-semibold">{review.upvotes}</span>
+                    <span className="text-sm font-semibold">{currentReview.upvotes}</span>
                   </motion.div>
                   
                   <motion.div 
@@ -269,7 +274,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showRank = false }) => 
                     <div className="w-8 h-8 bg-gradient-to-r from-blue-100 to-blue-200 rounded-full flex items-center justify-center mr-2">
                       <Eye className="w-4 h-4 text-blue-600" />
                     </div>
-                    <span className="text-sm font-semibold">{review.views}</span>
+                    <span className="text-sm font-semibold">{currentReview.views}</span>
                   </motion.div>
                 </div>
                 
@@ -299,7 +304,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showRank = false }) => 
       {/* Social Share Modal */}
       {showShareModal && (
         <SocialShareModal
-          review={review}
+          review={currentReview}
           onClose={() => setShowShareModal(false)}
         />
       )}

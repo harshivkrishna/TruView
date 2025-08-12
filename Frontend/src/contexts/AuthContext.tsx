@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import * as api from '../services/api';
+import { clearAnonymousId } from '../utils/anonymousId';
 
 interface User {
   id: string;
@@ -86,6 +87,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('token', response.token);
       localStorage.setItem('user', JSON.stringify(response.user));
       
+      // Clear anonymous ID when user logs in
+      clearAnonymousId();
+      
       setCurrentUser(response.user);
       return response;
     } catch (error) {
@@ -123,6 +127,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('token', response.token);
       localStorage.setItem('user', JSON.stringify(response.user));
       localStorage.removeItem('pendingUserId');
+      
+      // Clear anonymous ID when user verifies email
+      clearAnonymousId();
       
       setCurrentUser(response.user);
       return response;

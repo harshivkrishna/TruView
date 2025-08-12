@@ -32,38 +32,35 @@ const HomePage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchTrendingReviews = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      console.log('Fetching trending reviews...');
-      
-      // Add timeout to prevent infinite loading
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Request timeout')), 10000)
-      );
-      
-      const reviewsPromise = getTrendingReviews();
-      const reviews = await Promise.race([reviewsPromise, timeoutPromise]);
-      
-      console.log('Trending reviews received:', reviews);
-      setTrendingReviews(reviews);
-    } catch (error: unknown) {
-      console.error('Error fetching trending reviews:', error);
-      setError(error instanceof Error ? error.message : 'Failed to load trending reviews');
-      // Set empty array as fallback to prevent infinite loading
-      setTrendingReviews([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
+    const fetchTrendingReviews = async () => {
+      try {
+        setLoading(true);
+        const reviews = await getTrendingReviews();
+        setTrendingReviews(reviews);
+      } catch (error) {
+        console.error('Error fetching trending reviews:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchTrendingReviews();
   }, []);
 
   // Retry function for failed requests
   const retryFetch = () => {
+    const fetchTrendingReviews = async () => {
+      try {
+        setLoading(true);
+        const reviews = await getTrendingReviews();
+        setTrendingReviews(reviews);
+      } catch (error) {
+        console.error('Error fetching trending reviews:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
     fetchTrendingReviews();
   };
 

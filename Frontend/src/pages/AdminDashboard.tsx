@@ -20,6 +20,7 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts';
+import { useNavigate } from 'react-router-dom';
 
 // Type assertions for Lucide icons to fix TypeScript compatibility
 const UsersIcon = Users as React.ComponentType<any>;
@@ -50,6 +51,7 @@ const LineChartComponent = LineChart as React.ComponentType<any>;
 
 const AdminDashboard = () => {
   const { currentUser } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
   const [reviews, setReviews] = useState([]);
   const [users, setUsers] = useState([]);
@@ -153,8 +155,6 @@ const AdminDashboard = () => {
 
   // Temporary debug logging
   useEffect(() => {
-    console.log('AdminDashboard - currentUser:', currentUser);
-    console.log('AdminDashboard - localStorage user:', localStorage.getItem('user'));
     if (currentUser) {
       fetchAdminData();
       fetchPassKey();

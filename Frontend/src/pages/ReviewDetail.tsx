@@ -1,27 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ThumbsUp, Share2, Flag, User, Eye, Calendar, AlertTriangle } from 'lucide-react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { getReview, upvoteReview } from '../services/api';
+import { useReviewContext } from '../contexts/ReviewContext';
+import { getReview, incrementReviewView, upvoteReview } from '../services/api';
+import { toast } from 'react-hot-toast';
+import { Star, ThumbsUp, Eye, Share2, Flag, User, Calendar, Tag, ArrowLeft } from 'lucide-react';
 import MediaCarousel from '../components/MediaCarousel';
 import SocialShareModal from '../components/SocialShareModal';
-import toast from 'react-hot-toast';
-
-// Type assertions for React Router components to fix TypeScript compatibility
-const LinkComponent = Link as React.ComponentType<any>;
-
-// Type assertions for Lucide icons to fix TypeScript compatibility
-const ArrowLeftIcon = ArrowLeft as React.ComponentType<any>;
-const ThumbsUpIcon = ThumbsUp as React.ComponentType<any>;
-const Share2Icon = Share2 as React.ComponentType<any>;
-const FlagIcon = Flag as React.ComponentType<any>;
-const UserIcon = User as React.ComponentType<any>;
-const EyeIcon = Eye as React.ComponentType<any>;
-const CalendarIcon = Calendar as React.ComponentType<any>;
-const AlertTriangleIcon = AlertTriangle as React.ComponentType<any>;
 
 const ReviewDetail = () => {
   const { currentUser } = useAuth();
+  const { updateReview, incrementViewCount } = useReviewContext();
   const navigate = useNavigate();
   const { id } = useParams();
   const [review, setReview] = useState<any>(null);
@@ -29,11 +18,15 @@ const ReviewDetail = () => {
   const [showShareModal, setShowShareModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [hasUpvoted, setHasUpvoted] = useState(false);
+  const [viewIncremented, setViewIncremented] = useState(false);
 
   const fetchReview = async (reviewId: any) => {
     try {
       const reviewData = await getReview(reviewId);
       setReview(reviewData);
+      
+      // Store the review in global state for other components to access
+      updateReview(reviewId, reviewData);
       
       // Check if current user has upvoted this review
       if (currentUser && reviewData.upvotedBy) {
@@ -50,6 +43,60 @@ const ReviewDetail = () => {
   useEffect(() => {
     if (id) {
       fetchReview(id);
+      
+      // Increment view count when review page is visited
+      const incrementView = async () => {
+        // Prevent duplicate view increments
+        if (viewIncremented) {
+          return;
+        }
+
+        try {
+          const result = await incrementReviewView(id);
+          
+          // Mark as incremented regardless of API result
+          setViewIncremented(true);
+          
+          if (result) {
+            // Only update view count if it's a new view
+            if (result.newView) {
+              // Update the local review state to reflect the new view count
+              setReview((prev: any) => {
+                if (prev) {
+                  const updatedReview = { ...prev, views: result.views };
+                  
+                  // Also update the global review state
+                  updateReview(prev._id, { views: result.views });
+                  
+                  return updatedReview;
+                }
+                return null;
+              });
+            }
+          } else {
+            // Fallback: update locally even if API fails
+            setReview((prev: any) => {
+              if (prev) {
+                const newViews = (prev.views || 0) + 1;
+                const updatedReview = { ...prev, views: newViews };
+                
+                // Also update the global review state
+                updateReview(prev._id, { views: newViews });
+                
+                return updatedReview;
+              }
+              return null;
+            });
+          }
+        } catch (error) {
+          // Don't increment view count on error to maintain consistency
+          // Just mark as attempted to prevent repeated API calls
+          setViewIncremented(true);
+        }
+      };
+      
+      // Small delay to ensure the review is loaded first
+      setTimeout(incrementView, 100);
     }
   }, [id]);
 
@@ -137,9 +184,9 @@ const ReviewDetail = () => {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Review not found</h2>
-          <LinkComponent to="/categories" className="text-orange-500 hover:text-orange-600">
+          <Link to="/categories" className="text-orange-500 hover:text-orange-600">
             Browse other reviews →
-          </LinkComponent>
+          </Link>
         </div>
       </div>
     );
@@ -149,13 +196,13 @@ const ReviewDetail = () => {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Back Button */}
-        <LinkComponent
+        <Link
           to="/categories"
           className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-6 transition-colors"
         >
-          <ArrowLeftIcon className="w-5 h-5 mr-2" />
+          <ArrowLeft className="w-5 h-5 mr-2" />
           Back to Reviews
-        </LinkComponent>
+        </Link>
 
         {/* Review Content */}
         <div className="bg-white rounded-lg shadow-sm overflow-hidden">
@@ -194,7 +241,7 @@ const ReviewDetail = () => {
                 
                 <div className="flex items-center gap-4 text-sm text-gray-600 mb-6">
                   <div className="flex items-center">
-                    <UserIcon className="w-4 h-4 mr-1" />
+                    <User className="w-4 h-4 mr-1" />
                     {review.author?.userId ? (
                       <button
                         onClick={handleAuthorClick}
@@ -208,11 +255,11 @@ const ReviewDetail = () => {
                     )}
                   </div>
                   <div className="flex items-center">
-                    <CalendarIcon className="w-4 h-4 mr-1" />
+                    <Calendar className="w-4 h-4 mr-1" />
                     {new Date(review.createdAt).toLocaleDateString()}
                   </div>
                   <div className="flex items-center">
-                    <EyeIcon className="w-4 h-4 mr-1" />
+                    <Eye className="w-4 h-4 mr-1" />
                     {review.views} views
                   </div>
                 </div>
@@ -263,7 +310,7 @@ const ReviewDetail = () => {
                   }`}
                   title={!currentUser ? 'Please log in to like reviews' : ''}
                 >
-                  <ThumbsUpIcon className={`w-5 h-5 ${hasUpvoted ? 'fill-current' : ''}`} />
+                  <ThumbsUp className={`w-5 h-5 ${hasUpvoted ? 'fill-current' : ''}`} />
                   <span>{review.upvotes || 0}</span>
                 </button>
                 
@@ -271,7 +318,7 @@ const ReviewDetail = () => {
                   onClick={handleShare}
                   className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
                 >
-                  <Share2Icon className="w-5 h-5" />
+                  <Share2 className="w-5 h-5" />
                   Share
                 </button>
                 
@@ -280,7 +327,7 @@ const ReviewDetail = () => {
                     onClick={() => setShowReportModal(true)}
                     className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                   >
-                    <FlagIcon className="w-5 h-5" />
+                    <Flag className="w-5 h-5" />
                     Report
                   </button>
                 )}
@@ -336,7 +383,7 @@ const ReportModal: React.FC<{
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg p-6 w-full max-w-md">
         <div className="flex items-center gap-3 mb-4">
-          <AlertTriangleIcon className="w-6 h-6 text-red-500" />
+          <Flag className="w-6 h-6 text-red-500" />
           <h3 className="text-lg font-semibold text-gray-900">Report Review</h3>
         </div>
         

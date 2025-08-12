@@ -80,7 +80,6 @@ const MediaCarousel: React.FC<MediaCarouselProps> = ({
   };
 
   const handleImageLoad = (index: number, url: string) => {
-    console.log('Image loaded successfully:', url);
     setFailedImages(prev => {
       const newSet = new Set(prev);
       newSet.delete(index);
