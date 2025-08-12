@@ -11,12 +11,6 @@ export default defineConfig({
   build: {
     target: 'es2022',
   },
-  resolve: {
-    alias: {
-      'react': 'react',
-      'react-dom': 'react-dom'
-    }
-  },
   optimizeDeps: {
     include: ['react', 'react-dom']
   }

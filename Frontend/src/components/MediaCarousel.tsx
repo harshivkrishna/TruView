@@ -21,6 +21,9 @@ const MediaCarousel: React.FC<MediaCarouselProps> = ({
   editable = false,
   autoPlay = false 
 }) => {
+  // Early return check must come BEFORE hooks
+  if (files.length === 0) return null;
+
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [failedImages, setFailedImages] = useState<Set<number>>(new Set());
@@ -28,9 +31,6 @@ const MediaCarousel: React.FC<MediaCarouselProps> = ({
   const videoRef = useRef<HTMLVideoElement>(null);
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
-
-  // Early return check must come AFTER hooks
-  if (files.length === 0) return null;
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.targetTouches[0].clientX;

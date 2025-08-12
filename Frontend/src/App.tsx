@@ -4,7 +4,6 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './contexts/AuthContext';
 import Navbar from './components/Navbar';
 import ProtectedRoute from './components/ProtectedRoute';
-import Footer from './components/Footer';
 
 // Regular imports instead of lazy loading
 import HomePage from './pages/HomePage';

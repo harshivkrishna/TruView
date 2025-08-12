@@ -1,12 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { 
-  registerUser, 
-  verifyEmail as verifyEmailAPI, 
-  resendVerification as resendVerificationAPI, 
-  loginUser, 
-  forgotPassword as forgotPasswordAPI, 
-  resetPassword as resetPasswordAPI 
-} from '../services/api';
+import * as api from '../services/api';
 
 interface User {
   id: string;
@@ -26,7 +19,7 @@ interface AuthContextType {
   logout: () => void;
   resetPassword: (email: string) => Promise<void>;
   verifyEmail: (email: string, otp: string) => Promise<{ token: string; user: User }>;
-  resendVerification: (email: string) => Promise<void>;
+  resendVerification: (email: string) => Promise<any>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -65,7 +58,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signup = async (email: string, password: string, userData: any) => {
     setLoading(true);
     try {
-      const response = await registerUser({
+      const response = await api.registerUser({
         email,
         password,
         firstName: userData.firstName,
@@ -87,7 +80,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     setLoading(true);
     try {
-      const response = await loginUser({ email, password });
+      const response = await api.loginUser({ email, password });
       
       // Store token and user data
       localStorage.setItem('token', response.token);
@@ -112,7 +105,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const resetPassword = async (email: string) => {
     setLoading(true);
     try {
-      const response = await forgotPasswordAPI(email);
+      const response = await api.forgotPassword(email);
       return response;
     } catch (error) {
       throw error;
@@ -124,7 +117,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const verifyEmail = async (email: string, otp: string): Promise<{ token: string; user: User }> => {
     setLoading(true);
     try {
-      const response = await verifyEmailAPI(email, otp);
+      const response = await api.verifyEmail(email, otp);
       
       // Store token and user data
       localStorage.setItem('token', response.token);
@@ -140,10 +133,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const resendVerification = async (email: string) => {
+  const resendVerification = async (email: string): Promise<any> => {
     setLoading(true);
     try {
-      const response = await resendVerificationAPI(email);
+      const response: any = await api.resendVerification(email);
       return response;
     } catch (error) {
       throw error;

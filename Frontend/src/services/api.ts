@@ -371,6 +371,7 @@ export const loginUser = async (credentials: {
   }
 };
 
+// Forgot Password API - Updated for better compatibility
 export const forgotPassword = async (email: string) => {
   try {
     const response = await api.post('/auth/forgot-password', { email });
@@ -386,7 +387,7 @@ export const resetPassword = async (resetData: {
   newPassword: string;
 }) => {
   try {
-    const response = await api.post('/auth/reset-password', resetData);
+    const response = await api.post('/auth/reset-password', { resetData });
     return response.data;
   } catch (error) {
     throw error;
