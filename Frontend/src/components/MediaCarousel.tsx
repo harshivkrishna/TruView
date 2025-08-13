@@ -105,20 +105,24 @@ const MediaCarousel: React.FC<MediaCarouselProps> = ({
 
   return (
     <div className="relative w-full">
-      {/* Main Media Display */}
+      {/* Main Carousel */}
       <div 
         ref={carouselRef}
-        className="relative w-full h-64 md:h-80 overflow-hidden rounded-lg bg-gray-100"
+        className="relative w-full h-96 md:h-[500px] overflow-hidden rounded-lg bg-gray-100"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        <div 
-          className="flex transition-transform duration-300 ease-in-out h-full"
-          style={{ transform: `translateX(-${currentIndex * 100}%)` }}
-        >
-          {files.map((file, index) => (
-            <div key={index} className="w-full h-full flex-shrink-0 relative">
+        {files.map((file, index) => (
+          <div
+            key={index}
+            className={`absolute inset-0 transition-transform duration-500 ease-in-out ${
+              index === currentIndex ? 'translate-x-0' : 'translate-x-full'
+            }`}
+            style={{
+              transform: index === currentIndex ? 'translateX(0)' : 'translateX(100%)'
+            }}
+          >
               {file.type === 'video' ? (
                 <div className="relative w-full h-full bg-black flex items-center justify-center">
                   <video
@@ -152,44 +156,79 @@ const MediaCarousel: React.FC<MediaCarouselProps> = ({
                 </div>
               ) : (
                 <div className="relative w-full h-full bg-gray-100 flex items-center justify-center">
-                  {failedImages.has(index) ? (
-                    // Fallback for failed images
-                    <div className="text-center text-gray-500">
-                      <AlertCircle className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-                      <p className="text-sm">Image failed to load</p>
-                      {file.originalUrl && file.originalUrl !== file.url && (
-                        <button
-                          onClick={() => {
-                            // Try original URL
-                            const img = new window.Image();
-                            img.onload = () => {
-                              setFailedImages(prev => {
-                                const newSet = new Set(prev);
-                                newSet.delete(index);
-                                return newSet;
-                              });
-                            };
-                            img.src = file.originalUrl!;
+                  {file.type === 'image' ? (
+                    <div className="relative w-full h-full">
+                      {failedImages.has(index) ? (
+                        <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                          <div className="text-center">
+                            <Image className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                            <p className="text-xs text-gray-500">Image failed to load</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <img
+                          src={file.url}
+                          alt={`Media ${index + 1}`}
+                          className="w-full h-full object-cover object-center transition-transform duration-300 hover:scale-105"
+                          style={{
+                            minWidth: '100%',
+                            minHeight: '100%',
+                            maxWidth: 'none',
+                            maxHeight: 'none',
+                            objectPosition: 'center center'
                           }}
-                          className="mt-2 text-xs text-blue-500 hover:text-blue-600"
-                        >
-                          Try alternative URL
-                        </button>
+                          loading="lazy"
+                          onError={(e) => {
+                            handleImageError(index, file.url);
+                          }}
+                          onLoad={() => {
+                            handleImageLoad(index, file.url);
+                          }}
+                        />
                       )}
                     </div>
                   ) : (
-                    <img
-                      src={file.url}
-                      alt={`Media ${index + 1}`}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                      onError={(e) => {
-                        handleImageError(index, file.url);
-                      }}
-                      onLoad={() => {
-                        handleImageLoad(index, file.url);
-                      }}
-                    />
+                    <div className="relative w-full h-full bg-gray-100 flex items-center justify-center">
+                      {failedImages.has(index) ? (
+                        // Fallback for failed images
+                        <div className="text-center text-gray-500">
+                          <AlertCircle className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+                          <p className="text-sm">Image failed to load</p>
+                          {file.originalUrl && file.originalUrl !== file.url && (
+                            <button
+                              onClick={() => {
+                                // Try original URL
+                                const img = new window.Image();
+                                img.onload = () => {
+                                  setFailedImages(prev => {
+                                    const newSet = new Set(prev);
+                                    newSet.delete(index);
+                                    return newSet;
+                                  });
+                                };
+                                img.src = file.originalUrl!;
+                              }}
+                              className="mt-2 text-xs text-blue-500 hover:text-blue-600"
+                            >
+                              Try alternative URL
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <img
+                          src={file.url}
+                          alt={`Media ${index + 1}`}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                          onError={(e) => {
+                            handleImageError(index, file.url);
+                          }}
+                          onLoad={() => {
+                            handleImageLoad(index, file.url);
+                          }}
+                        />
+                      )}
+                    </div>
                   )}
                 </div>
               )}
@@ -203,9 +242,8 @@ const MediaCarousel: React.FC<MediaCarouselProps> = ({
                   <X className="w-4 h-4" />
                 </button>
               )}
-            </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </div>
 
       {/* Thumbnail Navigation */}

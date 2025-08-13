@@ -20,6 +20,23 @@ const ReviewDetail = () => {
   const [hasUpvoted, setHasUpvoted] = useState(false);
   const [viewIncremented, setViewIncremented] = useState(false);
 
+  // Custom styles for media carousel in detail view
+  const customStyles = `
+    .custom-media-carousel .relative {
+      height: 500px !important;
+    }
+    .custom-media-carousel img,
+    .custom-media-carousel video {
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover !important;
+      object-position: center center !important;
+    }
+    .custom-media-carousel .bg-gray-100 {
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    }
+  `;
+
   const fetchReview = async (reviewId: any) => {
     try {
       const reviewData = await getReview(reviewId);
@@ -194,6 +211,9 @@ const ReviewDetail = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Custom Styles */}
+      <style>{customStyles}</style>
+      
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Back Button */}
         <Link
@@ -208,8 +228,19 @@ const ReviewDetail = () => {
         <div className="bg-white rounded-lg shadow-sm overflow-hidden">
           {/* Media Section */}
           {review.media && review.media.length > 0 && (
-            <div className="mb-6">
-              <MediaCarousel files={review.media} />
+            <div className="mb-6 bg-gray-50 p-4 rounded-lg">
+              <div className="mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Media Gallery</h3>
+                <p className="text-sm text-gray-600">View all media associated with this review</p>
+              </div>
+              <div className="max-w-4xl mx-auto">
+                <div className="custom-media-carousel">
+                  <MediaCarousel 
+                    files={review.media} 
+                    autoPlay={false}
+                  />
+                </div>
+              </div>
             </div>
           )}
 
