@@ -18,6 +18,7 @@ interface AuthContextType {
   signup: (email: string, password: string, userData: any) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  handleTokenExpiration: () => void;
   resetPassword: (email: string) => Promise<void>;
   verifyEmail: (email: string, otp: string) => Promise<{ token: string; user: User }>;
   resendVerification: (email: string) => Promise<any>;
@@ -36,6 +37,8 @@ export const useAuth = () => {
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  console.log('AuthProvider rendering');
+  
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -170,12 +173,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const handleTokenExpiration = () => {
+    logout();
+    // Optionally, redirect to login page or show a message
+    console.warn('Token expired. Redirecting to login.');
+    // window.location.href = '/login'; // Example redirect
+  };
+
   const value = {
     currentUser,
     loading,
     signup,
     login,
     logout,
+    handleTokenExpiration,
     resetPassword,
     verifyEmail,
     resendVerification

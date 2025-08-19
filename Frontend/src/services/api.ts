@@ -16,6 +16,8 @@ if (token) {
 
 // Add request interceptor to always include the latest token
 api.interceptors.request.use((config) => {
+  console.log('API Request:', config.method?.toUpperCase(), config.url);
+  
   const token = localStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -38,6 +40,32 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
+    // Handle token expiration and invalid token errors
+    if (error.response?.status === 401 || 
+        error.response?.data?.message === 'Invalid token' ||
+        error.response?.data?.message === 'Token expired') {
+      
+      // Only handle token expiration if we're on a protected route
+      const currentPath = window.location.pathname;
+      const isProtectedRoute = ['/submit', '/profile', '/admin'].some(route => 
+        currentPath.startsWith(route)
+      );
+      
+      if (isProtectedRoute) {
+        // Clear token and user data
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        
+        // Show user-friendly message
+        console.log('Session expired. Please log in again.');
+        
+        // Redirect to login page
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 100);
+      }
+    }
+    
     // Log detailed error information
     console.error('API Error Details:', {
       url: error.config?.url,

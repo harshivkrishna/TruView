@@ -5,6 +5,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { ReviewProvider } from './contexts/ReviewContext';
 import Navbar from './components/Navbar';
 import ProtectedRoute from './components/ProtectedRoute';
+import TokenExpirationCheck from './components/TokenExpirationCheck';
 
 // Regular imports instead of lazy loading
 import HomePage from './pages/HomePage';
@@ -16,6 +17,8 @@ import AdminDashboard from './pages/AdminDashboard';
 import UserProfile from './pages/UserProfile';
 
 const App: React.FC = () => {
+  console.log('App component rendering, current path:', window.location.pathname);
+  
   return (
     <AuthProvider>
       <ReviewProvider>
@@ -44,6 +47,7 @@ const App: React.FC = () => {
               } />
             </Routes>
             <Toaster position="top-right" />
+            <TokenExpirationCheck />
           </div>
         </Router>
       </ReviewProvider>

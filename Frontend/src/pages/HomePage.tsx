@@ -27,24 +27,40 @@ const ClockIcon = Clock as React.ComponentType<any>;
 const LinkComponent = Link as React.ComponentType<any>;
 
 const HomePage = () => {
+  console.log('HomePage component rendering');
+  
   const [trendingReviews, setTrendingReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    console.log('HomePage useEffect running');
+    
     const fetchTrendingReviews = async () => {
       try {
         setLoading(true);
+        console.log('Fetching trending reviews...');
         const reviews = await getTrendingReviews();
+        console.log('Trending reviews fetched:', reviews);
         setTrendingReviews(reviews);
       } catch (error) {
         console.error('Error fetching trending reviews:', error);
+        setError('Failed to load trending reviews');
+        // Don't let API errors block the page render
+        setTrendingReviews([]);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchTrendingReviews();
+    // Comment out API call temporarily to test if that's blocking the page
+    // fetchTrendingReviews();
+    
+    // Just set loading to false immediately for now
+    setLoading(false);
+    setTrendingReviews([]);
+    
+    console.log('HomePage useEffect completed');
   }, []);
 
   // Retry function for failed requests
@@ -65,6 +81,10 @@ const HomePage = () => {
 
   return (
     <div className="min-h-screen">
+      <div className="text-center py-4 bg-blue-50">
+        <p className="text-blue-600">HomePage is rendering! Path: {window.location.pathname}</p>
+      </div>
+      
       {/* Hero Section */}
       <HeroSection />
       
