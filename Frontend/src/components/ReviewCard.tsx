@@ -32,18 +32,22 @@ interface ReviewCardProps {
     trustScore?: number;
   };
   showRank?: boolean;
+  rank?: number;
 }
 
-const ReviewCard: React.FC<ReviewCardProps> = ({ review, showRank = false }) => {
+const ReviewCard: React.FC<ReviewCardProps> = ({ review, showRank = false, rank }) => {
   const navigate = useNavigate();
   const [showShareModal, setShowShareModal] = useState(false);
   const { getReview } = useReviewContext();
 
   // Get the most up-to-date review data from global state
   const currentReview = getReview(review._id) || review;
+  
+  // Ensure currentReview has the correct type
+  const safeReview = currentReview as typeof review;
 
   // Calculate AI trust score if not provided
-  const trustScore = currentReview.trustScore || calculateTrustScore(currentReview);
+  const trustScore = safeReview.trustScore || calculateTrustScore(safeReview);
   const trustLevel = getTrustLevel(trustScore);
 
   const formatDate = (dateString: string) => {
@@ -121,7 +125,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showRank = false }) => 
           {/* Tags Section - Only top 2 tags visible */}
           <div className="p-6 py-5 bg-gray-50 border-b border-gray-200">
             <div className="flex items-center gap-2 flex-wrap">
-              {currentReview.tags.slice(0, 2).map((tag, index) => (
+              {safeReview.tags.slice(0, 2).map((tag, index) => (
                 <span
                   key={tag}
                   className={`px-3 py-1.5 text-xs font-semibold rounded-full bg-gradient-to-r ${getTagStyle(tag)} text-white`}
@@ -139,11 +143,11 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showRank = false }) => 
                   <span className={`px-3 py-1.5 text-xs font-semibold rounded-full bg-gradient-to-r ${getCategoryGradient(currentReview.category)} text-white`}>
                     {currentReview.category}
                   </span>
-                  {currentReview.subcategory && (
-                    <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700">
-                      {currentReview.subcategory}
-                    </span>
-                  )}
+                                {safeReview.subcategory && (
+                <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700">
+                  {safeReview.subcategory}
+                </span>
+              )}
                 </div>
               )}
             </div>
@@ -164,9 +168,9 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showRank = false }) => 
                 <div className="px-2 py-1 bg-black bg-opacity-70 text-white text-xs font-medium rounded-full">
                   {currentReview.category}
                 </div>
-                {currentReview.subcategory && (
+                {safeReview.subcategory && (
                   <div className="px-2 py-1 bg-black bg-opacity-50 text-white text-xs font-medium rounded-full">
-                    {currentReview.subcategory}
+                    {safeReview.subcategory}
                   </div>
                 )}
               </div>

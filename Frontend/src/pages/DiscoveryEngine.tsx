@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TrendingUp, Flame, AlertTriangle, Trophy, Crown, Medal, Award, Star } from 'lucide-react';
 import ReviewCard from '../components/ReviewCard';
-import { getReviews, getLeaderboard } from '../services/api';
+import { getReviews, getLeaderboard, getMostViewedReviewsWeek } from '../services/api';
 
 // Type assertions for Lucide icons to fix TypeScript compatibility
 const TrendingUpIcon = TrendingUp as React.ComponentType<any>;
@@ -35,21 +35,26 @@ const DiscoveryEngine = () => {
       
       switch (activeTab) {
         case 'trending':
-          reviewsData = await getReviews({ sort: 'upvotes' });
+          // Use the same logic as HomePage for trending reviews
+          reviewsData = await getMostViewedReviewsWeek();
           break;
         case 'weekly-bombs':
-          reviewsData = await getReviews({ tag: 'Brutal' });
+          const brutalResponse = await getReviews({ tag: 'Brutal' });
+          reviewsData = brutalResponse.reviews || [];
           break;
         case 'avoid-this':
-          reviewsData = await getReviews({ tag: 'Warning' });
+          const warningResponse = await getReviews({ tag: 'Warning' });
+          reviewsData = warningResponse.reviews || [];
           break;
         default:
-          reviewsData = await getReviews();
+          const defaultResponse = await getReviews();
+          reviewsData = defaultResponse.reviews || [];
       }
       
       setReviews(reviewsData);
     } catch (error) {
       console.error('Error fetching reviews:', error);
+      setReviews([]);
     } finally {
       setLoading(false);
     }
@@ -78,7 +83,7 @@ const DiscoveryEngine = () => {
   const getTabDescription = () => {
     switch (activeTab) {
       case 'trending':
-        return 'The hottest reviews everyone\'s talking about right now';
+        return 'Top 3 most viewed reviews in the past 7 days';
       case 'weekly-bombs':
         return 'The most brutal and honest reviews of the week';
       case 'avoid-this':
@@ -150,7 +155,7 @@ const DiscoveryEngine = () => {
         {/* Content */}
         {loading ? (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(9)].map((_, i) => (
+            {[...Array(activeTab === 'trending' ? 3 : 9)].map((_, i) => (
               <div key={i} className="bg-white p-6 rounded-lg shadow-sm animate-pulse">
                 <div className="h-4 bg-gray-200 rounded mb-4"></div>
                 <div className="h-20 bg-gray-200 rounded mb-4"></div>
@@ -214,7 +219,10 @@ const DiscoveryEngine = () => {
         ) : reviews.length > 0 ? (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {reviews.map((review) => (
-              <ReviewCard key={review._id} review={review} showRank={activeTab === 'trending'} />
+              <ReviewCard 
+                key={review._id} 
+                review={review} 
+              />
             ))}
           </div>
         ) : (
@@ -224,9 +232,14 @@ const DiscoveryEngine = () => {
                 className: "w-12 h-12 text-gray-400"
               })}
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No reviews found</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              {activeTab === 'trending' ? 'No trending reviews yet' : 'No reviews found'}
+            </h3>
             <p className="text-gray-600">
-              Be the first to contribute to this section!
+              {activeTab === 'trending' 
+                ? 'Reviews will appear here once they start getting views from the community'
+                : 'Be the first to contribute to this section!'
+              }
             </p>
           </div>
         )}

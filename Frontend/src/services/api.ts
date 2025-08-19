@@ -117,7 +117,8 @@ export const getTrendingReviews = async () => {
 
 export const getMostViewedReviewsWeek = async () => {
   try {
-    const response = await api.get('/reviews/most-viewed-week');
+    // Temporarily use trending endpoint until backend is deployed
+    const response = await api.get('/reviews/trending');
     return response.data;
   } catch (error) {
     console.error('API Error - getMostViewedReviewsWeek:', error);
