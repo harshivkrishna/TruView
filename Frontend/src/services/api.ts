@@ -73,7 +73,7 @@ export const getReviews = async (params = {}) => {
     return response.data;
   } catch (error) {
     console.error('API Error - getReviews:', error);
-    return [];
+    return { reviews: [], pagination: { currentPage: 1, totalPages: 1, totalReviews: 0, hasNextPage: false, hasPrevPage: false } };
   }
 };
 

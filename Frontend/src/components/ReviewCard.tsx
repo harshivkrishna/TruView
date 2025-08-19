@@ -322,6 +322,6 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showRank = false }) => 
       )}
     </>
   );
-};
-
-export default ReviewCard;
+  };
+  
+  export default ReviewCard;

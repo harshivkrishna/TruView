@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Mail, Phone, MapPin, ArrowUp, ChevronUp, ChevronDown } from 'lucide-react';
+import { Mail, Phone, MapPin, ArrowUp } from 'lucide-react';
 import { getCategoriesWithSubcategories } from '../services/api';
 
 interface Category {
@@ -13,7 +13,6 @@ interface Category {
 const Footer: React.FC = () => {
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [expandedCategories, setExpandedCategories] = useState<Set<number>>(new Set());
 
   // Fetch categories on component mount
   useEffect(() => {
@@ -42,17 +41,7 @@ const Footer: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const toggleCategory = (categoryId: number) => {
-    setExpandedCategories(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(categoryId)) {
-        newSet.delete(categoryId);
-      } else {
-        newSet.add(categoryId);
-      }
-      return newSet;
-    });
-  };
+
 
   // Get top 6 categories for footer display
   const topCategories = categories.slice(0, 6);
@@ -122,28 +111,12 @@ const Footer: React.FC = () => {
               <ul className="space-y-2">
                 {topCategories.map(category => (
                   <li key={category.id}>
-                    <button
-                      onClick={() => toggleCategory(category.id)}
-                      className="flex justify-between items-center w-full text-left text-gray-400 hover:text-white transition-colors"
+                    <Link 
+                      to={`/categories?category=${category.name}`} 
+                      className="text-gray-400 hover:text-white transition-colors"
                     >
                       {category.name}
-                      {category.subcategories.length > 0 && (
-                        <span className="ml-2 text-gray-500">
-                          {expandedCategories.has(category.id) ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                        </span>
-                      )}
-                    </button>
-                    {expandedCategories.has(category.id) && category.subcategories.length > 0 && (
-                      <ul className="ml-4 space-y-1 text-gray-300 text-sm">
-                        {category.subcategories.map((subcategory, index) => (
-                          <li key={index}>
-                            <Link to={`/categories?category=${category.slug}&subcategory=${subcategory}`} className="hover:text-white transition-colors">
-                              {subcategory}
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
+                    </Link>
                   </li>
                 ))}
               </ul>

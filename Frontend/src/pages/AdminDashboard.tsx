@@ -935,7 +935,7 @@ const ReviewsTab = ({ reviews }: any) => {
   const [sortOrder, setSortOrder] = useState('desc');
 
   // Get unique categories for filter
-  const categories = [...new Set(reviews.map((review: any) => review.category).filter(Boolean))];
+  const categories = [...new Set(reviews.map((review: any) => review.category).filter(Boolean))] as string[];
   const ratings = [1, 2, 3, 4, 5];
 
   // Filter and sort reviews
@@ -1136,7 +1136,7 @@ const UsersTab = ({ users, currentUser }: any) => {
   const [sortOrder, setSortOrder] = useState('desc');
 
   // Get unique roles for filter
-  const roles = [...new Set(users.map((user: any) => user.role).filter(Boolean))];
+  const roles = [...new Set(users.map((user: any) => user.role).filter(Boolean))] as string[];
 
   // Filter and sort users
   const filteredUsers = users
@@ -1327,8 +1327,8 @@ const ReportsTab = ({ reports, onAction }: any) => {
   const [sortOrder, setSortOrder] = useState('desc');
 
   // Get unique statuses and types for filter
-  const statuses = [...new Set(reports.map((report: any) => report.status).filter(Boolean))];
-  const types = [...new Set(reports.map((report: any) => report.type || report.reason).filter(Boolean))];
+  const statuses = [...new Set(reports.map((report: any) => report.status).filter(Boolean))] as string[];
+  const types = [...new Set(reports.map((report: any) => report.type || report.reason).filter(Boolean))] as string[];
 
   // Filter and sort reports
   const filteredReports = reports

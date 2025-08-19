@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Search, Filter, TrendingUp, SlidersHorizontal, X } from 'lucide-react';
+import { Search, Filter, TrendingUp, SlidersHorizontal, X, ArrowUp } from 'lucide-react';
 import ReviewCard from '../components/ReviewCard';
+import ReviewCardSkeleton from '../components/ReviewCardSkeleton';
 import AdvancedSearch from '../components/AdvancedSearch';
 import { getReviews, getCategoriesWithSubcategories } from '../services/api';
 
@@ -38,6 +39,14 @@ interface Category {
   subcategories: string[];
 }
 
+interface PaginationData {
+  currentPage: number;
+  totalPages: number;
+  totalReviews: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+}
+
 const CategoryBrowser: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -47,23 +56,35 @@ const CategoryBrowser: React.FC = () => {
   const [appliedFilters, setAppliedFilters] = useState({});
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [availableSubcategories, setAvailableSubcategories] = useState<string[]>([]);
+  const [pagination, setPagination] = useState<PaginationData>({
+    currentPage: 1,
+    totalPages: 1,
+    totalReviews: 0,
+    hasNextPage: false,
+    hasPrevPage: false
+  });
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const lastReviewRef = useRef<HTMLDivElement | null>(null);
 
-  // Fetch categories and reviews on component mount
+  // Fetch categories and initial reviews on component mount
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [reviewsData, categoriesData] = await Promise.all([
-          getReviews(),
+        const [categoriesData] = await Promise.all([
           getCategoriesWithSubcategories()
         ]);
-        setReviews(reviewsData);
         setCategories(categoriesData);
+        
+        // Fetch initial reviews
+        await fetchReviews(1, true);
       } catch (error) {
         console.error('Error fetching data:', error);
-        setReviews([]);
         setCategories([]);
       } finally {
         setLoading(false);
@@ -72,6 +93,34 @@ const CategoryBrowser: React.FC = () => {
 
     fetchData();
   }, []);
+
+  // Fetch reviews function
+  const fetchReviews = useCallback(async (page: number, reset: boolean = false) => {
+    try {
+      setLoadingMore(true);
+      
+      const queryParams: any = { page, limit: 15 };
+      if (selectedCategory) queryParams.category = selectedCategory;
+      if (selectedSubcategory) queryParams.subcategory = selectedSubcategory;
+      if (searchQuery) queryParams.query = searchQuery;
+      
+      const response = await getReviews(queryParams);
+      
+      if (reset) {
+        setReviews(response.reviews);
+        setPagination(response.pagination);
+      } else {
+        setReviews(prev => [...prev, ...response.reviews]);
+        setPagination(response.pagination);
+      }
+      
+      setHasMore(response.pagination.hasNextPage);
+    } catch (error) {
+      console.error('Error fetching reviews:', error);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [selectedCategory, selectedSubcategory, searchQuery]);
 
   // Read category and subcategory from URL query parameters on component mount
   useEffect(() => {
@@ -108,6 +157,53 @@ const CategoryBrowser: React.FC = () => {
       setAppliedFilters(prev => ({ ...prev, subcategory: '' }));
     }
   }, [selectedCategory, categories, selectedSubcategory]);
+
+  // Refetch reviews when filters change
+  useEffect(() => {
+    if (!loading) {
+      fetchReviews(1, true);
+    }
+  }, [selectedCategory, selectedSubcategory, searchQuery, fetchReviews, loading]);
+
+  // Intersection Observer for infinite scroll
+  useEffect(() => {
+    if (loading || loadingMore || !hasMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore) {
+          fetchReviews(pagination.currentPage + 1, false);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    observerRef.current = observer;
+
+    if (lastReviewRef.current) {
+      observer.observe(lastReviewRef.current);
+    }
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, [loading, loadingMore, hasMore, pagination.currentPage, fetchReviews]);
+
+  // Show/hide scroll to top button
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 300);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const handleAdvancedSearch = (filters: any) => {
     setAppliedFilters(filters);
@@ -151,21 +247,14 @@ const CategoryBrowser: React.FC = () => {
     setAppliedFilters({});
   };
 
-  const filteredReviews = reviews.filter((review: Review) => {
-    // Filter by search query
-    const matchesQuery = searchQuery === '' || 
-      review.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      review.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (review.companyName && review.companyName.toLowerCase().includes(searchQuery.toLowerCase()));
-    
-    // Filter by category
-    const matchesCategory = !selectedCategory || review.category === selectedCategory;
-    
-    // Filter by subcategory
-    const matchesSubcategory = !selectedSubcategory || review.subcategory === selectedSubcategory;
-    
-    return matchesQuery && matchesCategory && matchesSubcategory;
-  });
+  // Render skeleton loaders
+  const renderSkeletons = (count: number) => {
+    return Array.from({ length: count }, (_, index) => (
+      <div key={`skeleton-${index}`} className="p-1">
+        <ReviewCardSkeleton />
+      </div>
+    ));
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -304,24 +393,50 @@ const CategoryBrowser: React.FC = () => {
                 }
               </h2>
               <span className="text-gray-600">
-                {loading ? 'Loading...' : `${filteredReviews.length} review${filteredReviews.length !== 1 ? 's' : ''}`}
+                {loading ? 'Loading...' : `${pagination.totalReviews} review${pagination.totalReviews !== 1 ? 's' : ''}`}
               </span>
             </div>
           </div>
 
           {loading ? (
-            <div className="text-center py-12">
-              <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
-              </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Loading reviews...</h3>
-            </div>
-          ) : filteredReviews.length > 0 ? (
             <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {filteredReviews.map((review: Review) => (
-                <ReviewCard key={review._id} review={review} />
-              ))}
+              {renderSkeletons(15)}
             </div>
+          ) : reviews.length > 0 ? (
+            <>
+              <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {reviews.map((review: Review, index) => (
+                  <ReviewCard 
+                    key={review._id} 
+                    review={review} 
+                  />
+                ))}
+              </div>
+              
+              {/* Loading More Indicator */}
+              {loadingMore && (
+                <div className="col-span-full mt-8">
+                  <div className="text-center">
+                    <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Loading more reviews...</h3>
+                  </div>
+                </div>
+              )}
+              
+
+              
+              {/* Intersection Observer Target */}
+              {hasMore && (
+                <div 
+                  ref={lastReviewRef}
+                  className="col-span-full h-10 flex items-center justify-center"
+                >
+                  <div className="w-6 h-6 bg-gray-200 rounded-full"></div>
+                </div>
+              )}
+            </>
           ) : (
             <div className="text-center py-12">
               <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -352,6 +467,17 @@ const CategoryBrowser: React.FC = () => {
           onClose={() => setShowAdvancedSearch(false)}
           initialFilters={selectedCategory ? { category: selectedCategory } : {}}
         />
+      )}
+
+      {/* Scroll to Top Button */}
+      {showScrollTop && (
+        <button
+          onClick={scrollToTop}
+          className="fixed bottom-20 right-4 bg-orange-500 text-white p-3 rounded-full shadow-lg hover:bg-orange-600 transition-colors"
+          title="Scroll to top"
+        >
+          <ArrowUp className="w-6 h-6" />
+        </button>
       )}
     </div>
   );

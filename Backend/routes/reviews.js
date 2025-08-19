@@ -7,17 +7,23 @@ const router = express.Router();
 // Get all reviews
 router.get('/', async (req, res) => {
   try {
-    const { category, subcategory, tag, sort = 'createdAt', limit = 20 } = req.query;
+    const { category, subcategory, tag, sort = 'createdAt', page = 1, limit = 15 } = req.query;
     let query = {};
     
     if (category) query.category = category;
     if (subcategory) query.subcategory = subcategory;
     if (tag) query.tags = { $in: [tag] };
     
-    const reviews = await Review.find(query)
-      .populate('author.userId', 'firstName lastName avatar')
-      .sort({ [sort]: -1 })
-      .limit(parseInt(limit));
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    
+    const [reviews, totalCount] = await Promise.all([
+      Review.find(query)
+        .populate('author.userId', 'firstName lastName avatar')
+        .sort({ [sort]: -1 })
+        .skip(skip)
+        .limit(parseInt(limit)),
+      Review.countDocuments(query)
+    ]);
     
     // Map the populated data to match the expected format
     const formattedReviews = reviews.map(review => {
@@ -30,7 +36,16 @@ router.get('/', async (req, res) => {
       return reviewObj;
     });
     
-    res.json(formattedReviews);
+    res.json({
+      reviews: formattedReviews,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(totalCount / parseInt(limit)),
+        totalReviews: totalCount,
+        hasNextPage: parseInt(page) < Math.ceil(totalCount / parseInt(limit)),
+        hasPrevPage: parseInt(page) > 1
+      }
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
