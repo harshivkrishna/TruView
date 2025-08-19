@@ -7,7 +7,7 @@ const bcrypt = require('bcryptjs');
 const router = express.Router();
 
 // Default secret code
-let adminSecretCode = 'truview';
+let adminSecretCode = 'truviews';
 
 // Create admin account - this route should be accessible without authentication
 router.post('/create-admin', async (req, res) => {

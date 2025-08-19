@@ -19,6 +19,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserProfile, getUserReviews, updateUserProfile, uploadProfilePhoto } from '../services/api';
+import ReviewCard from '../components/ReviewCard';
+import { motion } from 'framer-motion';
 
 interface UserProfileData {
   _id: string;
@@ -695,30 +697,60 @@ const UserProfile = () => {
         </div>
 
         {/* User Reviews Section */}
-        <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mt-4 sm:mt-6">
-          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 sm:p-6 mt-4 sm:mt-6 hover:shadow-md transition-all duration-300">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+            <div>
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-1">
             {canEditProfile ? 'My Reviews' : `${profile.firstName}'s Reviews`}
           </h2>
+              <p className="text-sm text-gray-600">
+                {userReviews.length} review{userReviews.length !== 1 ? 's' : ''} • {profile.trustScore}% trust score
+              </p>
+            </div>
+            {userReviews.length > 6 && (
+              <Link
+                to={`/profile/${userId}/reviews`}
+                className="text-orange-500 hover:text-orange-600 font-semibold text-sm flex items-center gap-1"
+              >
+                View All Reviews
+                <span className="text-xs">→</span>
+              </Link>
+            )}
+          </div>
           
-                      {userReviews.length > 0 ? (
-              <div className="grid gap-3 sm:gap-4">
-                {userReviews.map((review: any) => (
-                  <div key={review._id} className="border border-gray-200 rounded-lg p-3 sm:p-4">
-                    <div className="flex flex-col sm:flex-row justify-between items-start mb-2 space-y-2 sm:space-y-0">
-                      <h3 className="font-semibold text-gray-900 text-sm sm:text-base">{review.title}</h3>
-                      <div className="flex items-center space-x-2">
-                        <Star className="w-4 h-4 text-yellow-500 fill-current" />
-                        <span className="text-sm text-gray-600">{review.rating}/5</span>
-                      </div>
-                    </div>
-                    <p className="text-gray-600 text-xs sm:text-sm mb-2">{review.description}</p>
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs text-gray-500 space-y-1 sm:space-y-0">
-                      <span>Category: {review.category}</span>
-                      <span>{formatDate(review.createdAt)}</span>
-                    </div>
+                      {loading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              {[...Array(6)].map((_, i) => (
+                <div
+                  key={i}
+                  className="bg-gray-50 p-4 sm:p-6 rounded-lg shadow-sm animate-pulse"
+                >
+                  <div className="h-4 bg-gray-200 rounded mb-4"></div>
+                  <div className="h-20 bg-gray-200 rounded mb-4"></div>
+                  <div className="h-4 bg-gray-200 rounded w-1/2"></div>
                   </div>
                 ))}
               </div>
+          ) : userReviews.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              {userReviews.slice(0, 6).map((review: any, index: number) => (
+                <motion.div
+                  key={review._id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ 
+                    duration: 0.5, 
+                    delay: index * 0.1,
+                    type: "spring",
+                    stiffness: 100
+                  }}
+                >
+                  <ReviewCard 
+                    review={review}
+                  />
+                </motion.div>
+              ))}
+            </div>
           ) : (
             <div className="text-center py-6 sm:py-8">
               <FileText className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-3 sm:mb-4" />

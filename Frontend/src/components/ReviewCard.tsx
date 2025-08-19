@@ -13,6 +13,7 @@ interface ReviewCardProps {
     title: string;
     description: string;
     category: string;
+    subcategory?: string;
     rating: number;
     tags: string[];
     media?: Array<{
@@ -109,10 +110,10 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showRank = false }) => 
         <div className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden h-full flex flex-col relative">
           {/* Trust Score Badge - Always Visible */}
           <div className="absolute top-4 right-4 z-50">
-            <div className="px-3 py-1.5 rounded-full text-sm font-bold bg-white shadow-xl border-2 border-orange-500">
+            <div className={`px-3 py-1.5 rounded-full text-sm font-bold bg-white shadow-xl border-2 ${trustLevel.color.includes('bg-') ? `border-${trustLevel.color.split('-')[1]}-500` : 'border-gray-500'}`}>
               <div className="flex items-center gap-1.5">
-                <Award className="w-4 h-4 text-orange-600" />
-                <span className="font-mono font-bold text-orange-700">{trustScore}%</span>
+                <Award className={`w-4 h-4 ${trustLevel.color.includes('text-') ? trustLevel.color.split(' ')[1] : 'text-gray-600'}`} />
+                <span className={`font-mono font-bold ${trustLevel.color.includes('text-') ? trustLevel.color.split(' ')[1] : 'text-gray-700'}`}>{trustScore}%</span>
               </div>
             </div>
           </div>
@@ -134,9 +135,16 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showRank = false }) => 
                 </span>
               )}
               {!currentReview.media && (
-                <span className={`px-3 py-1.5 text-xs font-semibold rounded-full bg-gradient-to-r ${getCategoryGradient(currentReview.category)} text-white ml-auto`}>
-                  {currentReview.category}
-                </span>
+                <div className="ml-auto flex flex-col items-end gap-1">
+                  <span className={`px-3 py-1.5 text-xs font-semibold rounded-full bg-gradient-to-r ${getCategoryGradient(currentReview.category)} text-white`}>
+                    {currentReview.category}
+                  </span>
+                  {currentReview.subcategory && (
+                    <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700">
+                      {currentReview.subcategory}
+                    </span>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -152,10 +160,15 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showRank = false }) => 
               />
               
               {/* Category Badge */}
-              <div className="absolute bottom-3 left-3">
+              <div className="absolute bottom-3 left-3 flex flex-col gap-1">
                 <div className="px-2 py-1 bg-black bg-opacity-70 text-white text-xs font-medium rounded-full">
                   {currentReview.category}
                 </div>
+                {currentReview.subcategory && (
+                  <div className="px-2 py-1 bg-black bg-opacity-50 text-white text-xs font-medium rounded-full">
+                    {currentReview.subcategory}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -229,8 +242,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showRank = false }) => 
                       <User className="w-6 h-6 text-white" />
                     </motion.div>
                     
-                    {/* Online/Trust indicator */}
-                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white shadow-sm"></div>
+
                   </div>
                   
                   <div>

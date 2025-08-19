@@ -97,7 +97,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({
     if (isAdminMode) {
       if (!formData.passKey.trim()) {
         newErrors.passKey = 'PassKey is required for admin registration';
-      } else if (formData.passKey.trim() !== 'truview') {
+      } else if (formData.passKey.trim() !== 'truviews') {
         newErrors.passKey = 'Invalid PassKey. Please contact the administrator for the correct PassKey.';
       }
     }

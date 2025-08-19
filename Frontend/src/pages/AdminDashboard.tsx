@@ -469,7 +469,7 @@ const AdminDashboard = () => {
                 Go to Home & Register as Admin
               </button>
               <p className="text-xs text-gray-500 mt-2">
-                Use the Sign Up button and enter passkey: <code className="bg-gray-100 px-1 rounded">truview</code>
+                Use the Sign Up button and enter passkey: <code className="bg-gray-100 px-1 rounded">truviews</code>
               </p>
             </div>
           </div>

@@ -18,12 +18,12 @@ export const generateShareMessage = (
   const reviewUrl = `${baseUrl}/review/${review._id}`;
   
   // Default message
-  const defaultMessage = `Check out this honest review on TruView!`;
+  const defaultMessage = `Check out this honest review on Truviews!`;
   
   // Generate hashtags
   const categoryHashtag = review.category ? `#${review.category.replace(/\s+/g, '')}` : '';
   const tagHashtags = review.tags?.slice(0, 2).map(tag => `#${tag}`).join(' ') || '';
-  const hashtags = `${categoryHashtag} ${tagHashtags} #TruView #Reviews`.trim();
+  const hashtags = `${categoryHashtag} ${tagHashtags} #Truviews #Reviews`.trim();
   
   // Platform-specific formatting
   switch (platform.toLowerCase()) {

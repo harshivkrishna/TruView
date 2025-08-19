@@ -13,6 +13,10 @@ const CategorySchema = new mongoose.Schema({
   },
   description: String,
   icon: String,
+  subcategories: [{
+    type: String,
+    required: true
+  }],
   reviewCount: {
     type: Number,
     default: 0

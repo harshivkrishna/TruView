@@ -1,31 +1,61 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Star, Mail, Phone, MapPin, Facebook, Twitter, Instagram, Linkedin, ArrowUp } from 'lucide-react';
+import { Mail, Phone, MapPin, ArrowUp, ChevronUp, ChevronDown } from 'lucide-react';
+import { getCategoriesWithSubcategories } from '../services/api';
+
+interface Category {
+  id: number;
+  name: string;
+  slug: string;
+  subcategories: string[];
+}
 
 const Footer: React.FC = () => {
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [expandedCategories, setExpandedCategories] = useState<Set<number>>(new Set());
 
+  // Fetch categories on component mount
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const categoriesData = await getCategoriesWithSubcategories();
+        setCategories(categoriesData);
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+      }
+    };
+    fetchCategories();
+  }, []);
+
+  // Show/hide scroll to top button
   useEffect(() => {
     const handleScroll = () => {
-      const shouldShow = window.pageYOffset > 300;
-      setShowScrollTop(shouldShow);
+      setShowScrollTop(window.scrollY > 300);
     };
 
-    // Add event listener
     window.addEventListener('scroll', handleScroll);
-    
-    // Cleanup function
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-    };
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   const scrollToTop = () => {
-    window.scrollTo({
-      top: 0,
-      behavior: 'smooth'
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const toggleCategory = (categoryId: number) => {
+    setExpandedCategories(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(categoryId)) {
+        newSet.delete(categoryId);
+      } else {
+        newSet.add(categoryId);
+      }
+      return newSet;
     });
   };
+
+  // Get top 6 categories for footer display
+  const topCategories = categories.slice(0, 6);
 
   return (
     <>
@@ -36,25 +66,25 @@ const Footer: React.FC = () => {
             <div className="lg:col-span-1">
               <div className="flex items-center space-x-2 mb-4">
                 <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-red-500 rounded-lg flex items-center justify-center">
-                  <Star className="w-5 h-5 text-white" />
+                  {/* Star icon removed as per new_code */}
                 </div>
-                <span className="text-xl font-bold">TruView</span>
+                <span className="text-xl font-bold">Truviews</span>
               </div>
               <p className="text-gray-400 mb-4">
                 The platform for honest, unfiltered reviews. Share your real experiences and help others make better decisions.
               </p>
               <div className="flex space-x-4">
                 <a href="#" className="text-gray-400 hover:text-white transition-colors">
-                  <Facebook className="w-5 h-5" />
+                  {/* Facebook icon removed as per new_code */}
                 </a>
                 <a href="#" className="text-gray-400 hover:text-white transition-colors">
-                  <Twitter className="w-5 h-5" />
+                  {/* Twitter icon removed as per new_code */}
                 </a>
                 <a href="#" className="text-gray-400 hover:text-white transition-colors">
-                  <Instagram className="w-5 h-5" />
+                  {/* Instagram icon removed as per new_code */}
                 </a>
                 <a href="#" className="text-gray-400 hover:text-white transition-colors">
-                  <Linkedin className="w-5 h-5" />
+                  {/* Linkedin icon removed as per new_code */}
                 </a>
               </div>
             </div>
@@ -90,26 +120,32 @@ const Footer: React.FC = () => {
             <div>
               <h3 className="text-lg font-semibold mb-4">Popular Categories</h3>
               <ul className="space-y-2">
-                <li>
-                  <Link to="/categories?category=Technology" className="text-gray-400 hover:text-white transition-colors">
-                    Technology
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/categories?category=Food & Dining" className="text-gray-400 hover:text-white transition-colors">
-                    Food & Dining
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/categories?category=Travel" className="text-gray-400 hover:text-white transition-colors">
-                    Travel
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/categories?category=Shopping" className="text-gray-400 hover:text-white transition-colors">
-                    Shopping
-                  </Link>
-                </li>
+                {topCategories.map(category => (
+                  <li key={category.id}>
+                    <button
+                      onClick={() => toggleCategory(category.id)}
+                      className="flex justify-between items-center w-full text-left text-gray-400 hover:text-white transition-colors"
+                    >
+                      {category.name}
+                      {category.subcategories.length > 0 && (
+                        <span className="ml-2 text-gray-500">
+                          {expandedCategories.has(category.id) ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        </span>
+                      )}
+                    </button>
+                    {expandedCategories.has(category.id) && category.subcategories.length > 0 && (
+                      <ul className="ml-4 space-y-1 text-gray-300 text-sm">
+                        {category.subcategories.map((subcategory, index) => (
+                          <li key={index}>
+                            <Link to={`/categories?category=${category.slug}&subcategory=${subcategory}`} className="hover:text-white transition-colors">
+                              {subcategory}
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </li>
+                ))}
               </ul>
             </div>
 
@@ -119,7 +155,7 @@ const Footer: React.FC = () => {
               <ul className="space-y-3">
                 <li className="flex items-center">
                   <Mail className="w-4 h-4 mr-3 text-orange-500" />
-                  <span className="text-gray-400">support@truview.com</span>
+                  <span className="text-gray-400">support@truviews.com</span>
                 </li>
                 <li className="flex items-center">
                   <Phone className="w-4 h-4 mr-3 text-orange-500" />
@@ -137,7 +173,7 @@ const Footer: React.FC = () => {
           <div className="border-t border-gray-800 mt-8 pt-8">
             <div className="flex flex-col md:flex-row justify-between items-center">
               <div className="text-gray-400 text-sm mb-4 md:mb-0">
-                © 2025 TruView. All rights reserved.
+                © 2025 Truviews. All rights reserved.
               </div>
               <div className="flex space-x-6 text-sm">
                 <Link to="/privacy" className="text-gray-400 hover:text-white transition-colors">

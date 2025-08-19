@@ -1,10 +1,10 @@
-# AWS S3 Setup Guide for TruView
+# AWS S3 Setup Guide for Truviews
 
 ## 1. Create S3 Bucket
 
 1. Go to AWS S3 Console
 2. Click "Create bucket"
-3. Enter bucket name (e.g., `truviewproject`)
+3. Enter bucket name (e.g., `truviewsproject`)
 4. Choose region (e.g., `ap-south-1`)
 5. **Important**: Uncheck "Block all public access" (we need public read access)
 6. Click "Create bucket"
@@ -84,7 +84,7 @@ If you don't have AWS credentials:
 
 1. Go to AWS IAM Console
 2. Click "Users" → "Add user"
-3. Enter username (e.g., `truview-upload`)
+3. Enter username (e.g., `truviews-upload`)
 4. Select "Programmatic access"
 5. Attach policy: `AmazonS3FullAccess` (or create custom policy)
 6. Save the Access Key ID and Secret Access Key

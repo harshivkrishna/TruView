@@ -1,5 +1,5 @@
 {
-  "name": "truview-backend",
+  "name": "truviews-backend",
   "version": "1.0.0",
   "description": "Backend for Trustpilot-like review platform",
   "main": "server.js",

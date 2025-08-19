@@ -1,5 +1,5 @@
 {
-  "name": "truview",
+  "name": "truviews",
   "version": "1.0.0",
   "description": "High-performance Trustpilot-like review platform with comprehensive performance optimizations",
   "private": true,
@@ -55,14 +55,14 @@
     "nodejs",
     "mongodb"
   ],
-  "author": "TruView Team",
+  "author": "Truviews Team",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/truview/truview-app.git"
+    "url": "https://github.com/truviews/truviews-app.git"
   },
   "bugs": {
-    "url": "https://github.com/truview/truview-app/issues"
+    "url": "https://github.com/truviews/truviews-app/issues"
   },
-  "homepage": "https://truview-app.com"
+  "homepage": "https://truviews-app.com"
 }

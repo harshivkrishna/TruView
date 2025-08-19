@@ -476,7 +476,7 @@ const HowItWorksSection = () => {
               Process Overview
             </span>
             <h2 className="text-5xl md:text-6xl font-bold text-white mb-6 leading-tight">
-              How <span className="text-white">TruView</span> Works
+              How <span className="text-white">Truviews</span> Works
             </h2>
             <p className="text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed">
               Transform your experiences into powerful insights through our streamlined three-step process
@@ -712,7 +712,7 @@ const FeaturesSection = () => {
               Our Advantages
             </span>
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-              Why Choose TruView?
+              Why Choose Truviews?
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
               We believe in transparency, authenticity, and the power of honest feedback that drives meaningful change.

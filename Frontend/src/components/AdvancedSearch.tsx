@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, X, Star, Calendar, MapPin, RotateCcw, CheckCircle } from 'lucide-react';
+import { getCategoriesWithSubcategories } from '../services/api';
 
 interface AdvancedSearchProps {
   onSearch: (filters: any) => void;
@@ -10,6 +11,7 @@ interface AdvancedSearchProps {
 interface FilterState {
   query: string;
   category: string;
+  subcategory: string;
   rating: string;
   dateRange: string;
   tags: string[];
@@ -18,9 +20,17 @@ interface FilterState {
   sortBy: string;
 }
 
+interface Category {
+  id: number;
+  name: string;
+  slug: string;
+  subcategories: string[];
+}
+
 const defaultFilters: FilterState = {
   query: '',
   category: '',
+  subcategory: '',
   rating: '',
   dateRange: '',
   tags: [],
@@ -33,10 +43,12 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({ onSearch, onClose, init
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
   const [isDataRestored, setIsDataRestored] = useState(false);
   const [showRestoredMessage, setShowRestoredMessage] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [availableSubcategories, setAvailableSubcategories] = useState<string[]>([]);
 
   // Initialize filters with persisted values or initial filters
   useEffect(() => {
-    const persistedFilters = localStorage.getItem('advancedSearchFilters');
+    const persistedFilters = sessionStorage.getItem('advancedSearchFilters');
     let hasPersistedData = false;
     
     if (persistedFilters) {
@@ -59,7 +71,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({ onSearch, onClose, init
         }
       } catch (error) {
         console.error('Error parsing persisted filters:', error);
-        localStorage.removeItem('advancedSearchFilters');
+        sessionStorage.removeItem('advancedSearchFilters');
       }
     }
     
@@ -69,18 +81,43 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({ onSearch, onClose, init
     }
   }, []); // Remove initialFilters dependency to prevent unnecessary re-runs
 
-  // Save filters to localStorage whenever they change (but not on initial load)
+  // Fetch categories on component mount
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const categoriesData = await getCategoriesWithSubcategories();
+        setCategories(categoriesData);
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+      }
+    };
+    fetchCategories();
+  }, []);
+
+  // Update available subcategories when category changes
+  useEffect(() => {
+    if (filters.category) {
+      const category = categories.find(cat => cat.name === filters.category);
+      if (category) {
+        setAvailableSubcategories(category.subcategories);
+        // Reset subcategory if it's not available in the new category
+        if (!category.subcategories.includes(filters.subcategory)) {
+          setFilters(prev => ({ ...prev, subcategory: '' }));
+        }
+      }
+    } else {
+      setAvailableSubcategories([]);
+      setFilters(prev => ({ ...prev, subcategory: '' }));
+    }
+  }, [filters.category, categories]);
+
+  // Save filters to sessionStorage whenever they change (but not on initial load)
   useEffect(() => {
     // Only save if the component has been mounted and filters are not default
     if (isDataRestored || filters !== defaultFilters) {
-      localStorage.setItem('advancedSearchFilters', JSON.stringify(filters));
+      sessionStorage.setItem('advancedSearchFilters', JSON.stringify(filters));
     }
   }, [filters, isDataRestored]);
-
-  const categories = [
-    'Technology', 'Food & Dining', 'Travel', 'Shopping', 'Entertainment',
-    'Healthcare', 'Education', 'Services', 'Automotive', 'Home & Garden'
-  ];
 
   const tags = ['Brutal', 'Honest', 'Praise', 'Rant', 'Warning', 'Recommended'];
 
@@ -178,7 +215,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({ onSearch, onClose, init
               >
                 <option value="">All Categories</option>
                 {categories.map(category => (
-                  <option key={category} value={category}>{category}</option>
+                  <option key={category.id} value={category.name}>{category.name}</option>
                 ))}
               </select>
             </div>
@@ -198,6 +235,23 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({ onSearch, onClose, init
               </select>
             </div>
           </div>
+
+          {/* Subcategory */}
+          {filters.category && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Subcategory</label>
+              <select
+                value={filters.subcategory}
+                onChange={(e) => handleFilterChange('subcategory', e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+              >
+                <option value="">All Subcategories</option>
+                {availableSubcategories.map(sub => (
+                  <option key={sub} value={sub}>{sub}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Date Range and Location */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

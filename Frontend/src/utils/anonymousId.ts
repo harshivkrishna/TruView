@@ -1,6 +1,6 @@
 // Utility to generate and store anonymous user IDs for consistent view tracking
 
-const ANONYMOUS_ID_KEY = 'truview_anonymous_id';
+const ANONYMOUS_ID_KEY = 'truviews_anonymous_id';
 
 export const getAnonymousId = (): string => {
   let anonymousId = localStorage.getItem(ANONYMOUS_ID_KEY);

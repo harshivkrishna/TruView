@@ -1,9 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Upload, X, Star, Camera, Video, Play } from 'lucide-react';
-import { createReview, uploadMedia } from '../services/api';
+import { createReview, uploadMedia, getCategoriesWithSubcategories } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import MediaCarousel from '../components/MediaCarousel';
+
+interface Category {
+  id: number;
+  name: string;
+  slug: string;
+  subcategories: string[];
+}
 
 const ReviewSubmission = () => {
   const navigate = useNavigate();
@@ -14,6 +21,7 @@ const ReviewSubmission = () => {
     title: '',
     description: '',
     category: '',
+    subcategory: '',
     rating: 0,
     tags: [] as string[],
     authorName: ''
@@ -23,13 +31,40 @@ const ReviewSubmission = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadError, setUploadError] = useState('');
-
-  const categories = [
-    'Technology', 'Food & Dining', 'Travel', 'Shopping', 'Entertainment',
-    'Healthcare', 'Education', 'Services', 'Automotive', 'Home & Garden'
-  ];
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [availableSubcategories, setAvailableSubcategories] = useState<string[]>([]);
 
   const sentimentTags = ['Honest', 'Brutal', 'Fair', 'Rant', 'Praise', 'Caution'];
+
+  // Fetch categories on component mount
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const categoriesData = await getCategoriesWithSubcategories();
+        setCategories(categoriesData);
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+      }
+    };
+    fetchCategories();
+  }, []);
+
+  // Update available subcategories when category changes
+  useEffect(() => {
+    if (formData.category) {
+      const selectedCategory = categories.find(cat => cat.name === formData.category);
+      if (selectedCategory) {
+        setAvailableSubcategories(selectedCategory.subcategories);
+        // Reset subcategory if it's not available in the new category
+        if (!selectedCategory.subcategories.includes(formData.subcategory)) {
+          setFormData(prev => ({ ...prev, subcategory: '' }));
+        }
+      }
+    } else {
+      setAvailableSubcategories([]);
+      setFormData(prev => ({ ...prev, subcategory: '' }));
+    }
+  }, [formData.category, categories]);
 
   // Set author name from current user when component mounts
   useEffect(() => {
@@ -124,7 +159,7 @@ const ReviewSubmission = () => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
-    if (!formData.title || !formData.description || !formData.category || !formData.rating) {
+    if (!formData.title || !formData.description || !formData.category || !formData.subcategory || !formData.rating) {
       alert('Please fill in all required fields');
       return;
     }
@@ -279,10 +314,32 @@ const ReviewSubmission = () => {
               >
                 <option value="">Select a category</option>
                 {categories.map(category => (
-                  <option key={category} value={category}>{category}</option>
+                  <option key={category.name} value={category.name}>{category.name}</option>
                 ))}
               </select>
             </div>
+
+            {/* Subcategory (conditional) */}
+            {formData.category && (
+              <div>
+                <label htmlFor="subcategory" className="block text-sm font-medium text-gray-700 mb-2">
+                  Subcategory *
+                </label>
+                <select
+                  id="subcategory"
+                  name="subcategory"
+                  value={formData.subcategory}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  required
+                >
+                  <option value="">Select a subcategory</option>
+                  {availableSubcategories.map(sub => (
+                    <option key={sub} value={sub}>{sub}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Tags */}
             <div>

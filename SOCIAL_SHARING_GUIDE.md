@@ -1,7 +1,7 @@
 # Enhanced Social Sharing Feature Guide
 
 ## Overview
-The TruView social sharing feature has been significantly enhanced to provide a better user experience with platform-specific message formatting and prefilled content.
+The Truviews social sharing feature has been significantly enhanced to provide a better user experience with platform-specific message formatting and prefilled content.
 
 ## Key Features
 
@@ -41,18 +41,18 @@ Users can add their own personal message to any share:
 
 ### Twitter/X Format:
 ```
-Check out this honest review on TruView!
+Check out this honest review on Truviews!
 
 "Amazing Product Review"
 4/5 ⭐
 
 #Electronics #Honest
-Read more: https://truview.com/review/123
+Read more: https://truviews.com/review/123
 ```
 
 ### Facebook Format:
 ```
-Check out this honest review on TruView!
+Check out this honest review on Truviews!
 
 "Amazing Product Review"
 4/5 ⭐
@@ -60,24 +60,24 @@ Check out this honest review on TruView!
 This product exceeded my expectations. The quality is outstanding and the features work perfectly...
 
 #Electronics #Honest
-Read full review: https://truview.com/review/123
+Read full review: https://truviews.com/review/123
 ```
 
 ### WhatsApp Format:
 ```
-Check out this honest review on TruView!
+Check out this honest review on Truviews!
 
 "Amazing Product Review"
 4/5 ⭐
 
 This product exceeded my expectations...
 
-https://truview.com/review/123
+https://truviews.com/review/123
 ```
 
 ### Email Format:
 ```
-Check out this honest review on TruView!
+Check out this honest review on Truviews!
 
 Review: "Amazing Product Review"
 Rating: 4/5 ⭐
@@ -85,7 +85,7 @@ Category: Electronics
 
 This product exceeded my expectations. The quality is outstanding and the features work perfectly...
 
-Read full review: https://truview.com/review/123
+Read full review: https://truviews.com/review/123
 ```
 
 ## Technical Implementation

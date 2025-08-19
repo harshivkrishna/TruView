@@ -19,7 +19,7 @@ async function createAdminUser() {
     // Create admin user
     const hashedPassword = await bcrypt.hash('admin123', 12);
     const adminUser = new User({
-      email: 'admin@truview.com',
+      email: 'admin@truviews.com',
       password: hashedPassword,
       firstName: 'Admin',
       lastName: 'User',

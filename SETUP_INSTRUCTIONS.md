@@ -1,4 +1,4 @@
-# TruView Authentication Setup Guide
+# Truviews Authentication Setup Guide
 
 ## Overview
 This project now uses a traditional email/password authentication system with OTP verification instead of Firebase. The system includes:
@@ -21,7 +21,7 @@ Create a `.env` file in the Backend directory with the following variables:
 
 ```env
 # Database
-MONGODB_URI=mongodb://localhost:27017/truview
+MONGODB_URI=mongodb://localhost:27017/truviews
 
 # JWT Secret
 JWT_SECRET=your-super-secret-jwt-key-change-this-in-production

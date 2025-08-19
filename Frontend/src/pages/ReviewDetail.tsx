@@ -7,7 +7,7 @@ import { toast } from 'react-hot-toast';
 import { Star, ThumbsUp, Eye, Share2, Flag, User, Calendar, Tag, ArrowLeft, Award } from 'lucide-react';
 import MediaCarousel from '../components/MediaCarousel';
 import SocialShareModal from '../components/SocialShareModal';
-import { calculateTrustScore } from '../utils/trustPrediction';
+import { calculateTrustScore, getTrustLevel } from '../utils/trustPrediction';
 
 const ReviewDetail = () => {
   const { currentUser } = useAuth();
@@ -318,14 +318,38 @@ const ReviewDetail = () => {
               <span className="ml-2 text-sm text-gray-600">({review.rating}/5)</span>
               
               {/* Trust Score - Always Visible */}
-              <div className="ml-4 px-3 py-1.5 bg-white shadow-lg border-2 border-green-500 rounded-full">
+              {(() => {
+                const score = review.trustScore || calculateTrustScore(review);
+                const trustLevel = getTrustLevel(score);
+                return (
+                  <div className={`ml-4 px-3 py-1.5 bg-white shadow-lg border-2 rounded-full ${
+                    trustLevel.level === 'High' ? 'border-green-500' :
+                    trustLevel.level === 'Good' ? 'border-blue-500' :
+                    trustLevel.level === 'Fair' ? 'border-yellow-500' :
+                    trustLevel.level === 'Low' ? 'border-orange-500' :
+                    'border-red-500'
+                  }`}>
                 <div className="flex items-center gap-1.5">
-                  <Award className="w-4 h-4 text-green-600" />
-                  <span className="text-sm font-bold text-green-700 font-mono">
-                    {review.trustScore || calculateTrustScore(review)}%
+                      <Award className={`w-4 h-4 ${
+                        trustLevel.level === 'High' ? 'text-green-600' :
+                        trustLevel.level === 'Good' ? 'text-blue-600' :
+                        trustLevel.level === 'Fair' ? 'text-yellow-600' :
+                        trustLevel.level === 'Low' ? 'text-orange-600' :
+                        'text-red-600'
+                      }`} />
+                      <span className={`text-sm font-bold font-mono ${
+                        trustLevel.level === 'High' ? 'text-green-700' :
+                        trustLevel.level === 'Good' ? 'text-blue-700' :
+                        trustLevel.level === 'Fair' ? 'text-yellow-700' :
+                        trustLevel.level === 'Low' ? 'text-orange-700' :
+                        'text-red-700'
+                      }`}>
+                        {score}%
                   </span>
                 </div>
               </div>
+                );
+              })()}
             </div>
 
             {/* Description */}

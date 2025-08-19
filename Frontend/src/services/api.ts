@@ -149,6 +149,26 @@ export const getCategories = async () => {
   }
 };
 
+export const getCategoriesWithSubcategories = async () => {
+  try {
+    const response = await api.get('/categories/with-subcategories');
+    return response.data;
+  } catch (error) {
+    console.error('API Error - getCategoriesWithSubcategories:', error);
+    return [];
+  }
+};
+
+export const getSubcategoriesForCategory = async (categorySlug: string) => {
+  try {
+    const response = await api.get(`/categories/${categorySlug}/subcategories`);
+    return response.data.subcategories || [];
+  } catch (error) {
+    console.error('API Error - getSubcategoriesForCategory:', error);
+    return [];
+  }
+};
+
 export const getTrendingCategories = async () => {
   try {
     const response = await api.get('/categories/trending');

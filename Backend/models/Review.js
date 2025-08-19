@@ -15,6 +15,10 @@ const ReviewSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  subcategory: {
+    type: String,
+    required: true
+  },
   tags: [{
     type: String,
     enum: ['Brutal', 'Honest', 'Praise', 'Rant', 'Warning', 'Recommended']

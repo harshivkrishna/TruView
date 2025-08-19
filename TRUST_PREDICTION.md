@@ -1,7 +1,7 @@
 # AI-Powered Trust Prediction System
 
 ## Overview
-The TruView platform now features an intelligent AI-powered trust prediction system that automatically calculates trust scores for reviews based on multiple factors. This system helps users identify reliable and trustworthy reviews.
+The Truviews platform now features an intelligent AI-powered trust prediction system that automatically calculates trust scores for reviews based on multiple factors. This system helps users identify reliable and trustworthy reviews.
 
 ## How It Works
 

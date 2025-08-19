@@ -7,10 +7,11 @@ const router = express.Router();
 // Get all reviews
 router.get('/', async (req, res) => {
   try {
-    const { category, tag, sort = 'createdAt', limit = 20 } = req.query;
+    const { category, subcategory, tag, sort = 'createdAt', limit = 20 } = req.query;
     let query = {};
     
     if (category) query.category = category;
+    if (subcategory) query.subcategory = subcategory;
     if (tag) query.tags = { $in: [tag] };
     
     const reviews = await Review.find(query)
@@ -113,6 +114,18 @@ router.post('/', authenticateToken, async (req, res) => {
     
     const review = new Review(reviewData);
     await review.save();
+    
+    // Update user's review count and trust score
+    if (user) {
+      user.reviewCount = (user.reviewCount || 0) + 1;
+      
+      // Recalculate user's overall trust score based on all their reviews
+      const userReviews = await Review.find({ 'author.userId': req.user.userId });
+      const totalTrustScore = userReviews.reduce((sum, rev) => sum + (rev.trustScore || 0), 0);
+      user.trustScore = Math.round(totalTrustScore / userReviews.length);
+      
+      await user.save();
+    }
     
     // Populate and format the response
     const populatedReview = await Review.findById(review._id)

@@ -26,10 +26,10 @@ const sendVerificationOTP = async (email, otp, firstName) => {
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to: email,
-    subject: 'Verify Your Email - TruView',
+    subject: 'Verify Your Email - Truviews',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #ff6b35;">Welcome to TruView!</h2>
+        <h2 style="color: #ff6b35;">Welcome to Truviews!</h2>
         <p>Hi ${firstName},</p>
         <p>Thank you for signing up! Please use the following OTP to verify your email address:</p>
         <div style="background-color: #f8f9fa; padding: 20px; text-align: center; border-radius: 8px; margin: 20px 0;">
@@ -37,7 +37,7 @@ const sendVerificationOTP = async (email, otp, firstName) => {
         </div>
         <p>This OTP will expire in 10 minutes.</p>
         <p>If you didn't create an account, please ignore this email.</p>
-        <p>Best regards,<br>The TruView Team</p>
+        <p>Best regards,<br>The Truviews Team</p>
       </div>
     `
   };
@@ -56,7 +56,7 @@ const sendPasswordResetOTP = async (email, otp, firstName) => {
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to: email,
-    subject: 'Reset Your Password - TruView',
+    subject: 'Reset Your Password - Truviews',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #ff6b35;">Password Reset Request</h2>
@@ -67,7 +67,7 @@ const sendPasswordResetOTP = async (email, otp, firstName) => {
         </div>
         <p>This OTP will expire in 10 minutes.</p>
         <p>If you didn't request a password reset, please ignore this email.</p>
-        <p>Best regards,<br>The TruView Team</p>
+        <p>Best regards,<br>The Truviews Team</p>
       </div>
     `
   };
