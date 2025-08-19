@@ -27,7 +27,7 @@ const ClockIcon = Clock as React.ComponentType<any>;
 const LinkComponent = Link as React.ComponentType<any>;
 
 const HomePage = () => {
-  console.log('HomePage component rendering');
+
   
   const [trendingReviews, setTrendingReviews] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -81,9 +81,6 @@ const HomePage = () => {
 
   return (
     <div className="min-h-screen">
-      <div className="text-center py-4 bg-blue-50">
-        <p className="text-blue-600">HomePage is rendering! Path: {window.location.pathname}</p>
-      </div>
       
       {/* Hero Section */}
       <HeroSection />

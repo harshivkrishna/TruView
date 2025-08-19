@@ -24,8 +24,31 @@ app.use(mongoSanitize());
 app.use(hpp());
 
 // CORS configuration with performance optimizations
+const allowedOrigins = [
+  'http://localhost:5173',           // Local development
+  'http://localhost:3000',           // Alternative local port
+  'https://truview-steel.vercel.app', // Production frontend
+  'https://truview.vercel.app'       // Alternative production domain
+];
+
+// Add any additional origins from environment variable
+if (process.env.FRONTEND_URL) {
+  allowedOrigins.push(process.env.FRONTEND_URL);
+}
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      // Log blocked origins for debugging
+      console.log('CORS blocked origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
