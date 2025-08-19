@@ -115,6 +115,16 @@ export const getTrendingReviews = async () => {
   }
 };
 
+export const getMostViewedReviewsWeek = async () => {
+  try {
+    const response = await api.get('/reviews/most-viewed-week');
+    return response.data;
+  } catch (error) {
+    console.error('API Error - getMostViewedReviewsWeek:', error);
+    return [];
+  }
+};
+
 export const getReview = async (id: string) => {
   try {
     const response = await api.get(`/reviews/${id}`);

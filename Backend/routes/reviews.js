@@ -76,6 +76,76 @@ router.get('/trending', async (req, res) => {
   }
 });
 
+// Get most viewed reviews in past 7 days
+router.get('/most-viewed-week', async (req, res) => {
+  try {
+    // Calculate date 7 days ago
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    
+    // Find reviews that have been viewed in the past 7 days
+    const reviews = await Review.aggregate([
+      {
+        $match: {
+          'viewedBy.viewedAt': { $gte: sevenDaysAgo }
+        }
+      },
+      {
+        $addFields: {
+          // Count views in the past 7 days
+          recentViews: {
+            $size: {
+              $filter: {
+                input: '$viewedBy',
+                cond: { $gte: ['$$this.viewedAt', sevenDaysAgo] }
+              }
+            }
+          }
+        }
+      },
+      {
+        $sort: { recentViews: -1, upvotes: -1, createdAt: -1 }
+      },
+      {
+        $limit: 3
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'author.userId',
+          foreignField: '_id',
+          as: 'authorInfo'
+        }
+      },
+      {
+        $unwind: {
+          path: '$authorInfo',
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $addFields: {
+          'author.name': {
+            $concat: ['$authorInfo.firstName', ' ', '$authorInfo.lastName']
+          },
+          'author.avatar': '$authorInfo.avatar',
+          'author.userId': '$authorInfo._id'
+        }
+      },
+      {
+        $project: {
+          authorInfo: 0
+        }
+      }
+    ]);
+    
+    res.json(reviews);
+  } catch (error) {
+    console.error('Error fetching most viewed reviews:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // Get single review
 router.get('/:id', async (req, res) => {
   try {

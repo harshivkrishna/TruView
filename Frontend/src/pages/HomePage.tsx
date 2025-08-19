@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import ReviewCard from '../components/ReviewCard';
 import Footer from '../components/Footer';
-import { getTrendingReviews } from '../services/api';
+import { getMostViewedReviewsWeek } from '../services/api';
 
 // Type assertions for Lucide icons and Link to fix TypeScript compatibility
 const StarIcon = Star as React.ComponentType<any>;
@@ -29,54 +29,50 @@ const LinkComponent = Link as React.ComponentType<any>;
 const HomePage = () => {
 
   
-  const [trendingReviews, setTrendingReviews] = useState([]);
+  const [mostViewedReviews, setMostViewedReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     console.log('HomePage useEffect running');
     
-    const fetchTrendingReviews = async () => {
+    const fetchMostViewedReviews = async () => {
       try {
         setLoading(true);
-        console.log('Fetching trending reviews...');
-        const reviews = await getTrendingReviews();
-        console.log('Trending reviews fetched:', reviews);
-        setTrendingReviews(reviews);
+        console.log('Fetching most viewed reviews...');
+        const reviews = await getMostViewedReviewsWeek();
+        console.log('Most viewed reviews fetched:', reviews);
+        setMostViewedReviews(reviews);
       } catch (error) {
-        console.error('Error fetching trending reviews:', error);
-        setError('Failed to load trending reviews');
+        console.error('Error fetching most viewed reviews:', error);
+        setError('Failed to load most viewed reviews');
         // Don't let API errors block the page render
-        setTrendingReviews([]);
+        setMostViewedReviews([]);
       } finally {
         setLoading(false);
       }
     };
 
-    // Comment out API call temporarily to test if that's blocking the page
-    // fetchTrendingReviews();
-    
-    // Just set loading to false immediately for now
-    setLoading(false);
-    setTrendingReviews([]);
+    // Fetch the most viewed reviews
+    fetchMostViewedReviews();
     
     console.log('HomePage useEffect completed');
   }, []);
 
   // Retry function for failed requests
   const retryFetch = () => {
-    const fetchTrendingReviews = async () => {
+    const fetchMostViewedReviews = async () => {
       try {
         setLoading(true);
-        const reviews = await getTrendingReviews();
-        setTrendingReviews(reviews);
+        const reviews = await getMostViewedReviewsWeek();
+        setMostViewedReviews(reviews);
       } catch (error) {
-        console.error('Error fetching trending reviews:', error);
+        console.error('Error fetching most viewed reviews:', error);
       } finally {
         setLoading(false);
       }
     };
-    fetchTrendingReviews();
+    fetchMostViewedReviews();
   };
 
   return (
@@ -94,11 +90,11 @@ const HomePage = () => {
       {/* Features Section */}
       <FeaturesSection />
 
-      {/* Trending Reviews */}
+            {/* Most Viewed Reviews */}
       <TrendingSection 
-        reviews={trendingReviews} 
+        reviews={mostViewedReviews} 
         loading={loading} 
-        error={error}
+        error={error} 
         onRetry={retryFetch}
       />
 
@@ -803,8 +799,8 @@ const TrendingSection = ({ reviews, loading, error, onRetry }: any) => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true });
 
-  // Limit reviews to 12 cards maximum
-  const displayedReviews = reviews.slice(0, 12);
+  // Limit reviews to 3 cards maximum (most viewed in past week)
+  const displayedReviews = reviews.slice(0, 3);
 
   return (
     <section ref={ref} className="py-20 bg-gray-50">
@@ -822,7 +818,7 @@ const TrendingSection = ({ reviews, loading, error, onRetry }: any) => {
               animate={isInView ? { opacity: 1, x: 0 } : {}}
               transition={{ duration: 0.8, delay: 0.2 }}
             >
-              Trending Reviews
+              Most Viewed Reviews
             </motion.h2>
             <motion.p 
               className="text-gray-600"
@@ -830,7 +826,7 @@ const TrendingSection = ({ reviews, loading, error, onRetry }: any) => {
               animate={isInView ? { opacity: 1, x: 0 } : {}}
               transition={{ duration: 0.8, delay: 0.4 }}
             >
-              Discover what the community is talking about
+              Top 3 most viewed reviews in the past 7 days
             </motion.p>
           </div>
           {/* Desktop View All Button */}
@@ -851,7 +847,7 @@ const TrendingSection = ({ reviews, loading, error, onRetry }: any) => {
         
         {loading ? (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(12)].map((_, i) => (
+            {[...Array(3)].map((_, i) => (
               <motion.div
                 key={i}
                 initial={{ opacity: 0, y: 30 }}
