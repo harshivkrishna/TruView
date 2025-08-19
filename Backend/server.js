@@ -28,7 +28,8 @@ const allowedOrigins = [
   'http://localhost:5173',           // Local development
   'http://localhost:3000',           // Alternative local port
   'https://truview-steel.vercel.app', // Production frontend
-  'https://truview.vercel.app'       // Alternative production domain
+  'https://truview.vercel.app',       // Alternative production domain
+  'https://truview-y909.onrender.com' // Backend domain (for testing)
 ];
 
 // Add any additional origins from environment variable
@@ -36,24 +37,64 @@ if (process.env.FRONTEND_URL) {
   allowedOrigins.push(process.env.FRONTEND_URL);
 }
 
-app.use(cors({
+// Ensure production domains are always included regardless of environment variables
+const productionOrigins = [
+  'https://truview-steel.vercel.app',
+  'https://truview.vercel.app'
+];
+
+// Merge and deduplicate origins
+const finalAllowedOrigins = [...new Set([...allowedOrigins, ...productionOrigins])];
+
+// Log allowed origins for debugging
+console.log('Allowed CORS origins:', finalAllowedOrigins);
+console.log('Environment FRONTEND_URL:', process.env.FRONTEND_URL);
+
+// More flexible CORS configuration for development and production
+const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
+    if (!origin) {
+      console.log('CORS: Allowing request with no origin');
+      return callback(null, true);
+    }
     
-    if (allowedOrigins.indexOf(origin) !== -1) {
+    console.log('CORS: Checking origin:', origin);
+    
+    // Always allow localhost for development
+    if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+      console.log('CORS: Localhost origin allowed:', origin);
+      return callback(null, true);
+    }
+    
+    // Check against allowed origins
+    if (finalAllowedOrigins.indexOf(origin) !== -1) {
+      console.log('CORS: Origin allowed:', origin);
       callback(null, true);
     } else {
       // Log blocked origins for debugging
       console.log('CORS blocked origin:', origin);
-      callback(new Error('Not allowed by CORS'));
+      console.log('Allowed origins:', finalAllowedOrigins);
+      
+      // In development, be more permissive
+      if (process.env.NODE_ENV === 'development') {
+        console.log('CORS: Development mode - allowing blocked origin:', origin);
+        callback(null, true);
+      } else {
+        callback(new Error(`Origin ${origin} not allowed by CORS policy`));
+      }
     }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   maxAge: 86400 // 24 hours
-}));
+};
+
+app.use(cors(corsOptions));
+
+// Handle preflight requests explicitly
+app.options('*', cors(corsOptions));
 
 // Rate limiting for API endpoints
 const limiter = rateLimit({
@@ -100,6 +141,16 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     environment: process.env.NODE_ENV || 'development'
+  });
+});
+
+// CORS test endpoint for debugging
+app.get('/api/cors-test', (req, res) => {
+  res.json({ 
+    message: 'CORS test successful',
+    allowedOrigins: finalAllowedOrigins,
+    environment: process.env.NODE_ENV || 'development',
+    frontendUrl: process.env.FRONTEND_URL || 'not set'
   });
 });
 
