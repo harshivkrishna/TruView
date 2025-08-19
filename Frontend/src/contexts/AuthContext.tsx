@@ -59,18 +59,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signup = async (email: string, password: string, userData: any) => {
     setLoading(true);
     try {
-      const response = await api.registerUser({
-        email,
-        password,
-        firstName: userData.firstName,
-        lastName: userData.lastName,
-        phoneNumber: userData.phoneNumber
-      });
-      
-      // Store user ID for verification
-      localStorage.setItem('pendingUserId', response.userId);
-      
-      return response;
+      // Check if this is an admin registration
+      if (userData.isAdminRegistration && userData.passKey) {
+        // Use admin creation API
+        const response = await api.createAdminAccount({
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          email,
+          password,
+          phoneNumber: userData.phoneNumber,
+          secretCode: userData.passKey
+        });
+        
+        // For admin accounts, we don't need email verification
+        // Return success immediately
+        return response;
+      } else {
+        // Regular user registration
+        const response = await api.registerUser({
+          email,
+          password,
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          phoneNumber: userData.phoneNumber
+        });
+        
+        // Store user ID for verification
+        localStorage.setItem('pendingUserId', response.userId);
+        
+        return response;
+      }
     } catch (error) {
       throw error;
     } finally {

@@ -167,15 +167,25 @@ router.post('/login', async (req, res) => {
 
     const user = await User.findOne({ email });
     if (!user) {
+      console.log('Login attempt: User not found for email:', email);
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
+    console.log('Login attempt: User found:', {
+      id: user._id,
+      email: user.email,
+      role: user.role,
+      emailVerified: user.emailVerified
+    });
+
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
+      console.log('Login attempt: Invalid password for user:', email);
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
     if (!user.emailVerified) {
+      console.log('Login attempt: Email not verified for user:', email);
       return res.status(401).json({ message: 'Please verify your email before logging in' });
     }
 

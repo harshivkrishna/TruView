@@ -61,28 +61,35 @@ const Navbar = () => {
             
             {currentUser && currentUser.emailVerified ? (
               <>
-                <Link 
-                  to="/submit" 
-                  className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors"
-                >
-                  Write Review
-                </Link>
+                {/* Only show Write Review for non-admin users */}
+                {currentUser.role !== 'admin' && (
+                  <Link 
+                    to="/submit" 
+                    className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors"
+                  >
+                    Write Review
+                  </Link>
+                )}
                 
-                <button
-                  onClick={handleProfileClick}
-                  className="flex items-center gap-2 text-gray-700 hover:text-orange-500 transition-colors"
-                >
-                  <User className="w-5 h-6" />
-                  {currentUser.firstName || 'User'}
-                </button>
+                {/* Only show Profile for non-admin users */}
+                {currentUser.role !== 'admin' && (
+                  <button
+                    onClick={handleProfileClick}
+                    className="flex items-center gap-2 text-gray-700 hover:text-orange-500 transition-colors"
+                  >
+                    <User className="w-5 h-6" />
+                    {currentUser.firstName || 'User'}
+                  </button>
+                )}
                 
+                {/* Show Admin Dashboard for admin users */}
                 {currentUser.role === 'admin' && (
                   <Link
                     to="/admin"
                     className="flex items-center gap-2 text-gray-700 hover:text-orange-500 transition-colors"
                   >
                     <Settings className="w-4 h-4" />
-                    Admin
+                    Admin Dashboard
                   </Link>
                 )}
               </>
@@ -97,8 +104,9 @@ const Navbar = () => {
                 <button
                   onClick={() => setShowRegisterModal(true)}
                   className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors"
+                  title={isAdminRoute ? "Click to register as admin (use passkey: truview)" : "Sign Up"}
                 >
-                  Sign Up
+                  {isAdminRoute ? "Sign Up as Admin" : "Sign Up"}
                 </button>
               </div>
             )}
@@ -144,22 +152,31 @@ const Navbar = () => {
               
               {currentUser && currentUser.emailVerified ? (
                 <>
-                  <Link 
-                    to="/submit" 
-                    className="block bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors text-center"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    Write Review
-                  </Link>
-                  <button
-                    onClick={() => {
-                      handleProfileClick();
-                      setIsMenuOpen(false);
-                    }}
-                    className="block w-full text-left text-gray-700 hover:text-orange-500 transition-colors"
-                  >
-                    My Profile
-                  </button>
+                  {/* Only show Write Review for non-admin users */}
+                  {currentUser.role !== 'admin' && (
+                    <Link 
+                      to="/submit" 
+                      className="block bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors text-center"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      Write Review
+                    </Link>
+                  )}
+                  
+                  {/* Only show Profile for non-admin users */}
+                  {currentUser.role !== 'admin' && (
+                    <button
+                      onClick={() => {
+                        handleProfileClick();
+                        setIsMenuOpen(false);
+                      }}
+                      className="block w-full text-left text-gray-700 hover:text-orange-500 transition-colors"
+                    >
+                      My Profile
+                    </button>
+                  )}
+                  
+                  {/* Show Admin Dashboard for admin users */}
                   {currentUser.role === 'admin' && (
                     <Link 
                       to="/admin" 

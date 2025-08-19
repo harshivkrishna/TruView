@@ -14,10 +14,22 @@ router.get('/', async (req, res) => {
     if (tag) query.tags = { $in: [tag] };
     
     const reviews = await Review.find(query)
+      .populate('author.userId', 'firstName lastName avatar')
       .sort({ [sort]: -1 })
       .limit(parseInt(limit));
     
-    res.json(reviews);
+    // Map the populated data to match the expected format
+    const formattedReviews = reviews.map(review => {
+      const reviewObj = review.toObject();
+      if (reviewObj.author && reviewObj.author.userId) {
+        reviewObj.author.name = `${reviewObj.author.userId.firstName} ${reviewObj.author.userId.lastName}`;
+        reviewObj.author.avatar = reviewObj.author.userId.avatar;
+        reviewObj.author.userId = reviewObj.author.userId._id;
+      }
+      return reviewObj;
+    });
+    
+    res.json(formattedReviews);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -27,9 +39,22 @@ router.get('/', async (req, res) => {
 router.get('/trending', async (req, res) => {
   try {
     const reviews = await Review.find()
+      .populate('author.userId', 'firstName lastName avatar')
       .sort({ views: -1, upvotes: -1, createdAt: -1 })
       .limit(10);
-    res.json(reviews);
+    
+    // Map the populated data to match the expected format
+    const formattedReviews = reviews.map(review => {
+      const reviewObj = review.toObject();
+      if (reviewObj.author && reviewObj.author.userId) {
+        reviewObj.author.name = `${reviewObj.author.userId.firstName} ${reviewObj.author.userId.lastName}`;
+        reviewObj.author.avatar = reviewObj.author.userId.avatar;
+        reviewObj.author.userId = reviewObj.author.userId._id;
+      }
+      return reviewObj;
+    });
+    
+    res.json(formattedReviews);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -38,7 +63,9 @@ router.get('/trending', async (req, res) => {
 // Get single review
 router.get('/:id', async (req, res) => {
   try {
-    const review = await Review.findById(req.params.id);
+    const review = await Review.findById(req.params.id)
+      .populate('author.userId', 'firstName lastName avatar');
+    
     if (!review) {
       return res.status(404).json({ message: 'Review not found' });
     }
@@ -50,7 +77,15 @@ router.get('/:id', async (req, res) => {
       await review.save();
     }
     
-    res.json(review);
+    // Format the review data
+    const reviewObj = review.toObject();
+    if (reviewObj.author && reviewObj.author.userId) {
+      reviewObj.author.name = `${reviewObj.author.userId.firstName} ${reviewObj.author.userId.lastName}`;
+      reviewObj.author.avatar = reviewObj.author.userId.avatar;
+      reviewObj.author.userId = reviewObj.author.userId._id;
+    }
+    
+    res.json(reviewObj);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -59,11 +94,15 @@ router.get('/:id', async (req, res) => {
 // Create new review
 router.post('/', authenticateToken, async (req, res) => {
   try {
+    // Fetch user information to get avatar
+    const User = require('../models/User');
+    const user = await User.findById(req.user.userId);
+    
     const reviewData = {
       ...req.body,
       author: {
-        name: req.body.authorName || 'Anonymous',
-        avatar: req.body.authorAvatar || null,
+        name: user ? `${user.firstName} ${user.lastName}` : 'Anonymous',
+        avatar: user?.avatar || null,
         userId: req.user.userId
       }
     };
@@ -74,7 +113,19 @@ router.post('/', authenticateToken, async (req, res) => {
     
     const review = new Review(reviewData);
     await review.save();
-    res.status(201).json(review);
+    
+    // Populate and format the response
+    const populatedReview = await Review.findById(review._id)
+      .populate('author.userId', 'firstName lastName avatar');
+    
+    const reviewObj = populatedReview.toObject();
+    if (reviewObj.author && reviewObj.author.userId) {
+      reviewObj.author.name = `${reviewObj.author.userId.firstName} ${reviewObj.author.userId.lastName}`;
+      reviewObj.author.avatar = reviewObj.author.userId.avatar;
+      reviewObj.author.userId = reviewObj.author.userId._id;
+    }
+    
+    res.status(201).json(reviewObj);
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
@@ -91,8 +142,18 @@ router.patch('/:id/upvote', authenticateToken, async (req, res) => {
     const result = review.toggleUpvote(req.user.userId);
     await review.save();
     
-    // Return the updated review object
-    res.json(review);
+    // Populate and return the updated review object
+    const populatedReview = await Review.findById(req.params.id)
+      .populate('author.userId', 'firstName lastName avatar');
+    
+    const reviewObj = populatedReview.toObject();
+    if (reviewObj.author && reviewObj.author.userId) {
+      reviewObj.author.name = `${reviewObj.author.userId.firstName} ${reviewObj.author.userId.lastName}`;
+      reviewObj.author.avatar = reviewObj.author.userId.avatar;
+      reviewObj.author.userId = reviewObj.author.userId._id;
+    }
+    
+    res.json(reviewObj);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

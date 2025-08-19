@@ -4,9 +4,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { useReviewContext } from '../contexts/ReviewContext';
 import { getReview, incrementReviewView, upvoteReview } from '../services/api';
 import { toast } from 'react-hot-toast';
-import { Star, ThumbsUp, Eye, Share2, Flag, User, Calendar, Tag, ArrowLeft } from 'lucide-react';
+import { Star, ThumbsUp, Eye, Share2, Flag, User, Calendar, Tag, ArrowLeft, Award } from 'lucide-react';
 import MediaCarousel from '../components/MediaCarousel';
 import SocialShareModal from '../components/SocialShareModal';
+import { calculateTrustScore } from '../utils/trustPrediction';
 
 const ReviewDetail = () => {
   const { currentUser } = useAuth();
@@ -59,6 +60,9 @@ const ReviewDetail = () => {
 
   useEffect(() => {
     if (id) {
+      // Scroll to top when component mounts
+      window.scrollTo(0, 0);
+      
       fetchReview(id);
       
       // Increment view count when review page is visited
@@ -226,9 +230,9 @@ const ReviewDetail = () => {
 
         {/* Review Content */}
         <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-          {/* Media Section */}
+          {/* Media Section - Completely separated */}
           {review.media && review.media.length > 0 && (
-            <div className="mb-6 bg-gray-50 p-4 rounded-lg">
+            <div className="bg-gray-50 p-6 pb-8 border-b border-gray-200 relative">
               <div className="mb-4">
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Media Gallery</h3>
                 <p className="text-sm text-gray-600">View all media associated with this review</p>
@@ -244,77 +248,82 @@ const ReviewDetail = () => {
             </div>
           )}
 
-          {/* Content */}
-          <div className="p-8">
-            {/* Header */}
-            <div className="flex justify-between items-start mb-6">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  {review.tags && review.tags.length > 0 && review.tags.map((tag: any) => (
-                    <span
-                      key={tag}
-                      className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        tag === 'Brutal' ? 'bg-red-100 text-red-700' :
-                        tag === 'Honest' ? 'bg-blue-100 text-blue-700' :
-                        tag === 'Praise' ? 'bg-green-100 text-green-700' :
-                        'bg-gray-100 text-gray-700'
-                      }`}
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                  <span className="px-2 py-1 text-xs font-medium bg-orange-100 text-orange-700 rounded-full">
-                    {review.category}
+          {/* Content Section - Completely separate from media with extra spacing */}
+          <div className="p-8 pt-10">
+            {/* Tags Section - Clear separation with background and extra top margin */}
+            <div className="bg-gray-50 p-4 rounded-lg mb-6 mt-4">
+              <div className="flex items-center gap-2 flex-wrap">
+                {review.tags && review.tags.length > 0 && review.tags.map((tag: any) => (
+                  <span
+                    key={tag}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-full ${
+                      tag === 'Brutal' ? 'bg-red-100 text-red-700' :
+                      tag === 'Honest' ? 'bg-blue-100 text-blue-700' :
+                      tag === 'Praise' ? 'bg-green-100 text-green-700' :
+                      'bg-gray-100 text-gray-700'
+                    }`}
+                  >
+                    {tag}
                   </span>
-                </div>
-                
-                <h1 className="text-3xl font-bold text-gray-900 mb-4">{review.title}</h1>
-                
-                <div className="flex items-center gap-4 text-sm text-gray-600 mb-6">
-                  <div className="flex items-center">
-                    <User className="w-4 h-4 mr-1" />
-                    {review.author?.userId ? (
-                      <button
-                        onClick={handleAuthorClick}
-                        className="hover:text-orange-600 hover:underline transition-colors cursor-pointer"
-                        title="View profile"
-                      >
-                        {review.author.name || 'Anonymous'}
-                      </button>
-                    ) : (
-                      <span>{review.author?.name || 'Anonymous'}</span>
-                    )}
-                  </div>
-                  <div className="flex items-center">
-                    <Calendar className="w-4 h-4 mr-1" />
-                    {new Date(review.createdAt).toLocaleDateString()}
-                  </div>
-                  <div className="flex items-center">
-                    <Eye className="w-4 h-4 mr-1" />
-                    {review.views} views
-                  </div>
-                </div>
+                ))}
+                <span className="px-3 py-1.5 text-xs font-medium bg-orange-100 text-orange-700 rounded-full">
+                  {review.category}
+                </span>
+              </div>
+            </div>
 
-                {/* Rating */}
-                <div className="flex items-center mb-6">
-                  <div className="flex">
-                    {[...Array(5)].map((_, i) => (
-                      <svg
-                        key={i}
-                        className={`w-5 h-5 ${i < review.rating ? 'text-orange-500' : 'text-gray-300'}`}
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                      </svg>
-                    ))}
-                  </div>
-                  <span className="ml-2 text-sm text-gray-600">({review.rating}/5)</span>
-                  {review.trustScore && (
-                    <span className="ml-4 px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
-                      Trust Score: {review.trustScore}%
-                    </span>
-                  )}
+            {/* Title */}
+            <h1 className="text-3xl font-bold text-gray-900 mb-6">{review.title}</h1>
+            
+            {/* Author and Metadata */}
+            <div className="flex items-center gap-4 text-sm text-gray-600 mb-6">
+              <div className="flex items-center">
+                <User className="w-4 h-4 mr-1" />
+                {review.author?.userId ? (
+                  <button
+                    onClick={handleAuthorClick}
+                    className="hover:text-orange-600 hover:underline transition-colors cursor-pointer"
+                    title="View profile"
+                  >
+                    {review.author.name || 'Anonymous'}
+                  </button>
+                ) : (
+                  <span>{review.author?.name || 'Anonymous'}</span>
+                )}
+              </div>
+              <div className="flex items-center">
+                <Calendar className="w-4 h-4 mr-1" />
+                {new Date(review.createdAt).toLocaleDateString()}
+              </div>
+              <div className="flex items-center">
+                <Eye className="w-4 h-4 mr-1" />
+                {review.views} views
+              </div>
+            </div>
+
+            {/* Rating and Trust Score */}
+            <div className="flex items-center mb-8">
+              <div className="flex">
+                {[...Array(5)].map((_, i) => (
+                  <svg
+                    key={i}
+                    className={`w-5 h-5 ${i < review.rating ? 'text-orange-500' : 'text-gray-300'}`}
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                ))}
+              </div>
+              <span className="ml-2 text-sm text-gray-600">({review.rating}/5)</span>
+              
+              {/* Trust Score - Always Visible */}
+              <div className="ml-4 px-3 py-1.5 bg-white shadow-lg border-2 border-green-500 rounded-full">
+                <div className="flex items-center gap-1.5">
+                  <Award className="w-4 h-4 text-green-600" />
+                  <span className="text-sm font-bold text-green-700 font-mono">
+                    {review.trustScore || calculateTrustScore(review)}%
+                  </span>
                 </div>
               </div>
             </div>

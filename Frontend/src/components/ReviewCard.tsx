@@ -106,30 +106,35 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showRank = false }) => 
           transition: { duration: 0.3 }
         }}
       >
-        <div className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden h-full flex flex-col">
-          {/* Trust Score Badge */}
-          <div className="absolute top-4 right-4 z-20">
-            <div className={`px-3 py-1 rounded-full text-xs font-bold bg-white shadow-lg ${trustLevel.color}`}>
-              <div className="flex items-center gap-1">
-                <Award className="w-3 h-3" />
-                {trustScore}%
+        <div className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden h-full flex flex-col relative">
+          {/* Trust Score Badge - Always Visible */}
+          <div className="absolute top-4 right-4 z-50">
+            <div className="px-3 py-1.5 rounded-full text-sm font-bold bg-white shadow-xl border-2 border-orange-500">
+              <div className="flex items-center gap-1.5">
+                <Award className="w-4 h-4 text-orange-600" />
+                <span className="font-mono font-bold text-orange-700">{trustScore}%</span>
               </div>
             </div>
           </div>
 
-          {/* Tags Section - Fixed at top */}
-          <div className="p-4 pb-2 bg-gray-50 border-b border-gray-200">
+          {/* Tags Section - Only top 2 tags visible */}
+          <div className="p-6 py-5 bg-gray-50 border-b border-gray-200">
             <div className="flex items-center gap-2 flex-wrap">
               {currentReview.tags.slice(0, 2).map((tag, index) => (
                 <span
                   key={tag}
-                  className={`px-3 py-1 text-xs font-semibold rounded-full bg-gradient-to-r ${getTagStyle(tag)} text-white`}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-full bg-gradient-to-r ${getTagStyle(tag)} text-white`}
                 >
                   {tag}
                 </span>
               ))}
+              {currentReview.tags.length > 2 && (
+                <span className="px-2 py-1.5 text-xs text-gray-500 bg-gray-100 rounded-full">
+                  +{currentReview.tags.length - 2} more
+                </span>
+              )}
               {!currentReview.media && (
-                <span className={`px-3 py-1 text-xs font-semibold rounded-full bg-gradient-to-r ${getCategoryGradient(currentReview.category)} text-white ml-auto`}>
+                <span className={`px-3 py-1.5 text-xs font-semibold rounded-full bg-gradient-to-r ${getCategoryGradient(currentReview.category)} text-white ml-auto`}>
                   {currentReview.category}
                 </span>
               )}
@@ -199,7 +204,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showRank = false }) => 
                       <motion.img
                         src={currentReview.author.avatar}
                         alt={currentReview.author.name}
-                        className={`w-10 h-10 rounded-full object-cover border-2 border-white shadow-lg ${currentReview.author?.userId ? 'cursor-pointer group-hover/profile:border-orange-300' : ''}`}
+                        className={`w-12 h-12 rounded-full object-cover border-2 border-white shadow-lg ${currentReview.author?.userId ? 'cursor-pointer group-hover/profile:border-orange-300' : ''}`}
                         whileHover={{ scale: 1.1 }}
                         transition={{ duration: 0.2 }}
                         onClick={currentReview.author?.userId ? handleAuthorClick : undefined}
@@ -207,18 +212,21 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showRank = false }) => 
                         onError={(e) => {
                           // Fallback to default avatar if image fails to load
                           e.currentTarget.style.display = 'none';
-                          e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                          const fallbackElement = e.currentTarget.nextElementSibling;
+                          if (fallbackElement) {
+                            fallbackElement.classList.remove('hidden');
+                          }
                         }}
                       />
                     ) : null}
                     <motion.div
-                      className={`w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center shadow-lg ${currentReview.author?.avatar ? 'hidden' : ''} ${currentReview.author?.userId ? 'cursor-pointer group-hover/profile:from-orange-600 group-hover/profile:to-red-600' : ''}`}
+                      className={`w-12 h-12 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center shadow-lg ${currentReview.author?.avatar ? 'hidden' : ''} ${currentReview.author?.userId ? 'cursor-pointer group-hover/profile:from-orange-600 group-hover/profile:to-red-600' : ''}`}
                       whileHover={{ scale: 1.1 }}
                       transition={{ duration: 0.2 }}
                       onClick={currentReview.author?.userId ? handleAuthorClick : undefined}
                       title={currentReview.author?.userId ? `View ${currentReview.author?.name}'s profile` : currentReview.author?.name || 'Anonymous'}
                     >
-                      <User className="w-5 h-5 text-white" />
+                      <User className="w-6 h-6 text-white" />
                     </motion.div>
                     
                     {/* Online/Trust indicator */}

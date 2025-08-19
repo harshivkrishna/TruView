@@ -38,7 +38,7 @@ const App: React.FC = () => {
                 </ProtectedRoute>
               } />
               <Route path="/admin" element={
-                <ProtectedRoute>
+                <ProtectedRoute adminOnly={true}>
                   <AdminDashboard />
                 </ProtectedRoute>
               } />

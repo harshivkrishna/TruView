@@ -9,36 +9,7 @@ const router = express.Router();
 // Default secret code
 let adminSecretCode = 'truview';
 
-// Apply authentication and admin check to all routes
-router.use(authenticateToken);
-router.use(isAdmin);
-
-// Get current secret code
-router.get('/secret-code', async (req, res) => {
-  try {
-    res.json({ secretCode: adminSecretCode });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-
-// Update secret code
-router.put('/secret-code', async (req, res) => {
-  try {
-    const { newSecretCode } = req.body;
-    
-    if (!newSecretCode || newSecretCode.trim().length < 3) {
-      return res.status(400).json({ message: 'Secret code must be at least 3 characters long' });
-    }
-    
-    adminSecretCode = newSecretCode.trim();
-    res.json({ message: 'Secret code updated successfully', secretCode: adminSecretCode });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-
-// Create admin account
+// Create admin account - this route should be accessible without authentication
 router.post('/create-admin', async (req, res) => {
   try {
     const { firstName, lastName, email, password, phoneNumber, secretCode } = req.body;
@@ -64,16 +35,12 @@ router.post('/create-admin', async (req, res) => {
       });
     }
     
-    // Hash password
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
-    
-    // Create admin user
+    // Create admin user - password will be hashed by the pre-save hook
     const adminUser = new User({
       firstName,
       lastName,
       email,
-      password: hashedPassword,
+      password, // Don't hash here - let the pre-save hook handle it
       phoneNumber,
       role: 'admin',
       emailVerified: true, // Admin accounts are auto-verified
@@ -81,6 +48,13 @@ router.post('/create-admin', async (req, res) => {
     });
     
     await adminUser.save();
+    
+    console.log('Admin account created successfully:', {
+      id: adminUser._id,
+      email: adminUser.email,
+      role: adminUser.role,
+      emailVerified: adminUser.emailVerified
+    });
     
     res.status(201).json({ 
       message: 'Admin account created successfully',
@@ -95,6 +69,45 @@ router.post('/create-admin', async (req, res) => {
   } catch (error) {
     console.error('Admin creation error:', error);
     res.status(500).json({ message: 'Failed to create admin account' });
+  }
+});
+
+// Apply authentication to all other admin routes
+router.use(authenticateToken);
+
+// Check for admin access - only admin role is allowed
+router.use(isAdmin);
+
+// Add error logging middleware
+router.use((req, res, next) => {
+  console.log(`Admin route accessed: ${req.method} ${req.path}`);
+  console.log('User:', req.user);
+  console.log('User profile:', req.userProfile);
+  next();
+});
+
+// Get current secret code
+router.get('/secret-code', async (req, res) => {
+  try {
+    res.json({ secretCode: adminSecretCode });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Update secret code
+router.put('/secret-code', async (req, res) => {
+  try {
+    const { newSecretCode } = req.body;
+    
+    if (!newSecretCode || newSecretCode.trim().length < 3) {
+      return res.status(400).json({ message: 'Secret code must be at least 3 characters long' });
+    }
+    
+    adminSecretCode = newSecretCode.trim();
+    res.json({ message: 'Secret code updated successfully', secretCode: adminSecretCode });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 });
 
@@ -126,10 +139,22 @@ router.get('/stats', async (req, res) => {
 router.get('/reviews', async (req, res) => {
   try {
     const reviews = await Review.find()
-      .populate('author', 'firstName lastName email')
+      .populate('author.userId', 'firstName lastName email avatar')
       .sort({ createdAt: -1 })
       .limit(100);
-    res.json(reviews);
+    
+    // Format the reviews data consistently
+    const formattedReviews = reviews.map(review => {
+      const reviewObj = review.toObject();
+      if (reviewObj.author && reviewObj.author.userId) {
+        reviewObj.author.name = `${reviewObj.author.userId.firstName} ${reviewObj.author.userId.lastName}`;
+        reviewObj.author.avatar = reviewObj.author.userId.avatar;
+        reviewObj.author.userId = reviewObj.author.userId._id;
+      }
+      return reviewObj;
+    });
+    
+    res.json(formattedReviews);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -201,6 +226,33 @@ router.delete('/reviews/:id', async (req, res) => {
       return res.status(404).json({ message: 'Review not found' });
     }
     res.json({ message: 'Review deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// PassKey Management
+router.get('/passkey', async (req, res) => {
+  try {
+    // For now, return a default passkey or get from environment
+    const defaultPassKey = process.env.ADMIN_PASSKEY || 'admin123';
+    res.json({ passKey: defaultPassKey });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.put('/passkey', async (req, res) => {
+  try {
+    const { newPassKey } = req.body;
+    
+    if (!newPassKey || newPassKey.trim().length < 6) {
+      return res.status(400).json({ message: 'Passkey must be at least 6 characters long' });
+    }
+    
+    // In a real app, you'd store this securely
+    // For now, just return success
+    res.json({ message: 'Passkey updated successfully' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

@@ -70,7 +70,15 @@ app.use((req, res, next) => {
   next();
 });
 
-
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
@@ -80,6 +88,52 @@ app.use('/api/upload', require('./routes/upload'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/reports', require('./routes/reports'));
+
+// 404 handler for undefined routes
+app.use('*', (req, res) => {
+  res.status(404).json({ message: 'Route not found' });
+});
+
+// Global error handling middleware
+app.use((error, req, res, next) => {
+  console.error('Global error handler:', error);
+  
+  // Handle mongoose validation errors
+  if (error.name === 'ValidationError') {
+    const messages = Object.values(error.errors).map(err => err.message);
+    return res.status(400).json({ 
+      message: 'Validation Error', 
+      errors: messages 
+    });
+  }
+  
+  // Handle mongoose cast errors (invalid ObjectId)
+  if (error.name === 'CastError') {
+    return res.status(400).json({ 
+      message: 'Invalid ID format' 
+    });
+  }
+  
+  // Handle JWT errors
+  if (error.name === 'JsonWebTokenError') {
+    return res.status(401).json({ 
+      message: 'Invalid token' 
+    });
+  }
+  
+  // Handle JWT expiration
+  if (error.name === 'TokenExpiredError') {
+    return res.status(401).json({ 
+      message: 'Token expired' 
+    });
+  }
+  
+  // Default error response
+  res.status(error.status || 500).json({ 
+    message: error.message || 'Internal server error',
+    ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
+  });
+});
 
 // MongoDB connection with performance optimizations
 const mongoOptions = {

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion, useInView, useAnimation } from 'framer-motion';
 import { 
   Star, TrendingUp, Users, Shield, Award, Zap, Globe, CheckCircle, 
-  ArrowRight, Play, MessageSquare, ThumbsUp, Eye, Sparkles, Clock
+  ArrowRight, Play, MessageSquare, ThumbsUp, Eye, Sparkles, Clock, ArrowRight as ArrowRightIcon
 } from 'lucide-react';
 import ReviewCard from '../components/ReviewCard';
 import Footer from '../components/Footer';
@@ -18,7 +18,6 @@ const AwardIcon = Award as React.ComponentType<any>;
 const ZapIcon = Zap as React.ComponentType<any>;
 const GlobeIcon = Globe as React.ComponentType<any>;
 const CheckCircleIcon = CheckCircle as React.ComponentType<any>;
-const ArrowRightIcon = ArrowRight as React.ComponentType<any>;
 const PlayIcon = Play as React.ComponentType<any>;
 const MessageSquareIcon = MessageSquare as React.ComponentType<any>;
 const ThumbsUpIcon = ThumbsUp as React.ComponentType<any>;
@@ -102,7 +101,7 @@ const HeroSection = () => {
   const isInView = useInView(ref, { once: true });
 
   return (
-    <section ref={ref} className="bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white h-screen overflow-hidden flex items-center">
+    <section ref={ref} className="bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white min-h-screen overflow-hidden flex items-center">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
         <div className="text-center relative">
           <motion.div
@@ -112,7 +111,7 @@ const HeroSection = () => {
             className="relative z-10"
           >
             <motion.h1 
-              className="text-5xl md:text-6xl font-bold mb-6 leading-tight"
+              className="text-6xl md:text-7xl lg:text-8xl font-bold mb-6 leading-tight"
               initial={{ opacity: 0, y: 20 }}
               animate={isInView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.8, delay: 0.2 }}
@@ -834,7 +833,7 @@ const TrendingSection = ({ reviews, loading, error, onRetry }: any) => {
         </motion.div>
         
         {loading ? (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[...Array(12)].map((_, i) => (
               <motion.div
                 key={i}
@@ -862,7 +861,7 @@ const TrendingSection = ({ reviews, loading, error, onRetry }: any) => {
         ) : displayedReviews.length > 0 ? (
           <>
             <motion.div 
-              className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+              className="grid md:grid-cols-2 lg:grid-cols-3 gap-6"
               initial={{ opacity: 0 }}
               animate={isInView ? { opacity: 1 } : {}}
               transition={{ duration: 0.8, delay: 0.3 }}

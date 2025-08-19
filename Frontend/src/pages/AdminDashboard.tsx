@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Users, FileText, Flag, TrendingUp, Search, Filter, Check, X, Eye, Key, BarChart3, PieChart, Calendar, Activity } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { getPassKey, updatePassKey } from '../services/api';
+import { getPassKey, updatePassKey, getAdminReviews, getAdminUsers, getAdminReports, handleReportAction } from '../services/api';
 import toast from 'react-hot-toast';
 import {
   AreaChart,
@@ -92,11 +92,11 @@ const AdminDashboard = () => {
     try {
       setLoading(true);
       
-      // Fetch reviews, users, and reports data
+      // Fetch reviews, users, and reports data using admin endpoints
       const [reviewsData, usersData, reportsData] = await Promise.all([
-        fetch('/api/reviews').then(res => res.json()),
-        fetch('/api/users').then(res => res.json()),
-        fetch('/api/reports').then(res => res.json())
+        getAdminReviews(),
+        getAdminUsers(),
+        getAdminReports()
       ]);
       
       setReviews(reviewsData);
@@ -153,7 +153,6 @@ const AdminDashboard = () => {
     }
   };
 
-  // Temporary debug logging
   useEffect(() => {
     if (currentUser) {
       fetchAdminData();
@@ -345,11 +344,16 @@ const AdminDashboard = () => {
       }
     });
     
-    return Object.keys(ratings).map(rating => ({
+    console.log('Processing rating data:', { reviews: reviews.length, ratings });
+    
+    const result = Object.keys(ratings).map(rating => ({
       rating: `${rating} Star`,
       count: ratings[parseInt(rating) as keyof typeof ratings],
-      fill: rating === '5' ? '#10B981' : rating === '4' ? '#3B82F6' : rating === '3' ? '#F59E0B' : rating === '2' ? '#EF4444' : '#6B7280'
+      fill: rating === '5' ? '#10B981' : rating === '4' ? '#3B82F6' : rating === '3' ? '#F59E0B' : rating === '2' ? '#F97316' : '#EF4444'
     }));
+    
+    console.log('Rating data result:', result);
+    return result;
   };
 
   const generateActivityData = (reviews: any[], users: any[], days: number) => {
@@ -413,13 +417,9 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleReportAction = async (reportId: string, action: 'accept' | 'reject') => {
+  const handleReportActionLocal = async (reportId: string, action: 'accept' | 'reject') => {
     try {
-      const token = localStorage.getItem('token');
-      await fetch(`http://localhost:5000/api/admin/reports/${reportId}/${action}`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      await handleReportAction(reportId, action);
       fetchAdminData(); // Refresh data
     } catch (error) {
       console.error('Error handling report:', error);
@@ -431,7 +431,8 @@ const AdminDashboard = () => {
   const hasAdminAccess = () => {
     // If user is authenticated and accessing /admin route, allow access
     // The PassKey validation already happened during registration
-    return currentUser !== null;
+    // Also check if user has admin role
+    return currentUser !== null && currentUser.role === 'admin';
   };
 
   if (!currentUser) {
@@ -456,9 +457,21 @@ const AdminDashboard = () => {
             <p className="text-sm"><strong>Email:</strong> {currentUser.email}</p>
             <p className="text-sm"><strong>Role:</strong> {currentUser.role || 'undefined'}</p>
             <p className="text-sm"><strong>Name:</strong> {currentUser.firstName} {currentUser.lastName}</p>
-            <p className="text-xs text-gray-500 mt-2">
+            <p className="text-xs text-gray-500 mt-2 mb-4">
               Please ensure you registered with a valid admin PassKey.
             </p>
+            <div className="border-t pt-4">
+              <p className="text-sm text-gray-600 mb-3">Need admin access?</p>
+              <button
+                onClick={() => navigate('/')}
+                className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors text-sm"
+              >
+                Go to Home & Register as Admin
+              </button>
+              <p className="text-xs text-gray-500 mt-2">
+                Use the Sign Up button and enter passkey: <code className="bg-gray-100 px-1 rounded">truview</code>
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -560,8 +573,8 @@ const AdminDashboard = () => {
             <>
               {activeTab === 'overview' && <OverviewTab stats={stats} chartData={chartData} timePeriod={timePeriod} setTimePeriod={setTimePeriod} />}
               {activeTab === 'reviews' && <ReviewsTab reviews={reviews} />}
-              {activeTab === 'users' && <UsersTab users={users} />}
-              {activeTab === 'reports' && <ReportsTab reports={reports} onAction={handleReportAction} />}
+              {activeTab === 'users' && <UsersTab users={users} currentUser={currentUser} />}
+              {activeTab === 'reports' && <ReportsTab reports={reports} onAction={handleReportActionLocal} />}
               {activeTab === 'admin' && (
                 <AdminManagementTab 
                   passKey={passKey}
@@ -815,21 +828,26 @@ const OverviewTab = ({ stats, chartData, timePeriod, setTimePeriod }: any) => {
             <TrendingUpIcon className="w-5 h-5 text-orange-600" />
             <h4 className="text-lg font-semibold text-gray-900">Rating Distribution</h4>
           </div>
-          <div className="h-64">
+          <div className="h-80">
             {chartData.ratingDistribution.some((item: any) => item.count > 0) ? (
               <ResponsiveContainerComponent width="100%" height="100%">
-                <BarChartComponent data={chartData.ratingDistribution} layout="horizontal">
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxisComponent type="number" stroke="#6B7280" fontSize={12} />
-                  <YAxisComponent type="category" dataKey="rating" stroke="#6B7280" fontSize={12} width={60} />
+                <BarChartComponent data={chartData.ratingDistribution} margin={{ left: 30, right: 30, top: 30, bottom: 30 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxisComponent type="category" dataKey="rating" stroke="#6B7280" fontSize={12} />
+                  <YAxisComponent type="number" stroke="#6B7280" fontSize={12} />
                   <Tooltip 
                     contentStyle={{ 
                       backgroundColor: 'rgba(255, 255, 255, 0.95)', 
                       border: '1px solid #e5e5e5',
-                      borderRadius: '8px'
+                      borderRadius: '8px',
+                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
                     }}
                   />
-                  <Bar dataKey="count" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="count" radius={[6, 6, 0, 0]} barSize={50} fill="#3B82F6" minPointSize={5}>
+                    {chartData.ratingDistribution.map((entry: any, index: number) => (
+                      <CellComponent key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Bar>
                 </BarChartComponent>
               </ResponsiveContainerComponent>
             ) : (
@@ -909,115 +927,342 @@ const OverviewTab = ({ stats, chartData, timePeriod, setTimePeriod }: any) => {
   );
 };
 
-const ReviewsTab = ({ reviews }: any) => (
+const ReviewsTab = ({ reviews }: any) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedRating, setSelectedRating] = useState('');
+  const [sortBy, setSortBy] = useState('createdAt');
+  const [sortOrder, setSortOrder] = useState('desc');
+
+  // Get unique categories for filter
+  const categories = [...new Set(reviews.map((review: any) => review.category).filter(Boolean))];
+  const ratings = [1, 2, 3, 4, 5];
+
+  // Filter and sort reviews
+  const filteredReviews = reviews
+    .filter((review: any) => {
+      const matchesSearch = 
+        review.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        review.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        review.author?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        review.category?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesCategory = !selectedCategory || review.category === selectedCategory;
+      const matchesRating = !selectedRating || review.rating === parseInt(selectedRating);
+      
+      return matchesSearch && matchesCategory && matchesRating;
+    })
+    .sort((a: any, b: any) => {
+      let aValue = a[sortBy];
+      let bValue = b[sortBy];
+      
+      if (sortBy === 'createdAt') {
+        aValue = new Date(a.createdAt || 0).getTime();
+        bValue = new Date(b.createdAt || 0).getTime();
+      }
+      
+      if (sortOrder === 'asc') {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
+      }
+    });
+
+  const handleViewReview = (reviewId: string) => {
+    window.open(`/review/${reviewId}`, '_blank');
+  };
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setSelectedCategory('');
+    setSelectedRating('');
+    setSortBy('createdAt');
+    setSortOrder('desc');
+  };
+
+  return (
   <div className="p-6">
-    <div className="flex justify-between items-center mb-6">
-      <h3 className="text-lg font-semibold text-gray-900">All Reviews ({reviews.length})</h3>
-      <div className="flex gap-2">
+      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 mb-6">
+        <h3 className="text-lg font-semibold text-gray-900">
+          All Reviews ({filteredReviews.length} of {reviews.length})
+        </h3>
+        
+        {/* Search and Filters */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          {/* Search */}
         <div className="relative">
           <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
           <input
             type="text"
             placeholder="Search reviews..."
-            className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 w-full sm:w-64"
           />
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
-          <FilterIcon className="w-4 h-4" />
-          Filter
+          
+          {/* Category Filter */}
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+          >
+            <option value="">All Categories</option>
+            {categories.map((category) => (
+              <option key={category} value={category}>{category}</option>
+            ))}
+          </select>
+          
+          {/* Rating Filter */}
+          <select
+            value={selectedRating}
+            onChange={(e) => setSelectedRating(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+          >
+            <option value="">All Ratings</option>
+            {ratings.map((rating) => (
+              <option key={rating} value={rating}>{rating} Star{rating > 1 ? 's' : ''}</option>
+            ))}
+          </select>
+          
+          {/* Sort */}
+          <select
+            value={`${sortBy}-${sortOrder}`}
+            onChange={(e) => {
+              const [newSortBy, newSortOrder] = e.target.value.split('-');
+              setSortBy(newSortBy);
+              setSortOrder(newSortOrder);
+            }}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+          >
+            <option value="createdAt-desc">Newest First</option>
+            <option value="createdAt-asc">Oldest First</option>
+            <option value="rating-desc">Highest Rating</option>
+            <option value="rating-asc">Lowest Rating</option>
+            <option value="title-asc">Title A-Z</option>
+            <option value="title-desc">Title Z-A</option>
+          </select>
+          
+          {/* Clear Filters */}
+          {(searchTerm || selectedCategory || selectedRating) && (
+            <button
+              onClick={clearFilters}
+              className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Clear Filters
         </button>
+          )}
       </div>
     </div>
     
-    {reviews.length > 0 ? (
+      {filteredReviews.length > 0 ? (
       <div className="border border-gray-200 rounded-lg overflow-hidden">
         <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
-          <div className="grid grid-cols-5 gap-4 text-sm font-medium text-gray-700">
-            <div>Title</div>
-            <div>Author</div>
-            <div>Category</div>
-            <div>Rating</div>
-            <div>Actions</div>
+            <div className="grid grid-cols-12 gap-4 text-sm font-medium text-gray-700 min-w-[900px]">
+              <div className="col-span-3">Title</div>
+              <div className="col-span-2">Author</div>
+              <div className="col-span-2">Category</div>
+              <div className="col-span-1">Rating</div>
+              <div className="col-span-2">Created</div>
+              <div className="col-span-2">Actions</div>
           </div>
         </div>
-        <div className="divide-y divide-gray-200">
-          {reviews.slice(0, 10).map((review: any, index: number) => (
+          <div className="divide-y divide-gray-200 overflow-x-auto">
+            <div className="min-w-[900px]">
+              {filteredReviews.map((review: any, index: number) => (
             <div key={review._id || index} className="px-6 py-4 hover:bg-gray-50">
-              <div className="grid grid-cols-5 gap-4 items-center text-sm">
-                <div className="font-medium text-gray-900 truncate">
+                  <div className="grid grid-cols-12 gap-4 items-center text-sm">
+                    <div className="col-span-3 font-medium text-gray-900 truncate" title={review.title || 'Untitled Review'}>
                   {review.title || 'Untitled Review'}
                 </div>
-                <div className="text-gray-600">
+                    <div className="col-span-2 text-gray-600 truncate" title={review.author?.name || 'Anonymous'}>
                   {review.author?.name || 'Anonymous'}
                 </div>
-                <div className="text-gray-600">
+                    <div className="col-span-2 text-gray-600 truncate" title={review.category || 'Uncategorized'}>
                   {review.category || 'Uncategorized'}
                 </div>
-                <div className="flex items-center gap-1">
+                    <div className="col-span-1 flex items-center gap-1">
                   <span className="text-orange-500">★</span>
                   <span>{review.rating || 0}/5</span>
                 </div>
-                <div className="flex gap-2">
-                  <button className="text-blue-600 hover:text-blue-800">View</button>
-                  <button className="text-red-600 hover:text-red-800">Delete</button>
+                    <div className="col-span-2 text-gray-600 text-xs">
+                      {review.createdAt ? new Date(review.createdAt).toLocaleDateString() : 'N/A'}
+                    </div>
+                    <div className="col-span-2 flex gap-2">
+                      <button 
+                        onClick={() => handleViewReview(review._id)}
+                        className="text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+                        title="View review details"
+                      >
+                        View
+                      </button>
                 </div>
               </div>
             </div>
           ))}
+            </div>
         </div>
       </div>
     ) : (
       <div className="text-center py-12 bg-gray-50 rounded-lg">
         <FileTextIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-        <h4 className="text-lg font-medium text-gray-900 mb-2">No Reviews Yet</h4>
-        <p className="text-gray-600">Reviews will appear here once users start submitting them.</p>
+          <h4 className="text-lg font-medium text-gray-900 mb-2">
+            {searchTerm || selectedCategory || selectedRating ? 'No Reviews Found' : 'No Reviews Yet'}
+          </h4>
+          <p className="text-gray-600">
+            {searchTerm || selectedCategory || selectedRating 
+              ? 'Try adjusting your search criteria or filters.'
+              : 'Reviews will appear here once users start submitting them.'
+            }
+          </p>
+          {(searchTerm || selectedCategory || selectedRating) && (
+            <button
+              onClick={clearFilters}
+              className="mt-4 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+            >
+              Clear All Filters
+            </button>
+          )}
       </div>
     )}
   </div>
 );
+};
 
-const UsersTab = ({ users }: any) => (
+const UsersTab = ({ users, currentUser }: any) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedRole, setSelectedRole] = useState('');
+  const [sortBy, setSortBy] = useState('createdAt');
+  const [sortOrder, setSortOrder] = useState('desc');
+
+  // Get unique roles for filter
+  const roles = [...new Set(users.map((user: any) => user.role).filter(Boolean))];
+
+  // Filter and sort users
+  const filteredUsers = users
+    .filter((user: any) => {
+      const matchesSearch = 
+        user.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.role?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesRole = !selectedRole || user.role === selectedRole;
+      
+      return matchesSearch && matchesRole;
+    })
+    .sort((a: any, b: any) => {
+      let aValue = a[sortBy];
+      let bValue = b[sortBy];
+      
+      if (sortBy === 'createdAt') {
+        aValue = new Date(a.createdAt || 0).getTime();
+        bValue = new Date(b.createdAt || 0).getTime();
+      } else if (sortBy === 'name') {
+        aValue = `${a.firstName || ''} ${a.lastName || ''}`.toLowerCase();
+        bValue = `${b.firstName || ''} ${b.lastName || ''}`.toLowerCase();
+      }
+      
+      if (sortOrder === 'asc') {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
+      }
+    });
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setSelectedRole('');
+    setSortBy('createdAt');
+    setSortOrder('desc');
+  };
+
+  return (
   <div className="p-6">
-    <div className="flex justify-between items-center mb-6">
-      <h3 className="text-lg font-semibold text-gray-900">All Users ({users.length})</h3>
-      <div className="flex gap-2">
+      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 mb-6">
+        <h3 className="text-lg font-semibold text-gray-900">
+          All Users ({filteredUsers.length} of {users.length})
+        </h3>
+        
+        {/* Search and Filters */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          {/* Search */}
         <div className="relative">
           <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
           <input
             type="text"
             placeholder="Search users..."
-            className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 w-full sm:w-64"
           />
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
-          <FilterIcon className="w-4 h-4" />
-          Filter
+          
+          {/* Role Filter */}
+          <select
+            value={selectedRole}
+            onChange={(e) => setSelectedRole(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+          >
+            <option value="">All Roles</option>
+            {roles.map((role) => (
+              <option key={role} value={role}>{role.charAt(0).toUpperCase() + role.slice(1)}</option>
+            ))}
+          </select>
+          
+          {/* Sort */}
+          <select
+            value={`${sortBy}-${sortOrder}`}
+            onChange={(e) => {
+              const [newSortBy, newSortOrder] = e.target.value.split('-');
+              setSortBy(newSortBy);
+              setSortOrder(newSortOrder);
+            }}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+          >
+            <option value="createdAt-desc">Newest First</option>
+            <option value="createdAt-asc">Oldest First</option>
+            <option value="name-asc">Name A-Z</option>
+            <option value="name-desc">Name Z-A</option>
+            <option value="role-asc">Role A-Z</option>
+            <option value="role-desc">Role Z-A</option>
+          </select>
+          
+          {/* Clear Filters */}
+          {(searchTerm || selectedRole) && (
+            <button
+              onClick={clearFilters}
+              className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Clear Filters
         </button>
+          )}
       </div>
     </div>
     
-    {users.length > 0 ? (
+      {filteredUsers.length > 0 ? (
       <div className="border border-gray-200 rounded-lg overflow-hidden">
         <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
-          <div className="grid grid-cols-5 gap-4 text-sm font-medium text-gray-700">
-            <div>Name</div>
-            <div>Email</div>
-            <div>Role</div>
-            <div>Joined</div>
-            <div>Actions</div>
+            <div className="grid grid-cols-12 gap-4 text-sm font-medium text-gray-700 min-w-[800px]">
+              <div className="col-span-3">Name</div>
+              <div className="col-span-4">Email</div>
+              <div className="col-span-2">Role</div>
+              <div className="col-span-2">Joined</div>
+              <div className="col-span-1">Actions</div>
           </div>
         </div>
-        <div className="divide-y divide-gray-200">
-          {users.slice(0, 10).map((user: any, index: number) => (
+          <div className="divide-y divide-gray-200 overflow-x-auto">
+            <div className="min-w-[800px]">
+              {filteredUsers.map((user: any, index: number) => (
             <div key={user._id || index} className="px-6 py-4 hover:bg-gray-50">
-              <div className="grid grid-cols-5 gap-4 items-center text-sm">
-                <div className="font-medium text-gray-900">
+                  <div className="grid grid-cols-12 gap-4 items-center text-sm">
+                    <div className="col-span-3 font-medium text-gray-900">
                   {user.firstName} {user.lastName}
                 </div>
-                <div className="text-gray-600">
+                    <div className="col-span-4 text-gray-600 truncate" title={user.email}>
                   {user.email}
                 </div>
-                <div>
+                    <div className="col-span-2">
                   <span className={`px-2 py-1 text-xs rounded-full ${
                     user.role === 'admin' 
                       ? 'bg-purple-100 text-purple-800' 
@@ -1026,73 +1271,206 @@ const UsersTab = ({ users }: any) => (
                     {user.role || 'user'}
                   </span>
                 </div>
-                <div className="text-gray-600">
+                    <div className="col-span-2 text-gray-600 text-xs">
                   {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
                 </div>
-                <div className="flex gap-2">
-                  <button className="text-blue-600 hover:text-blue-800">View</button>
-                  <button className="text-red-600 hover:text-red-800">Suspend</button>
+                    <div className="col-span-1 flex gap-2">
+                      {user.role !== 'admin' ? (
+                        <button 
+                          onClick={() => window.open(`/profile/${user._id}`, '_blank')}
+                          className="text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+                          title="View user profile"
+                        >
+                          View Profile
+                        </button>
+                      ) : (
+                        <span className="text-gray-400 text-xs">No actions</span>
+                      )}
                 </div>
               </div>
             </div>
           ))}
+            </div>
         </div>
       </div>
     ) : (
       <div className="text-center py-12 bg-gray-50 rounded-lg">
         <UsersIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-        <h4 className="text-lg font-medium text-gray-900 mb-2">No Users Yet</h4>
-        <p className="text-gray-600">Users will appear here once they register for accounts.</p>
+          <h4 className="text-lg font-medium text-gray-900 mb-2">
+            {searchTerm || selectedRole ? 'No Users Found' : 'No Users Yet'}
+          </h4>
+          <p className="text-gray-600">
+            {searchTerm || selectedRole 
+              ? 'Try adjusting your search criteria or filters.'
+              : 'Users will appear here once they register for accounts.'
+            }
+          </p>
+          {(searchTerm || selectedRole) && (
+            <button
+              onClick={clearFilters}
+              className="mt-4 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+            >
+              Clear All Filters
+            </button>
+          )}
       </div>
     )}
   </div>
 );
+};
 
-const ReportsTab = ({ reports, onAction }: any) => (
+const ReportsTab = ({ reports, onAction }: any) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('');
+  const [selectedType, setSelectedType] = useState('');
+  const [sortBy, setSortBy] = useState('createdAt');
+  const [sortOrder, setSortOrder] = useState('desc');
+
+  // Get unique statuses and types for filter
+  const statuses = [...new Set(reports.map((report: any) => report.status).filter(Boolean))];
+  const types = [...new Set(reports.map((report: any) => report.type || report.reason).filter(Boolean))];
+
+  // Filter and sort reports
+  const filteredReports = reports
+    .filter((report: any) => {
+      const matchesSearch = 
+        report.type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        report.reason?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        report.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        report.reporter?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        report.content?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesStatus = !selectedStatus || report.status === selectedStatus;
+      const matchesType = !selectedType || (report.type || report.reason) === selectedType;
+      
+      return matchesSearch && matchesStatus && matchesType;
+    })
+    .sort((a: any, b: any) => {
+      let aValue = a[sortBy];
+      let bValue = b[sortBy];
+      
+      if (sortBy === 'createdAt') {
+        aValue = new Date(a.createdAt || 0).getTime();
+        bValue = new Date(b.createdAt || 0).getTime();
+      }
+      
+      if (sortOrder === 'asc') {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
+      }
+    });
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setSelectedStatus('');
+    setSelectedType('');
+    setSortBy('createdAt');
+    setSortOrder('desc');
+  };
+
+  return (
   <div className="p-6">
-    <div className="flex justify-between items-center mb-6">
-      <h3 className="text-lg font-semibold text-gray-900">User Reports ({reports.length})</h3>
-      <div className="flex gap-2">
+      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 mb-6">
+        <h3 className="text-lg font-semibold text-gray-900">
+          User Reports ({filteredReports.length} of {reports.length})
+        </h3>
+        
+        {/* Search and Filters */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          {/* Search */}
         <div className="relative">
           <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
           <input
             type="text"
             placeholder="Search reports..."
-            className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 w-full sm:w-64"
           />
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
-          <FilterIcon className="w-4 h-4" />
-          Filter
+          
+          {/* Status Filter */}
+          <select
+            value={selectedStatus}
+            onChange={(e) => setSelectedStatus(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+          >
+            <option value="">All Statuses</option>
+            {statuses.map((status) => (
+              <option key={status} value={status}>{status.charAt(0).toUpperCase() + status.slice(1)}</option>
+            ))}
+          </select>
+          
+          {/* Type Filter */}
+          <select
+            value={selectedType}
+            onChange={(e) => setSelectedType(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+          >
+            <option value="">All Types</option>
+            {types.map((type) => (
+              <option key={type} value={type}>{type}</option>
+            ))}
+          </select>
+          
+          {/* Sort */}
+          <select
+            value={`${sortBy}-${sortOrder}`}
+            onChange={(e) => {
+              const [newSortBy, newSortOrder] = e.target.value.split('-');
+              setSortBy(newSortBy);
+              setSortOrder(newSortOrder);
+            }}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+          >
+            <option value="createdAt-desc">Newest First</option>
+            <option value="createdAt-asc">Oldest First</option>
+            <option value="status-asc">Status A-Z</option>
+            <option value="status-desc">Status Z-A</option>
+            <option value="type-asc">Type A-Z</option>
+            <option value="type-desc">Type Z-A</option>
+          </select>
+          
+          {/* Clear Filters */}
+          {(searchTerm || selectedStatus || selectedType) && (
+            <button
+              onClick={clearFilters}
+              className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Clear Filters
         </button>
+          )}
       </div>
     </div>
     
-    {reports.length > 0 ? (
+      {filteredReports.length > 0 ? (
       <div className="border border-gray-200 rounded-lg overflow-hidden">
         <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
-          <div className="grid grid-cols-5 gap-4 text-sm font-medium text-gray-700">
-            <div>Report Type</div>
-            <div>Reported Content</div>
-            <div>Reporter</div>
-            <div>Status</div>
-            <div>Actions</div>
+            <div className="grid grid-cols-12 gap-4 text-sm font-medium text-gray-700 min-w-[1000px]">
+              <div className="col-span-2">Report Type</div>
+              <div className="col-span-4">Reported Content</div>
+              <div className="col-span-2">Reporter</div>
+              <div className="col-span-1">Status</div>
+              <div className="col-span-2">Created</div>
+              <div className="col-span-1">Actions</div>
           </div>
         </div>
-        <div className="divide-y divide-gray-200">
-          {reports.slice(0, 10).map((report: any, index: number) => (
+          <div className="divide-y divide-gray-200 overflow-x-auto">
+            <div className="min-w-[1000px]">
+              {filteredReports.map((report: any, index: number) => (
             <div key={report._id || index} className="px-6 py-4 hover:bg-gray-50">
-              <div className="grid grid-cols-5 gap-4 items-center text-sm">
-                <div className="font-medium text-gray-900">
-                  {report.type || 'General Report'}
+                  <div className="grid grid-cols-12 gap-4 items-center text-sm">
+                    <div className="col-span-2 font-medium text-gray-900 truncate" title={report.type || report.reason || 'General Report'}>
+                      {report.type || report.reason || 'General Report'}
                 </div>
-                <div className="text-gray-600 truncate">
+                    <div className="col-span-4 text-gray-600 truncate" title={report.content || report.description || 'No description'}>
                   {report.content || report.description || 'No description'}
                 </div>
-                <div className="text-gray-600">
+                    <div className="col-span-2 text-gray-600 truncate" title={report.reporter?.name || 'Anonymous'}>
                   {report.reporter?.name || 'Anonymous'}
                 </div>
-                <div>
+                    <div className="col-span-1">
                   <span className={`px-2 py-1 text-xs rounded-full ${
                     report.status === 'pending' 
                       ? 'bg-yellow-100 text-yellow-800' 
@@ -1103,41 +1481,66 @@ const ReportsTab = ({ reports, onAction }: any) => (
                     {report.status || 'pending'}
                   </span>
                 </div>
-                <div className="flex gap-2">
+                    <div className="col-span-2 text-gray-600 text-xs">
+                      {report.createdAt ? new Date(report.createdAt).toLocaleDateString() : 'N/A'}
+                    </div>
+                    <div className="col-span-1 flex gap-2">
                   {report.status === 'pending' && (
                     <>
                       <button 
                         onClick={() => onAction(report._id, 'accept')}
-                        className="text-green-600 hover:text-green-800"
+                            className="text-green-600 hover:text-green-800 hover:bg-green-50 p-1 rounded transition-colors"
+                            title="Accept report"
                       >
                         <CheckIcon className="w-4 h-4" />
                       </button>
                       <button 
                         onClick={() => onAction(report._id, 'reject')}
-                        className="text-red-600 hover:text-red-800"
+                            className="text-red-600 hover:text-red-800 hover:bg-red-50 p-1 rounded transition-colors"
+                            title="Reject report"
                       >
                         <XIcon className="w-4 h-4" />
                       </button>
                     </>
                   )}
-                  <button className="text-blue-600 hover:text-blue-800">
+                      <button 
+                        className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-1 rounded transition-colors"
+                        title="View report details"
+                      >
                     <EyeIcon className="w-4 h-4" />
                   </button>
                 </div>
               </div>
             </div>
           ))}
+            </div>
         </div>
       </div>
     ) : (
       <div className="text-center py-12 bg-gray-50 rounded-lg">
         <FlagIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-        <h4 className="text-lg font-medium text-gray-900 mb-2">No Reports Yet</h4>
-        <p className="text-gray-600">User reports will appear here when submitted.</p>
+          <h4 className="text-lg font-medium text-gray-900 mb-2">
+            {searchTerm || selectedStatus || selectedType ? 'No Reports Found' : 'No Reports Yet'}
+          </h4>
+          <p className="text-gray-600">
+            {searchTerm || selectedStatus || selectedType 
+              ? 'Try adjusting your search criteria or filters.'
+              : 'User reports will appear here when submitted.'
+            }
+          </p>
+          {(searchTerm || selectedStatus || selectedType) && (
+            <button
+              onClick={clearFilters}
+              className="mt-4 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+            >
+              Clear All Filters
+            </button>
+          )}
       </div>
     )}
   </div>
 );
+};
 
 const AdminManagementTab = ({ 
   passKey, 

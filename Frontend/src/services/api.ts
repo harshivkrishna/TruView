@@ -23,6 +23,37 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Add response interceptor for better error handling and logging
+api.interceptors.response.use(
+  (response) => {
+    // Log successful responses in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log('API Response:', {
+        url: response.config.url,
+        method: response.config.method,
+        status: response.status,
+        data: response.data
+      });
+    }
+    return response;
+  },
+  (error) => {
+    // Log detailed error information
+    console.error('API Error Details:', {
+      url: error.config?.url,
+      method: error.config?.method,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      message: error.message,
+      config: error.config
+    });
+    
+    // Re-throw the error for component handling
+    return Promise.reject(error);
+  }
+);
+
 // Reviews API
 export const getReviews = async (params = {}) => {
   try {
@@ -146,10 +177,19 @@ export const uploadMedia = async (formData: FormData) => {
 // User Profile API
 export const getUserProfile = async (userId: string) => {
   try {
+    console.log('Fetching profile for user:', userId);
     const response = await api.get(`/users/${userId}/profile`);
+    console.log('Profile response:', response.data);
     return response.data;
-  } catch (error) {
-    console.error('API Error - getUserProfile:', error);
+  } catch (error: any) {
+    console.error('API Error - getUserProfile:', {
+      userId,
+      error: error.message,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      config: error.config
+    });
     throw error;
   }
 };

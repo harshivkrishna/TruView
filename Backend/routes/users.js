@@ -168,14 +168,21 @@ router.get('/:userId/profile', async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Check if profile is public
-    if (!user.isPublicProfile) {
+    // Check if profile is public (default to true if not set)
+    if (user.isPublicProfile === false) {
       return res.status(403).json({ message: 'Profile is private' });
     }
 
-    res.json(user);
+    // Add computed fields if they don't exist
+    const profileData = user.toObject();
+    if (!profileData.reviewCount) profileData.reviewCount = 0;
+    if (!profileData.trustScore) profileData.trustScore = 50;
+    if (!profileData.isPublicProfile) profileData.isPublicProfile = true;
+
+    res.json(profileData);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Error fetching user profile:', error);
+    res.status(500).json({ message: 'Failed to fetch user profile', error: error.message });
   }
 });
 
@@ -187,20 +194,33 @@ router.get('/:userId/reviews', async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Check if profile is public
-    if (!user.isPublicProfile) {
+    // Check if profile is public (default to true if not set)
+    if (user.isPublicProfile === false) {
       return res.status(403).json({ message: 'Profile is private' });
     }
 
     const reviews = await Review.find({ 
       'author.userId': req.params.userId 
     })
+    .populate('author.userId', 'firstName lastName avatar')
     .sort({ createdAt: -1 })
     .limit(20);
 
-    res.json(reviews);
+    // Format the reviews data consistently
+    const formattedReviews = reviews.map(review => {
+      const reviewObj = review.toObject();
+      if (reviewObj.author && reviewObj.author.userId) {
+        reviewObj.author.name = `${reviewObj.author.userId.firstName} ${reviewObj.author.userId.lastName}`;
+        reviewObj.author.avatar = reviewObj.author.userId.avatar;
+        reviewObj.author.userId = reviewObj.author.userId._id;
+      }
+      return reviewObj;
+    });
+
+    res.json(formattedReviews);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Error fetching user reviews:', error);
+    res.status(500).json({ message: 'Failed to fetch user reviews', error: error.message });
   }
 });
 

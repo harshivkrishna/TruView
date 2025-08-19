@@ -140,23 +140,33 @@ const RegisterModal: React.FC<RegisterModalProps> = ({
       
       if (isAdminMode) {
         // For admin registration, include the passkey validation
-        await signup(formData.email, formData.password, { 
+        const response = await signup(formData.email, formData.password, { 
           ...userData, 
           isAdminRegistration: true,
           passKey: formData.passKey 
         });
+        
+        // Admin accounts are created immediately without email verification
+        toast.success('Admin account created successfully! Please login with your credentials.');
+        handleClose();
+        setTimeout(() => {
+          onSwitchToLogin();
+        }, 1000);
       } else {
         // Regular user registration
         await signup(formData.email, formData.password, userData);
+        setRegisteredEmail(formData.email);
+        setShowOTPModal(true);
       }
-      
-      setRegisteredEmail(formData.email);
-      setShowOTPModal(true);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Signup error:', error);
       // Handle specific passkey error
-      if (error instanceof Error && error.message.includes('passkey')) {
+      if (error.message && error.message.includes('passkey')) {
         setErrors({ passKey: 'Invalid PassKey for admin registration' });
+      } else if (error.message && error.message.includes('Invalid secret code')) {
+        setErrors({ passKey: 'Invalid PassKey for admin registration' });
+      } else {
+        toast.error(error.message || 'Registration failed');
       }
     } finally {
       setIsLoading(false);
