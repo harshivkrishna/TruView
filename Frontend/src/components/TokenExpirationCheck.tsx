@@ -22,15 +22,19 @@ const TokenExpirationCheck: React.FC = () => {
           if (payload.exp && payload.exp < currentTime) {
             console.log('Token expired. Logging out user.');
             logout();
-            // Redirect to login page
-            if (window.location.pathname !== '/login' && window.location.pathname !== '/') {
-              window.location.href = '/login';
+            // Redirect to root route
+            if (window.location.pathname !== '/') {
+              window.location.href = '/';
             }
           }
         } catch (error) {
           console.error('Error checking token expiration:', error);
           // If we can't decode the token, it's invalid - log out
           logout();
+          // Redirect to root route
+          if (window.location.pathname !== '/') {
+            window.location.href = '/';
+          }
         }
       }
     };
@@ -38,8 +42,8 @@ const TokenExpirationCheck: React.FC = () => {
     // Check immediately
     checkTokenExpiration();
     
-    // Check every 5 minutes
-    const interval = setInterval(checkTokenExpiration, 5 * 60 * 1000);
+    // Check every minute for better responsiveness
+    const interval = setInterval(checkTokenExpiration, 60 * 1000);
     
     return () => clearInterval(interval);
   }, [currentUser, logout]);

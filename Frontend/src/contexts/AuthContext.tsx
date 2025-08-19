@@ -125,6 +125,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('user');
     localStorage.removeItem('token');
     localStorage.removeItem('pendingUserId');
+    
+    // Redirect to root route if not already there
+    if (window.location.pathname !== '/') {
+      window.location.href = '/';
+    }
   };
 
   const resetPassword = async (email: string) => {
@@ -174,10 +179,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const handleTokenExpiration = () => {
-    logout();
-    // Optionally, redirect to login page or show a message
-    console.warn('Token expired. Redirecting to login.');
-    // window.location.href = '/login'; // Example redirect
+    console.warn('Token expired. Logging out user and redirecting to root.');
+    logout(); // This will handle the redirect to root route
   };
 
   const value = {
