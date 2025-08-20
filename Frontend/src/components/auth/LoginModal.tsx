@@ -43,7 +43,7 @@ const LoginModal: React.FC<LoginModalProps> = ({
       await login(formData.email, formData.password);
       handleClose();
     } catch (error) {
-      console.error('Login error:', error);
+      // Handle error silently
     } finally {
       setIsLoading(false);
     }

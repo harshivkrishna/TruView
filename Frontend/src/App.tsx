@@ -18,7 +18,7 @@ import UserProfile from './pages/UserProfile';
 
 
 const App: React.FC = () => {
-  console.log('App component rendering, current path:', window.location.pathname);
+
   
   return (
     <AuthProvider>

@@ -70,7 +70,6 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({ onSearch, onClose, init
           hasPersistedData = true;
         }
       } catch (error) {
-        console.error('Error parsing persisted filters:', error);
         sessionStorage.removeItem('advancedSearchFilters');
       }
     }
@@ -88,7 +87,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({ onSearch, onClose, init
         const categoriesData = await getCategoriesWithSubcategories();
         setCategories(categoriesData);
       } catch (error) {
-        console.error('Error fetching categories:', error);
+        // Handle error silently
       }
     };
     fetchCategories();

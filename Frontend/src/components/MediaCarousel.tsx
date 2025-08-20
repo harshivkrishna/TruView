@@ -75,7 +75,6 @@ const MediaCarousel: React.FC<MediaCarouselProps> = ({
   };
 
   const handleImageError = (index: number, url: string) => {
-    console.error('Image failed to load:', url);
     setFailedImages(prev => new Set(prev).add(index));
   };
 

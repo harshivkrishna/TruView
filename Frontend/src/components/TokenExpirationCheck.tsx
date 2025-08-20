@@ -20,7 +20,6 @@ const TokenExpirationCheck: React.FC = () => {
           const currentTime = Date.now() / 1000;
           
           if (payload.exp && payload.exp < currentTime) {
-            console.log('Token expired. Logging out user.');
             logout();
             // Redirect to root route
             if (window.location.pathname !== '/') {
@@ -28,7 +27,6 @@ const TokenExpirationCheck: React.FC = () => {
             }
           }
         } catch (error) {
-          console.error('Error checking token expiration:', error);
           // If we can't decode the token, it's invalid - log out
           logout();
           // Redirect to root route

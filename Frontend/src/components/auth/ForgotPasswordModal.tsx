@@ -38,7 +38,7 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
       await resetPassword(email);
       setStep('otp');
     } catch (error) {
-      console.error('Send OTP error:', error);
+      // Handle error silently
     } finally {
       setIsLoading(false);
     }
@@ -69,7 +69,6 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
         toast.error(data.message || 'Invalid OTP');
       }
     } catch (error) {
-      console.error('Verify OTP error:', error);
       toast.error('Failed to verify OTP');
     } finally {
       setIsLoading(false);
@@ -109,7 +108,6 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
         toast.error(data.message || 'Password reset failed');
       }
     } catch (error) {
-      console.error('Reset password error:', error);
       toast.error('Failed to reset password');
     } finally {
       setIsLoading(false);
@@ -122,7 +120,6 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
       await resetPassword(email);
       toast.success('OTP sent successfully!');
     } catch (error) {
-      console.error('Resend OTP error:', error);
       toast.error('Failed to resend OTP');
     } finally {
       setIsResending(false);

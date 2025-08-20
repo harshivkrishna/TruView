@@ -53,7 +53,6 @@ const DiscoveryEngine = () => {
       
       setReviews(reviewsData);
     } catch (error) {
-      console.error('Error fetching reviews:', error);
       setReviews([]);
     } finally {
       setLoading(false);
@@ -66,7 +65,7 @@ const DiscoveryEngine = () => {
       const leaderboardData = await getLeaderboard();
       setLeaderboard(leaderboardData);
     } catch (error) {
-      console.error('Error fetching leaderboard:', error);
+      // Handle error silently
     } finally {
       setLoading(false);
     }

@@ -37,7 +37,7 @@ export const useAuth = () => {
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  console.log('AuthProvider rendering');
+
   
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
@@ -52,7 +52,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const user = JSON.parse(userData);
         setCurrentUser(user);
       } catch (error) {
-        console.error('Error parsing user data:', error);
         localStorage.removeItem('user');
         localStorage.removeItem('token');
       }
@@ -179,7 +178,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const handleTokenExpiration = () => {
-    console.warn('Token expired. Logging out user and redirecting to root.');
     logout(); // This will handle the redirect to root route
   };
 

@@ -137,7 +137,6 @@ const AdminDashboard = () => {
       });
       
     } catch (error) {
-      console.error('Error fetching admin data:', error);
       toast.error('Failed to fetch admin data');
     } finally {
       setLoading(false);
@@ -149,7 +148,7 @@ const AdminDashboard = () => {
       const response = await getPassKey();
       setPassKey(response.passKey || '');
     } catch (error) {
-      console.error('Error fetching pass key:', error);
+      // Handle error silently
     }
   };
 
@@ -344,15 +343,12 @@ const AdminDashboard = () => {
       }
     });
     
-    console.log('Processing rating data:', { reviews: reviews.length, ratings });
-    
     const result = Object.keys(ratings).map(rating => ({
       rating: `${rating} Star`,
       count: ratings[parseInt(rating) as keyof typeof ratings],
       fill: rating === '5' ? '#10B981' : rating === '4' ? '#3B82F6' : rating === '3' ? '#F59E0B' : rating === '2' ? '#F97316' : '#EF4444'
     }));
     
-    console.log('Rating data result:', result);
     return result;
   };
 
@@ -422,7 +418,7 @@ const AdminDashboard = () => {
       await handleReportAction(reportId, action);
       fetchAdminData(); // Refresh data
     } catch (error) {
-      console.error('Error handling report:', error);
+      // Handle error silently
     }
   };
 

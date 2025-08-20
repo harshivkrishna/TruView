@@ -114,7 +114,6 @@ const UserProfile = () => {
         });
         
       } catch (error) {
-        console.error('Error fetching user data:', error);
         setError('Failed to load user profile');
       } finally {
         setLoading(false);
@@ -139,7 +138,7 @@ const UserProfile = () => {
             setProfile(profileData);
             setUserReviews(reviewsData);
           } catch (error) {
-            console.error('Error refreshing profile data:', error);
+            // Handle error silently
           }
         };
         
@@ -206,11 +205,10 @@ const UserProfile = () => {
           setProfile(refreshedProfile);
         }
       } catch (refreshError) {
-        console.error('Error refreshing profile after save:', refreshError);
+        // Handle error silently
       }
       
     } catch (error) {
-      console.error('Error updating profile:', error);
       // Revert to editing mode on error
       setIsEditing(true);
       // You can show an error message here
@@ -266,10 +264,10 @@ const UserProfile = () => {
             setProfile(refreshedProfile);
           }
         } catch (refreshError) {
-          console.error('Error refreshing profile:', refreshError);
+          // Handle error silently
         }
       } else {
-        console.error('No valid photo URL received from upload response:', response);
+        // Handle invalid response silently
       }
       
       // Clear file and preview only after successful update
@@ -277,7 +275,6 @@ const UserProfile = () => {
       setPhotoPreview(null);
       
     } catch (error) {
-      console.error('Error uploading photo:', error);
       // Show error message to user
       setError('Failed to upload photo. Please try again.');
       // Keep the file for retry
@@ -313,7 +310,7 @@ const UserProfile = () => {
       setProfile(profileData);
       setUserReviews(reviewsData);
     } catch (error) {
-      console.error('Error refreshing profile data:', error);
+      // Handle error silently
     }
   };
 

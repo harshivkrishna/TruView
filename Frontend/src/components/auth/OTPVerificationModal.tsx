@@ -61,7 +61,6 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
       toast.success('Email verified successfully!');
       onVerificationSuccess(result.token, result.user);
     } catch (error: any) {
-      console.error('OTP verification error:', error);
       setError(error.message || 'Failed to verify OTP. Please try again.');
     } finally {
       setIsLoading(false);
@@ -86,7 +85,6 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
         });
       }, 1000);
     } catch (error: any) {
-      console.error('Resend OTP error:', error);
       setError(error.message || 'Failed to resend OTP. Please try again.');
     } finally {
       setIsResending(false);

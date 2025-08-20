@@ -52,7 +52,7 @@ const ReviewDetail = () => {
         setHasUpvoted(hasUpvoted);
       }
     } catch (error) {
-      console.error('Error fetching review:', error);
+      // Handle error silently
     } finally {
       setLoading(false);
     }
@@ -147,7 +147,6 @@ const ReviewDetail = () => {
         }
       }
     } catch (error: any) {
-      console.error('Error upvoting review:', error);
       if (error.response?.status === 401) {
         toast.error('Please log in to like reviews');
       } else {
@@ -184,7 +183,6 @@ const ReviewDetail = () => {
       setShowReportModal(false);
       toast.success('Report submitted successfully');
     } catch (error) {
-      console.error('Error reporting review:', error);
       toast.error('Error submitting report');
     }
   };

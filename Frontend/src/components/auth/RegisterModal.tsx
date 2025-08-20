@@ -159,7 +159,6 @@ const RegisterModal: React.FC<RegisterModalProps> = ({
         setShowOTPModal(true);
       }
     } catch (error: any) {
-      console.error('Signup error:', error);
       // Handle specific passkey error
       if (error.message && error.message.includes('passkey')) {
         setErrors({ passKey: 'Invalid PassKey for admin registration' });

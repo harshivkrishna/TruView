@@ -16,8 +16,6 @@ if (token) {
 
 // Add request interceptor to always include the latest token
 api.interceptors.request.use((config) => {
-  console.log('API Request:', config.method?.toUpperCase(), config.url);
-  
   const token = localStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -28,15 +26,6 @@ api.interceptors.request.use((config) => {
 // Add response interceptor for better error handling and logging
 api.interceptors.response.use(
   (response) => {
-    // Log successful responses in development
-    if (process.env.NODE_ENV === 'development') {
-      console.log('API Response:', {
-        url: response.config.url,
-        method: response.config.method,
-        status: response.status,
-        data: response.data
-      });
-    }
     return response;
   },
   (error) => {
@@ -56,26 +45,12 @@ api.interceptors.response.use(
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         
-        // Show user-friendly message
-        console.log('Session expired. Please log in again.');
-        
         // Redirect to login page
         setTimeout(() => {
           window.location.href = '/login';
         }, 100);
       }
     }
-    
-    // Log detailed error information
-    console.error('API Error Details:', {
-      url: error.config?.url,
-      method: error.config?.method,
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      data: error.response?.data,
-      message: error.message,
-      config: error.config
-    });
     
     // Re-throw the error for component handling
     return Promise.reject(error);
@@ -100,7 +75,6 @@ export const getReviews = async (params = {}) => {
     const response = await api.get(`/reviews?${queryParams.toString()}`);
     return response.data;
   } catch (error) {
-    console.error('API Error - getReviews:', error);
     return { reviews: [], pagination: { currentPage: 1, totalPages: 1, totalReviews: 0, hasNextPage: false, hasPrevPage: false } };
   }
 };
@@ -110,7 +84,6 @@ export const getTrendingReviews = async () => {
     const response = await api.get('/reviews/trending');
     return response.data;
   } catch (error) {
-    console.error('API Error - getTrendingReviews:', error);
     return [];
   }
 };
@@ -121,7 +94,6 @@ export const getMostViewedReviewsWeek = async () => {
     const response = await api.get('/reviews/trending');
     return response.data;
   } catch (error) {
-    console.error('API Error - getMostViewedReviewsWeek:', error);
     return [];
   }
 };
@@ -131,7 +103,6 @@ export const getReview = async (id: string) => {
     const response = await api.get(`/reviews/${id}`);
     return response.data;
   } catch (error) {
-    console.error('API Error - getReview:', error);
     throw error;
   }
 };
@@ -157,7 +128,6 @@ export const createReview = async (reviewData: any) => {
     const response = await api.post('/reviews', reviewData);
     return response.data;
   } catch (error) {
-    console.error('API Error - createReview:', error);
     throw error;
   }
 };
@@ -172,7 +142,6 @@ export const upvoteReview = async (id: string) => {
     });
     return response.data;
   } catch (error) {
-    console.error('API Error - upvoteReview:', error);
     throw error;
   }
 };
@@ -183,7 +152,6 @@ export const getCategories = async () => {
     const response = await api.get('/categories');
     return response.data;
   } catch (error) {
-    console.error('API Error - getCategories:', error);
     return [];
   }
 };
@@ -193,7 +161,6 @@ export const getCategoriesWithSubcategories = async () => {
     const response = await api.get('/categories/with-subcategories');
     return response.data;
   } catch (error) {
-    console.error('API Error - getCategoriesWithSubcategories:', error);
     return [];
   }
 };
@@ -203,7 +170,6 @@ export const getSubcategoriesForCategory = async (categorySlug: string) => {
     const response = await api.get(`/categories/${categorySlug}/subcategories`);
     return response.data.subcategories || [];
   } catch (error) {
-    console.error('API Error - getSubcategoriesForCategory:', error);
     return [];
   }
 };
@@ -213,7 +179,6 @@ export const getTrendingCategories = async () => {
     const response = await api.get('/categories/trending');
     return response.data;
   } catch (error) {
-    console.error('API Error - getTrendingCategories:', error);
     return [];
   }
 };
@@ -228,7 +193,6 @@ export const uploadMedia = async (formData: FormData) => {
     });
     return response.data;
   } catch (error) {
-    console.error('API Error - uploadMedia:', error);
     throw error;
   }
 };
@@ -236,19 +200,9 @@ export const uploadMedia = async (formData: FormData) => {
 // User Profile API
 export const getUserProfile = async (userId: string) => {
   try {
-    console.log('Fetching profile for user:', userId);
     const response = await api.get(`/users/${userId}/profile`);
-    console.log('Profile response:', response.data);
     return response.data;
   } catch (error: any) {
-    console.error('API Error - getUserProfile:', {
-      userId,
-      error: error.message,
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      data: error.response?.data,
-      config: error.config
-    });
     throw error;
   }
 };
@@ -258,7 +212,6 @@ export const updateUserProfile = async (profileData: any) => {
     const response = await api.put('/users/profile', profileData);
     return response.data;
   } catch (error) {
-    console.error('API Error - updateUserProfile:', error);
     throw error;
   }
 };
@@ -272,7 +225,6 @@ export const uploadProfilePhoto = async (formData: FormData) => {
     });
     return response.data;
   } catch (error) {
-    console.error('API Error - uploadProfilePhoto:', error);
     throw error;
   }
 };
@@ -282,7 +234,6 @@ export const getUserReviews = async (userId: string) => {
     const response = await api.get(`/users/${userId}/reviews`);
     return response.data;
   } catch (error) {
-    console.error('API Error - getUserReviews:', error);
     return [];
   }
 };
@@ -293,7 +244,6 @@ export const getLeaderboard = async () => {
     const response = await api.get('/users/leaderboard');
     return response.data;
   } catch (error) {
-    console.error('API Error - getLeaderboard:', error);
     return [];
   }
 };

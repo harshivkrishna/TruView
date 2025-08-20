@@ -43,7 +43,7 @@ const ReviewSubmission = () => {
         const categoriesData = await getCategoriesWithSubcategories();
         setCategories(categoriesData);
       } catch (error) {
-        console.error('Error fetching categories:', error);
+        // Handle error silently
       }
     };
     fetchCategories();
@@ -131,7 +131,6 @@ const ReviewSubmission = () => {
       const result = await uploadMedia(formData);
       setUploadedFiles(prev => [...prev, ...result.files]);
     } catch (error) {
-      console.error('Error uploading files:', error);
       setUploadError('Error uploading files. Please try again.');
     }
   };
@@ -176,7 +175,6 @@ const ReviewSubmission = () => {
       alert('Review submitted successfully!');
       navigate('/categories');
     } catch (error) {
-      console.error('Error submitting review:', error);
       alert('Error submitting review. Please try again.');
     } finally {
       setIsSubmitting(false);

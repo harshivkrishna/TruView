@@ -35,7 +35,6 @@ const SocialShareModal: React.FC<SocialShareModalProps> = ({ review, onClose }) 
       
       return true;
     } catch (error) {
-      console.error(`Failed to open ${platform}:`, error);
       // Fallback: copy URL to clipboard if popup fails
       copyToClipboard(url).then(success => {
         if (success) {
@@ -186,7 +185,6 @@ const SocialShareModal: React.FC<SocialShareModalProps> = ({ review, onClose }) 
                       setTimeout(() => onClose(), 500);
                     }
                   } catch (error) {
-                    console.error(`Error sharing to ${option.name}:`, error);
                     toast.error(`Failed to share to ${option.name}`);
                   }
                 }}

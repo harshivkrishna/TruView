@@ -34,17 +34,12 @@ const HomePage = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    console.log('HomePage useEffect running');
-    
     const fetchMostViewedReviews = async () => {
       try {
         setLoading(true);
-        console.log('Fetching most viewed reviews...');
         const reviews = await getMostViewedReviewsWeek();
-        console.log('Most viewed reviews fetched:', reviews);
         setMostViewedReviews(reviews);
       } catch (error) {
-        console.error('Error fetching most viewed reviews:', error);
         setError('Failed to load most viewed reviews');
         // Don't let API errors block the page render
         setMostViewedReviews([]);
@@ -55,8 +50,6 @@ const HomePage = () => {
 
     // Fetch the most viewed reviews
     fetchMostViewedReviews();
-    
-    console.log('HomePage useEffect completed');
   }, []);
 
   // Retry function for failed requests
@@ -67,7 +60,7 @@ const HomePage = () => {
         const reviews = await getMostViewedReviewsWeek();
         setMostViewedReviews(reviews);
       } catch (error) {
-        console.error('Error fetching most viewed reviews:', error);
+        // Handle error silently
       } finally {
         setLoading(false);
       }

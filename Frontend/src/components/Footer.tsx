@@ -20,9 +20,9 @@ const Footer: React.FC = () => {
       try {
         const categoriesData = await getCategoriesWithSubcategories();
         setCategories(categoriesData);
-      } catch (error) {
-        console.error('Error fetching categories:', error);
-      }
+          } catch (error) {
+      // Handle error silently
+    }
     };
     fetchCategories();
   }, []);

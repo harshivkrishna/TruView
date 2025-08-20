@@ -84,7 +84,6 @@ const CategoryBrowser: React.FC = () => {
         // Fetch initial reviews
         await fetchReviews(1, true);
       } catch (error) {
-        console.error('Error fetching data:', error);
         setCategories([]);
       } finally {
         setLoading(false);
@@ -116,7 +115,7 @@ const CategoryBrowser: React.FC = () => {
       
       setHasMore(response.pagination.hasNextPage);
     } catch (error) {
-      console.error('Error fetching reviews:', error);
+      // Handle error silently
     } finally {
       setLoadingMore(false);
     }
