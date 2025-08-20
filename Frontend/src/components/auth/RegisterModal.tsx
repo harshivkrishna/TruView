@@ -39,6 +39,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({
     passKey: '' // Remove pre-fill, users must enter manually
   });
   const [errors, setErrors] = useState<FormErrors>({});
+  const [generalError, setGeneralError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showPassKey, setShowPassKey] = useState(false);
@@ -54,6 +55,10 @@ const RegisterModal: React.FC<RegisterModalProps> = ({
       newErrors.firstName = 'First name is required';
     } else if (formData.firstName.trim().length < 2) {
       newErrors.firstName = 'First name must be at least 2 characters';
+    } else if (formData.firstName.trim().length > 50) {
+      newErrors.firstName = 'First name must be less than 50 characters';
+    } else if (!/^[a-zA-Z\s]+$/.test(formData.firstName.trim())) {
+      newErrors.firstName = 'First name can only contain letters and spaces';
     }
 
     // Last Name validation
@@ -61,6 +66,10 @@ const RegisterModal: React.FC<RegisterModalProps> = ({
       newErrors.lastName = 'Last name is required';
     } else if (formData.lastName.trim().length < 2) {
       newErrors.lastName = 'Last name must be at least 2 characters';
+    } else if (formData.lastName.trim().length > 50) {
+      newErrors.lastName = 'Last name must be less than 50 characters';
+    } else if (!/^[a-zA-Z\s]+$/.test(formData.lastName.trim())) {
+      newErrors.lastName = 'Last name can only contain letters and spaces';
     }
 
     // Email validation
@@ -69,6 +78,8 @@ const RegisterModal: React.FC<RegisterModalProps> = ({
       newErrors.email = 'Email is required';
     } else if (!emailRegex.test(formData.email)) {
       newErrors.email = 'Please enter a valid email address';
+    } else if (formData.email.trim().length > 100) {
+      newErrors.email = 'Email must be less than 100 characters';
     }
 
     // Phone Number validation
@@ -84,6 +95,14 @@ const RegisterModal: React.FC<RegisterModalProps> = ({
       newErrors.password = 'Password is required';
     } else if (formData.password.length < 6) {
       newErrors.password = 'Password must be at least 6 characters';
+    } else if (formData.password.length > 128) {
+      newErrors.password = 'Password must be less than 128 characters';
+    } else if (!/(?=.*[a-z])/.test(formData.password)) {
+      newErrors.password = 'Password must contain at least one lowercase letter';
+    } else if (!/(?=.*[A-Z])/.test(formData.password)) {
+      newErrors.password = 'Password must contain at least one uppercase letter';
+    } else if (!/(?=.*\d)/.test(formData.password)) {
+      newErrors.password = 'Password must contain at least one number';
     }
 
     // Confirm Password validation
@@ -159,13 +178,35 @@ const RegisterModal: React.FC<RegisterModalProps> = ({
         setShowOTPModal(true);
       }
     } catch (error: any) {
-      // Handle specific passkey error
-      if (error.message && error.message.includes('passkey')) {
+      // Handle specific registration errors
+      if (error.response?.status === 400) {
+        const errorMessage = error.response.data?.message;
+        
+        if (errorMessage?.includes('already exists with this email')) {
+          setErrors({ email: 'An account with this email already exists. Please login instead.' });
+        } else if (errorMessage?.includes('already exists with this phone number')) {
+          setErrors({ phoneNumber: 'An account with this phone number already exists.' });
+        } else if (errorMessage?.includes('All fields are required')) {
+          toast.error('Please fill in all required fields');
+        } else if (errorMessage?.includes('Phone number must be exactly 10 digits')) {
+          setErrors({ phoneNumber: 'Phone number must be exactly 10 digits' });
+        } else {
+          setErrors({ email: errorMessage || 'Registration failed. Please check your information.' });
+        }
+      } else if (error.response?.status === 500) {
+        if (error.response.data?.message?.includes('Failed to send verification email')) {
+          setErrors({ email: 'Registration successful but verification email failed to send. Please contact support.' });
+        } else {
+          toast.error('Registration failed due to server error. Please try again later.');
+        }
+      } else if (error.message && error.message.includes('passkey')) {
         setErrors({ passKey: 'Invalid PassKey for admin registration' });
       } else if (error.message && error.message.includes('Invalid secret code')) {
         setErrors({ passKey: 'Invalid PassKey for admin registration' });
+      } else if (error.message) {
+        toast.error(error.message);
       } else {
-        toast.error(error.message || 'Registration failed');
+        toast.error('Registration failed. Please try again.');
       }
     } finally {
       setIsLoading(false);
@@ -193,6 +234,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({
       passKey: ''
     });
     setErrors({});
+    setGeneralError('');
     setShowPassword(false);
     setShowConfirmPassword(false);
     setShowPassKey(false);
@@ -237,6 +279,22 @@ const RegisterModal: React.FC<RegisterModalProps> = ({
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
+                {/* General Error Message */}
+                {Object.keys(errors).length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-red-50 border border-red-200 rounded-lg p-3"
+                  >
+                    <p className="text-red-600 text-sm font-medium mb-2">Please fix the following errors:</p>
+                    <ul className="text-red-600 text-sm space-y-1">
+                      {Object.values(errors).map((error, index) => 
+                        error ? <li key={index}>• {error}</li> : null
+                      )}
+                    </ul>
+                  </motion.div>
+                )}
+                
                 <div className="grid grid-cols-2 gap-4">
                   <motion.div
                     initial={{ x: -20, opacity: 0 }}

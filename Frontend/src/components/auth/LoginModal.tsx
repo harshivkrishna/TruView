@@ -19,6 +19,7 @@ const LoginModal: React.FC<LoginModalProps> = ({
   const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -29,6 +30,10 @@ const LoginModal: React.FC<LoginModalProps> = ({
       ...prev,
       [e.target.name]: e.target.value
     }));
+    // Clear error message when user starts typing
+    if (errorMessage) {
+      setErrorMessage('');
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -39,11 +44,24 @@ const LoginModal: React.FC<LoginModalProps> = ({
     }
     
     setIsLoading(true);
+    setErrorMessage('');
+    
     try {
       await login(formData.email, formData.password);
       handleClose();
-    } catch (error) {
-      // Handle error silently
+    } catch (error: any) {
+      // Handle specific authentication errors
+      if (error.response?.status === 404) {
+        setErrorMessage('Email does not exist. Please check your email or sign up.');
+      } else if (error.response?.status === 401) {
+        setErrorMessage('Incorrect password. Please try again.');
+      } else if (error.response?.data?.message) {
+        setErrorMessage(error.response.data.message);
+      } else if (error.message) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage('Login failed. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -52,6 +70,7 @@ const LoginModal: React.FC<LoginModalProps> = ({
   const handleClose = () => {
     setFormData({ email: '', password: '' });
     setShowPassword(false);
+    setErrorMessage('');
     onClose();
   };
 
@@ -127,6 +146,17 @@ const LoginModal: React.FC<LoginModalProps> = ({
                   </button>
                 </div>
               </motion.div>
+
+              {/* Error Message */}
+              {errorMessage && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-red-50 border border-red-200 rounded-lg p-3"
+                >
+                  <p className="text-red-600 text-sm">{errorMessage}</p>
+                </motion.div>
+              )}
 
               <motion.div
                 initial={{ x: -20, opacity: 0 }}

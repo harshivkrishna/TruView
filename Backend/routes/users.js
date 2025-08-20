@@ -248,6 +248,7 @@ router.get('/leaderboard', async (req, res) => {
         }
         
         usersWithReviews.push({
+          _id: user._id,
           firstName: user.firstName,
           lastName: user.lastName,
           reviewCount: actualReviewCount,
