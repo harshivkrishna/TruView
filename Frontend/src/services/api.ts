@@ -30,9 +30,9 @@ api.interceptors.response.use(
   },
   (error) => {
     // Handle token expiration and invalid token errors
-    if (error.response?.status === 401 || 
-        error.response?.data?.message === 'Invalid token' ||
-        error.response?.data?.message === 'Token expired') {
+    if (error.response?.status === 401 && 
+        (error.response?.data?.message === 'Invalid token' ||
+         error.response?.data?.message === 'Token expired')) {
       
       // Only handle token expiration if we're on a protected route
       const currentPath = window.location.pathname;
