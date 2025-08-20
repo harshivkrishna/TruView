@@ -109,12 +109,13 @@ const ReviewDetail = () => {
     }
     
     .action-buttons button {
-      flex: 1 !important;
+      flex: 0 1 auto !important;
       min-width: 0 !important;
       max-width: none !important;
       white-space: nowrap !important;
       min-height: 44px !important;
       padding: 0.5rem 0.75rem !important;
+      width: auto !important;
     }
     
     /* Mobile-specific improvements */
@@ -178,14 +179,15 @@ const ReviewDetail = () => {
       .action-buttons {
         flex-direction: row !important;
         flex-wrap: nowrap !important;
-        justify-content: space-between !important;
+        justify-content: flex-start !important;
         gap: 0.5rem !important;
       }
       
       .action-buttons button {
-        flex: 1 !important;
+        flex: 0 1 auto !important;
         min-width: 0 !important;
         max-width: none !important;
+        width: auto !important;
       }
     }
     
@@ -215,6 +217,8 @@ const ReviewDetail = () => {
       .action-buttons button {
         padding: 0.5rem !important;
         font-size: 0.875rem !important;
+        flex: 0 1 auto !important;
+        width: auto !important;
       }
       
       .action-buttons button span {
@@ -527,7 +531,7 @@ const ReviewDetail = () => {
                 const score = review.trustScore || calculateTrustScore(review);
                 const trustLevel = getTrustLevel(score);
                 return (
-                  <div className={`trust-score sm:ml-4 px-2 sm:px-3 py-1.5 bg-white shadow-lg border-2 rounded-full ${
+                  <div className={`trust-score flex items-center sm:ml-4 px-2 sm:px-3 py-1.5 bg-white shadow-lg border-2 rounded-full ${
                     trustLevel.level === 'High' ? 'border-green-500' :
                     trustLevel.level === 'Good' ? 'border-blue-500' :
                     trustLevel.level === 'Fair' ? 'border-yellow-500' :
