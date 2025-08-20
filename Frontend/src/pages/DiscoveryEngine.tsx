@@ -82,7 +82,7 @@ const DiscoveryEngine = () => {
   const getTabDescription = () => {
     switch (activeTab) {
       case 'trending':
-        return 'Top 3 trending reviews in the past 7 days';
+        return 'Top trending reviews in the past 7 days';
       case 'weekly-bombs':
         return 'The most brutal and honest reviews of the week';
       case 'avoid-this':
