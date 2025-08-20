@@ -82,12 +82,25 @@ const ReviewSubmission = () => {
   };
 
   const handleTagToggle = (tag: string) => {
-    setFormData(prev => ({
-      ...prev,
-      tags: prev.tags.includes(tag) 
-        ? prev.tags.filter(t => t !== tag)
-        : [...prev.tags, tag]
-    }));
+    setFormData(prev => {
+      if (prev.tags.includes(tag)) {
+        // Remove tag if already selected
+        return {
+          ...prev,
+          tags: prev.tags.filter(t => t !== tag)
+        };
+      } else {
+        // Add tag only if less than 2 tags are already selected
+        if (prev.tags.length < 2) {
+          return {
+            ...prev,
+            tags: [...prev.tags, tag]
+          };
+        }
+        // If already 2 tags selected, don't add more
+        return prev;
+      }
+    });
   };
 
   const handleRatingClick = (rating: number) => {
@@ -345,23 +358,37 @@ const ReviewSubmission = () => {
                 Sentiment Tags
               </label>
               <p className="text-sm text-gray-600 mb-3">
-                Choose tags that best describe the sentiment of your review
+                Choose up to 2 tags that best describe the sentiment of your review ({formData.tags.length}/2 selected)
               </p>
+              {formData.tags.length >= 2 && (
+                <p className="text-sm text-orange-600 mb-3">
+                  ✓ Maximum tags selected. You can deselect a tag to choose a different one.
+                </p>
+              )}
               <div className="flex flex-wrap gap-2">
-                {sentimentTags.map(tag => (
-                  <button
-                    key={tag}
-                    type="button"
-                    onClick={() => handleTagToggle(tag)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                      formData.tags.includes(tag)
-                        ? getTagStyle(tag, true)
-                        : getTagStyle(tag, false)
-                    }`}
-                  >
-                    {tag}
-                  </button>
-                ))}
+                {sentimentTags.map(tag => {
+                  const isSelected = formData.tags.includes(tag);
+                  const isDisabled = !isSelected && formData.tags.length >= 2;
+                  
+                  return (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => handleTagToggle(tag)}
+                      disabled={isDisabled}
+                      className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                        isSelected
+                          ? getTagStyle(tag, true)
+                          : isDisabled
+                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            : getTagStyle(tag, false)
+                      }`}
+                      title={isDisabled ? 'Maximum 2 tags allowed. Deselect a tag first.' : ''}
+                    >
+                      {tag}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 

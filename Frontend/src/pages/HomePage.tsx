@@ -40,7 +40,7 @@ const HomePage = () => {
         const reviews = await getMostViewedReviewsWeek();
         setMostViewedReviews(reviews);
       } catch (error) {
-        setError('Failed to load most viewed reviews');
+        setError('Failed to load trending reviews');
         // Don't let API errors block the page render
         setMostViewedReviews([]);
       } finally {
@@ -48,7 +48,7 @@ const HomePage = () => {
       }
     };
 
-    // Fetch the most viewed reviews
+            // Fetch the trending reviews
     fetchMostViewedReviews();
   }, []);
 
@@ -83,7 +83,7 @@ const HomePage = () => {
       {/* Features Section */}
       <FeaturesSection />
 
-            {/* Most Viewed Reviews */}
+            {/* Trending Reviews */}
       <TrendingSection 
         reviews={mostViewedReviews} 
         loading={loading} 
@@ -811,7 +811,7 @@ const TrendingSection = ({ reviews, loading, error, onRetry }: any) => {
               animate={isInView ? { opacity: 1, x: 0 } : {}}
               transition={{ duration: 0.8, delay: 0.2 }}
             >
-              Most Viewed Reviews
+              Trending Reviews
             </motion.h2>
             <motion.p 
               className="text-gray-600"
@@ -819,7 +819,7 @@ const TrendingSection = ({ reviews, loading, error, onRetry }: any) => {
               animate={isInView ? { opacity: 1, x: 0 } : {}}
               transition={{ duration: 0.8, delay: 0.4 }}
             >
-              Top 3 most viewed reviews in the past 7 days
+              Top 3 trending reviews in the past 7 days
             </motion.p>
           </div>
           {/* Desktop View All Button */}
