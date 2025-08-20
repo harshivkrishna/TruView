@@ -107,7 +107,7 @@ const MediaCarousel: React.FC<MediaCarouselProps> = ({
       {/* Main Carousel */}
       <div 
         ref={carouselRef}
-        className="relative w-full h-96 md:h-[500px] overflow-hidden rounded-lg bg-gray-100"
+        className="relative w-full h-64 sm:h-80 md:h-96 lg:h-[500px] overflow-hidden rounded-lg bg-gray-100"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -127,7 +127,7 @@ const MediaCarousel: React.FC<MediaCarouselProps> = ({
                   <video
                     ref={index === currentIndex ? videoRef : null}
                     src={file.url}
-                    className="max-w-full max-h-full object-contain"
+                    className="w-full h-full object-contain max-w-full max-h-full"
                     onPlay={() => setIsPlaying(true)}
                     onPause={() => setIsPlaying(false)}
                     onEnded={() => setIsPlaying(false)}
@@ -139,17 +139,17 @@ const MediaCarousel: React.FC<MediaCarouselProps> = ({
                       onClick={handleVideoPlay}
                       className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 hover:bg-opacity-40 transition-all"
                     >
-                      <div className="w-16 h-16 bg-white bg-opacity-90 rounded-full flex items-center justify-center hover:bg-opacity-100 transition-all">
-                        <Play className="w-8 h-8 text-gray-800 ml-1" />
+                      <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white bg-opacity-90 rounded-full flex items-center justify-center hover:bg-opacity-100 transition-all">
+                        <Play className="w-6 h-6 sm:w-8 sm:h-8 text-gray-800 ml-1" />
                       </div>
                     </button>
                   )}
                   {isPlaying && (
                     <button
                       onClick={handleVideoPlay}
-                      className="absolute top-4 right-4 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 transition-all"
+                      className="absolute top-2 right-2 sm:top-4 sm:right-4 bg-black bg-opacity-50 text-white p-1.5 sm:p-2 rounded-full hover:bg-opacity-70 transition-all"
                     >
-                      <X className="w-4 h-4" />
+                      <X className="w-3 h-3 sm:w-4 sm:h-4" />
                     </button>
                   )}
                 </div>
@@ -160,7 +160,7 @@ const MediaCarousel: React.FC<MediaCarouselProps> = ({
                       {failedImages.has(index) ? (
                         <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
                           <div className="text-center">
-                            <Image className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                            <Image className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400 mx-auto mb-2" />
                             <p className="text-xs text-gray-500">Image failed to load</p>
                           </div>
                         </div>
@@ -170,10 +170,11 @@ const MediaCarousel: React.FC<MediaCarouselProps> = ({
                           alt={`Media ${index + 1}`}
                           className="w-full h-full object-cover object-center transition-transform duration-300 hover:scale-105"
                           style={{
-                            minWidth: '100%',
-                            minHeight: '100%',
-                            maxWidth: 'none',
-                            maxHeight: 'none',
+                            width: '100%',
+                            height: '100%',
+                            maxWidth: '100vw',
+                            maxHeight: '100%',
+                            objectFit: 'cover',
                             objectPosition: 'center center'
                           }}
                           loading="lazy"
@@ -191,8 +192,8 @@ const MediaCarousel: React.FC<MediaCarouselProps> = ({
                       {failedImages.has(index) ? (
                         // Fallback for failed images
                         <div className="text-center text-gray-500">
-                          <AlertCircle className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-                          <p className="text-sm">Image failed to load</p>
+                          <AlertCircle className="w-8 h-8 sm:w-12 sm:h-12 mx-auto mb-2 text-gray-400" />
+                          <p className="text-xs sm:text-sm">Image failed to load</p>
                           {file.originalUrl && file.originalUrl !== file.url && (
                             <button
                               onClick={() => {
@@ -218,6 +219,13 @@ const MediaCarousel: React.FC<MediaCarouselProps> = ({
                           src={file.url}
                           alt={`Media ${index + 1}`}
                           className="w-full h-full object-cover"
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            maxWidth: '100vw',
+                            maxHeight: '100%',
+                            objectFit: 'cover'
+                          }}
                           loading="lazy"
                           onError={(e) => {
                             handleImageError(index, file.url);
@@ -236,24 +244,24 @@ const MediaCarousel: React.FC<MediaCarouselProps> = ({
               {editable && onRemove && (
                 <button
                   onClick={() => onRemove(index)}
-                  className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600 transition-colors shadow-lg"
+                  className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 sm:p-1.5 hover:bg-red-600 transition-colors shadow-lg"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-3 h-3 sm:w-4 sm:h-4" />
                 </button>
               )}
           </div>
         ))}
       </div>
 
-      {/* Thumbnail Navigation */}
+      {/* Thumbnail Navigation - Mobile responsive */}
       {files.length > 1 && (
-        <div className="mt-4">
-          <div className="flex gap-2 overflow-x-auto pb-2">
+        <div className="mt-3 sm:mt-4">
+          <div className="flex gap-1.5 sm:gap-2 overflow-x-auto pb-2">
             {files.map((file, index) => (
               <button
                 key={index}
                 onClick={() => scrollToIndex(index)}
-                className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
+                className={`flex-shrink-0 w-12 h-12 sm:w-16 sm:h-16 rounded-lg overflow-hidden border-2 transition-all ${
                   currentIndex === index 
                     ? 'border-orange-500 ring-2 ring-orange-200' 
                     : 'border-gray-200 hover:border-gray-300'
@@ -267,12 +275,12 @@ const MediaCarousel: React.FC<MediaCarouselProps> = ({
                       preload="metadata"
                     />
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <Play className="w-4 h-4 text-white" />
+                      <Play className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
                     </div>
                   </div>
                 ) : failedImages.has(index) ? (
                   <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                    <Image className="w-6 h-6 text-gray-400" />
+                    <Image className="w-4 h-4 sm:w-6 sm:h-6 text-gray-400" />
                   </div>
                 ) : (
                   <img
@@ -290,9 +298,9 @@ const MediaCarousel: React.FC<MediaCarouselProps> = ({
         </div>
       )}
 
-      {/* Media Counter */}
+      {/* Media Counter - Mobile responsive */}
       {files.length > 1 && (
-        <div className="absolute top-4 left-4 bg-black bg-opacity-50 text-white px-2 py-1 rounded-full text-sm">
+        <div className="absolute top-2 left-2 sm:top-4 sm:left-4 bg-black bg-opacity-50 text-white px-2 py-1 rounded-full text-xs sm:text-sm">
           {currentIndex + 1} / {files.length}
         </div>
       )}
