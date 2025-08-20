@@ -82,7 +82,7 @@ const DiscoveryEngine = () => {
   const getTabDescription = () => {
     switch (activeTab) {
       case 'trending':
-        return 'Top trending reviews in the past 7 days';
+        return 'All trending reviews in the past 7 days';
       case 'weekly-bombs':
         return 'The most brutal and honest reviews of the week';
       case 'avoid-this':
@@ -154,7 +154,7 @@ const DiscoveryEngine = () => {
         {/* Content */}
         {loading ? (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(activeTab === 'trending' ? 3 : 9)].map((_, i) => (
+            {[...Array(activeTab === 'trending' ? 9 : 9)].map((_, i) => (
               <div key={i} className="bg-white p-6 rounded-lg shadow-sm animate-pulse">
                 <div className="h-4 bg-gray-200 rounded mb-4"></div>
                 <div className="h-20 bg-gray-200 rounded mb-4"></div>
