@@ -94,7 +94,30 @@ const ReviewDetail = () => {
       flex-shrink: 0 !important;
       display: inline-flex !important;
       margin-left: 0 !important;
-      margin-top: 0.75rem !important;
+      margin-top: 0 !important;
+      align-self: flex-start !important;
+      align-items: center !important;
+    }
+    
+    /* Rating and trust score container */
+    .rating-trust-container {
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: flex-start !important;
+      gap: 0.75rem !important;
+    }
+    
+    @media (min-width: 640px) {
+      .rating-trust-container {
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 1rem !important;
+      }
+      
+      .trust-score {
+        margin-left: 1rem !important;
+        margin-top: 0 !important;
+      }
     }
     
     /* Force action buttons to be in a row */
@@ -173,6 +196,15 @@ const ReviewDetail = () => {
         width: fit-content !important;
         max-width: none !important;
         flex-shrink: 0 !important;
+        align-self: flex-start !important;
+        margin-top: 0 !important;
+        margin-left: 0 !important;
+      }
+      
+      /* Rating and trust score container on mobile */
+      .rating-trust-container {
+        align-items: flex-start !important;
+        gap: 0.75rem !important;
       }
       
       /* Force action buttons layout on mobile */
@@ -509,7 +541,7 @@ const ReviewDetail = () => {
             </div>
 
             {/* Rating and Trust Score - Mobile responsive */}
-            <div className="flex flex-col sm:flex-row sm:items-center mb-6 sm:mb-8 gap-3 sm:gap-0">
+            <div className="rating-trust-container flex flex-col sm:flex-row sm:items-center mb-6 sm:mb-8 gap-3 sm:gap-0">
               <div className="flex items-center">
                 <div className="flex">
                   {[...Array(5)].map((_, i) => (
