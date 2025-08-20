@@ -86,20 +86,25 @@ const ReviewDetail = () => {
       }
       
       .action-buttons {
-        flex-direction: column !important;
-        gap: 0.75rem !important;
+        flex-direction: row !important;
+        gap: 0.5rem !important;
+        justify-content: space-between !important;
+        flex-wrap: wrap !important;
       }
       
       .action-buttons > div {
-        width: 100% !important;
-        justify-content: center !important;
+        width: auto !important;
+        justify-content: flex-start !important;
       }
       
       .trust-score {
         margin-left: 0 !important;
         margin-top: 0.75rem !important;
-        width: 100% !important;
-        justify-content: center !important;
+        width: auto !important;
+        justify-content: flex-start !important;
+        flex-shrink: 0 !important;
+        max-width: none !important;
+        display: inline-flex !important;
       }
       
       /* Ensure images don't overflow on mobile */
@@ -118,7 +123,17 @@ const ReviewDetail = () => {
       /* Mobile button sizing */
       .action-buttons button {
         min-height: 44px !important;
-        padding: 0.75rem 1rem !important;
+        padding: 0.5rem 0.75rem !important;
+        flex: 1 !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        white-space: nowrap !important;
+      }
+      
+      .action-buttons {
+        gap: 0.5rem !important;
+        justify-content: space-between !important;
+        flex-wrap: nowrap !important;
       }
       
       /* Mobile spacing adjustments */
@@ -127,6 +142,27 @@ const ReviewDetail = () => {
       }
       
       .review-content > *:last-child {
+        margin-bottom: 0 !important;
+      }
+      
+      /* Fix overlapping issues */
+      .media-section {
+        margin-bottom: 1.5rem !important;
+        position: relative !important;
+        z-index: 1 !important;
+        padding-bottom: 1rem !important;
+      }
+      
+      .tags-section {
+        margin-top: 0 !important;
+        position: relative !important;
+        z-index: 2 !important;
+        margin-bottom: 1.5rem !important;
+      }
+      
+      .custom-media-carousel {
+        position: relative !important;
+        z-index: 1 !important;
         margin-bottom: 0 !important;
       }
     }
@@ -148,6 +184,23 @@ const ReviewDetail = () => {
       .tags-container span {
         font-size: 0.75rem !important;
         padding: 0.25rem 0.5rem !important;
+      }
+      
+      .action-buttons {
+        gap: 0.25rem !important;
+        justify-content: space-between !important;
+        flex-wrap: nowrap !important;
+      }
+      
+      .action-buttons button {
+        padding: 0.5rem !important;
+        font-size: 0.875rem !important;
+        min-width: 0 !important;
+        flex: 1 !important;
+      }
+      
+      .action-buttons button span {
+        font-size: 0.75rem !important;
       }
     }
     
@@ -364,7 +417,7 @@ const ReviewDetail = () => {
         <div className="bg-white rounded-lg shadow-sm overflow-hidden">
           {/* Media Section - Full width on mobile */}
           {review.media && review.media.length > 0 && (
-            <div className="bg-gray-50 p-2 sm:p-4 md:p-6 pb-3 sm:pb-6 md:pb-8 border-b border-gray-200 relative">
+            <div className="media-section bg-gray-50 p-2 sm:p-4 md:p-6 pb-3 sm:pb-6 md:pb-8 border-b border-gray-200 relative">
               <div className="mb-2 sm:mb-4">
                 <h3 className="text-sm sm:text-lg font-semibold text-gray-900 mb-1 sm:mb-2">Media Gallery</h3>
                 <p className="text-xs sm:text-sm text-gray-600">View all media associated with this review</p>
@@ -383,7 +436,7 @@ const ReviewDetail = () => {
           {/* Content Section - Mobile optimized padding */}
           <div className="review-content p-3 sm:p-6 md:p-8 pt-4 sm:pt-8 md:pt-10">
             {/* Tags Section - Mobile optimized */}
-            <div className="bg-gray-50 p-2 sm:p-4 rounded-lg mb-3 sm:mb-6 mt-2 sm:mt-4">
+            <div className="tags-section bg-gray-50 p-2 sm:p-4 rounded-lg mb-3 sm:mb-6 mt-2 sm:mt-4">
               <div className="tags-container flex items-center gap-1.5 sm:gap-2 flex-wrap">
                 {review.tags && review.tags.length > 0 && review.tags.map((tag: any) => (
                   <span
@@ -495,7 +548,7 @@ const ReviewDetail = () => {
 
             {/* Action Buttons - Mobile responsive */}
             <div className="flex items-center justify-between border-t pt-4 sm:pt-6">
-              <div className="action-buttons flex items-center gap-2 sm:gap-4 w-full">
+              <div className="action-buttons flex items-center gap-2 sm:gap-4 w-full justify-between">
                 <button
                   onClick={handleUpvote}
                   disabled={!currentUser}
