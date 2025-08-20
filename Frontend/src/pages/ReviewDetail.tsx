@@ -69,6 +69,54 @@ const ReviewDetail = () => {
       background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
     }
     
+    /* Force media section to have proper spacing */
+    .media-section {
+      margin-bottom: 2rem !important;
+      padding-bottom: 1.5rem !important;
+      border-bottom: 1px solid #e5e7eb !important;
+      position: relative !important;
+      z-index: 1 !important;
+    }
+    
+    /* Force tags section to have proper spacing */
+    .tags-section {
+      margin-top: 1rem !important;
+      margin-bottom: 2rem !important;
+      position: relative !important;
+      z-index: 2 !important;
+      clear: both !important;
+    }
+    
+    /* Force trust score to not take full width */
+    .trust-score {
+      width: fit-content !important;
+      max-width: none !important;
+      flex-shrink: 0 !important;
+      display: inline-flex !important;
+      margin-left: 0 !important;
+      margin-top: 0.75rem !important;
+    }
+    
+    /* Force action buttons to be in a row */
+    .action-buttons {
+      display: flex !important;
+      flex-direction: row !important;
+      flex-wrap: nowrap !important;
+      justify-content: space-between !important;
+      align-items: center !important;
+      gap: 0.5rem !important;
+      width: 100% !important;
+    }
+    
+    .action-buttons button {
+      flex: 1 !important;
+      min-width: 0 !important;
+      max-width: none !important;
+      white-space: nowrap !important;
+      min-height: 44px !important;
+      padding: 0.5rem 0.75rem !important;
+    }
+    
     /* Mobile-specific improvements */
     @media (max-width: 640px) {
       .review-content {
@@ -85,28 +133,6 @@ const ReviewDetail = () => {
         line-height: 1.6 !important;
       }
       
-      .action-buttons {
-        flex-direction: row !important;
-        gap: 0.5rem !important;
-        justify-content: space-between !important;
-        flex-wrap: wrap !important;
-      }
-      
-      .action-buttons > div {
-        width: auto !important;
-        justify-content: flex-start !important;
-      }
-      
-      .trust-score {
-        margin-left: 0 !important;
-        margin-top: 0.75rem !important;
-        width: auto !important;
-        justify-content: flex-start !important;
-        flex-shrink: 0 !important;
-        max-width: none !important;
-        display: inline-flex !important;
-      }
-      
       /* Ensure images don't overflow on mobile */
       .custom-media-carousel img,
       .custom-media-carousel video {
@@ -120,22 +146,6 @@ const ReviewDetail = () => {
         touch-action: pan-y pinch-zoom !important;
       }
       
-      /* Mobile button sizing */
-      .action-buttons button {
-        min-height: 44px !important;
-        padding: 0.5rem 0.75rem !important;
-        flex: 1 !important;
-        min-width: 0 !important;
-        max-width: none !important;
-        white-space: nowrap !important;
-      }
-      
-      .action-buttons {
-        gap: 0.5rem !important;
-        justify-content: space-between !important;
-        flex-wrap: nowrap !important;
-      }
-      
       /* Mobile spacing adjustments */
       .review-content > * {
         margin-bottom: 1rem !important;
@@ -145,25 +155,37 @@ const ReviewDetail = () => {
         margin-bottom: 0 !important;
       }
       
-      /* Fix overlapping issues */
+      /* Force media section spacing on mobile */
       .media-section {
-        margin-bottom: 1.5rem !important;
-        position: relative !important;
-        z-index: 1 !important;
-        padding-bottom: 1rem !important;
+        margin-bottom: 2rem !important;
+        padding-bottom: 1.5rem !important;
       }
       
+      /* Force tags section spacing on mobile */
       .tags-section {
-        margin-top: 0 !important;
-        position: relative !important;
-        z-index: 2 !important;
-        margin-bottom: 1.5rem !important;
+        margin-top: 1rem !important;
+        margin-bottom: 2rem !important;
       }
       
-      .custom-media-carousel {
-        position: relative !important;
-        z-index: 1 !important;
-        margin-bottom: 0 !important;
+      /* Force trust score sizing on mobile */
+      .trust-score {
+        width: fit-content !important;
+        max-width: none !important;
+        flex-shrink: 0 !important;
+      }
+      
+      /* Force action buttons layout on mobile */
+      .action-buttons {
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        justify-content: space-between !important;
+        gap: 0.5rem !important;
+      }
+      
+      .action-buttons button {
+        flex: 1 !important;
+        min-width: 0 !important;
+        max-width: none !important;
       }
     }
     
@@ -188,15 +210,11 @@ const ReviewDetail = () => {
       
       .action-buttons {
         gap: 0.25rem !important;
-        justify-content: space-between !important;
-        flex-wrap: nowrap !important;
       }
       
       .action-buttons button {
         padding: 0.5rem !important;
         font-size: 0.875rem !important;
-        min-width: 0 !important;
-        flex: 1 !important;
       }
       
       .action-buttons button span {
@@ -516,7 +534,7 @@ const ReviewDetail = () => {
                     trustLevel.level === 'Low' ? 'border-orange-500' :
                     'border-red-500'
                   }`}>
-                <div className="flex items-center gap-1 sm:gap-1.5">
+                    <div className="flex items-center gap-1 sm:gap-1.5">
                       <Award className={`w-3 h-3 sm:w-4 sm:h-4 ${
                         trustLevel.level === 'High' ? 'text-green-600' :
                         trustLevel.level === 'Good' ? 'text-blue-600' :
@@ -532,9 +550,9 @@ const ReviewDetail = () => {
                         'text-red-700'
                       }`}>
                         {score}%
-                  </span>
-                </div>
-              </div>
+                      </span>
+                    </div>
+                  </div>
                 );
               })()}
             </div>
