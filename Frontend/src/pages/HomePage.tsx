@@ -378,7 +378,7 @@ const HowItWorksSection = () => {
     {
       number: "02", 
       title: "Community Engagement",
-      description: "Get upvotes from the community, engage in discussions, and build your reputation as a trusted reviewer.",
+      description: "Get votes from the community, engage in discussions, and build your reputation as a trusted reviewer.",
       icon: UsersIcon,
       color: "from-emerald-400 to-emerald-600",
       glowColor: "emerald-400",
