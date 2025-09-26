@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, Phone, MapPin, ArrowUp } from 'lucide-react';
 import { getCategoriesWithSubcategories } from '../services/api';
-
 interface Category {
   id: number;
   name: string;
@@ -54,10 +53,10 @@ const Footer: React.FC = () => {
             {/* Brand Section */}
             <div className="lg:col-span-1">
               <div className="flex items-center space-x-2 mb-4">
-                <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-red-500 rounded-lg flex items-center justify-center">
-                  {/* Star icon removed as per new_code */}
-                </div>
-                <span className="text-xl font-bold">Truviews</span>
+                <Link to="/" className="flex items-center space-x-2">
+                        
+                                <img src="/assets/logo.png" className='rounded-full h-20 w-20' alt="Truviews" />
+                </Link>
               </div>
               <p className="text-gray-400 mb-4">
                 The platform for honest, unfiltered reviews. Share your real experiences and help others make better decisions.
