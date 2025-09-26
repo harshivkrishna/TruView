@@ -36,10 +36,10 @@ const Navbar = () => {
             transition={{ duration: 0.5 }}
           >
             <Link to="/" className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-red-500 rounded-lg flex items-center justify-center">
-                <Star className="w-5 h-5 text-white" />
+        
+              <div className="w-28 h-24 aspect-square object-contain">
+                <img src="/assets/logo1.png" alt="Truviews" />
               </div>
-              <span className="text-xl font-bold text-gray-900">Truviews</span>
             </Link>
           </motion.div>
 
