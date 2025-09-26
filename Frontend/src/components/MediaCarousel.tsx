@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Play, ChevronLeft, ChevronRight, Image, AlertCircle } from 'lucide-react';
+import { X, Play, Image } from 'lucide-react';
 
 interface MediaFile {
   type: 'image' | 'video';
@@ -12,14 +12,12 @@ interface MediaCarouselProps {
   files: MediaFile[];
   onRemove?: (index: number) => void;
   editable?: boolean;
-  autoPlay?: boolean;
 }
 
 const MediaCarousel: React.FC<MediaCarouselProps> = ({ 
   files, 
   onRemove, 
-  editable = false,
-  autoPlay = false 
+  editable = false
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -74,11 +72,11 @@ const MediaCarousel: React.FC<MediaCarouselProps> = ({
     }
   };
 
-  const handleImageError = (index: number, url: string) => {
+  const handleImageError = (index: number) => {
     setFailedImages(prev => new Set(prev).add(index));
   };
 
-  const handleImageLoad = (index: number, url: string) => {
+  const handleImageLoad = (index: number) => {
     setFailedImages(prev => {
       const newSet = new Set(prev);
       newSet.delete(index);
@@ -105,7 +103,7 @@ const MediaCarousel: React.FC<MediaCarouselProps> = ({
   return (
     <div className="relative w-full">
       {/* Main Carousel */}
-      <div 
+      <div
         ref={carouselRef}
         className="relative w-full h-64 sm:h-80 md:h-96 lg:h-[500px] overflow-hidden rounded-lg bg-gray-100"
         onTouchStart={handleTouchStart}
@@ -115,140 +113,81 @@ const MediaCarousel: React.FC<MediaCarouselProps> = ({
         {files.map((file, index) => (
           <div
             key={index}
-            className={`absolute inset-0 transition-transform duration-500 ease-in-out ${
-              index === currentIndex ? 'translate-x-0' : 'translate-x-full'
-            }`}
+            className={`absolute inset-0 transition-transform duration-500 ease-in-out`}
             style={{
-              transform: index === currentIndex ? 'translateX(0)' : 'translateX(100%)'
+              transform: `translateX(${(index - currentIndex) * 100}%)`,
             }}
           >
-              {file.type === 'video' ? (
-                <div className="relative w-full h-full bg-black flex items-center justify-center">
-                  <video
-                    ref={index === currentIndex ? videoRef : null}
+            {file.type === 'video' ? (
+              <div className="relative w-full h-full bg-black flex items-center justify-center">
+                <video
+                  ref={index === currentIndex ? videoRef : null}
+                  src={file.url}
+                  className="w-full h-full object-contain max-w-full max-h-full"
+                  onPlay={() => setIsPlaying(true)}
+                  onPause={() => setIsPlaying(false)}
+                  onEnded={() => setIsPlaying(false)}
+                  controls={false}
+                  preload="metadata"
+                />
+                {!isPlaying && (
+                  <button
+                    onClick={handleVideoPlay}
+                    className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 hover:bg-opacity-40 transition-all"
+                  >
+                    <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white bg-opacity-90 rounded-full flex items-center justify-center hover:bg-opacity-100 transition-all">
+                      <Play className="w-6 h-6 sm:w-8 sm:h-8 text-gray-800 ml-1" />
+                    </div>
+                  </button>
+                )}
+                {isPlaying && (
+                  <button
+                    onClick={handleVideoPlay}
+                    className="absolute top-2 right-2 sm:top-4 sm:right-4 bg-black bg-opacity-50 text-white p-1.5 sm:p-2 rounded-full hover:bg-opacity-70 transition-all"
+                  >
+                    <X className="w-3 h-3 sm:w-4 sm:h-4" />
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="relative w-full h-full bg-gray-100 flex items-center justify-center">
+                {failedImages.has(index) ? (
+                  <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                    <div className="text-center">
+                      <Image className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-xs text-gray-500">Image failed to load</p>
+                    </div>
+                  </div>
+                ) : (
+                  <img
                     src={file.url}
-                    className="w-full h-full object-contain max-w-full max-h-full"
-                    onPlay={() => setIsPlaying(true)}
-                    onPause={() => setIsPlaying(false)}
-                    onEnded={() => setIsPlaying(false)}
-                    controls={false}
-                    preload="metadata"
+                    alt={`Media ${index + 1}`}
+                    className="w-full h-full object-cover object-center transition-transform duration-300 hover:scale-105"
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      maxWidth: '100vw',
+                      maxHeight: '100%',
+                      objectFit: 'cover',
+                      objectPosition: 'center center',
+                    }}
+                    loading="lazy"
+                    onError={() => handleImageError(index)}
+                    onLoad={() => handleImageLoad(index)}
                   />
-                  {!isPlaying && (
-                    <button
-                      onClick={handleVideoPlay}
-                      className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 hover:bg-opacity-40 transition-all"
-                    >
-                      <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white bg-opacity-90 rounded-full flex items-center justify-center hover:bg-opacity-100 transition-all">
-                        <Play className="w-6 h-6 sm:w-8 sm:h-8 text-gray-800 ml-1" />
-                      </div>
-                    </button>
-                  )}
-                  {isPlaying && (
-                    <button
-                      onClick={handleVideoPlay}
-                      className="absolute top-2 right-2 sm:top-4 sm:right-4 bg-black bg-opacity-50 text-white p-1.5 sm:p-2 rounded-full hover:bg-opacity-70 transition-all"
-                    >
-                      <X className="w-3 h-3 sm:w-4 sm:h-4" />
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className="relative w-full h-full bg-gray-100 flex items-center justify-center">
-                  {file.type === 'image' ? (
-                    <div className="relative w-full h-full">
-                      {failedImages.has(index) ? (
-                        <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                          <div className="text-center">
-                            <Image className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400 mx-auto mb-2" />
-                            <p className="text-xs text-gray-500">Image failed to load</p>
-                          </div>
-                        </div>
-                      ) : (
-                        <img
-                          src={file.url}
-                          alt={`Media ${index + 1}`}
-                          className="w-full h-full object-cover object-center transition-transform duration-300 hover:scale-105"
-                          style={{
-                            width: '100%',
-                            height: '100%',
-                            maxWidth: '100vw',
-                            maxHeight: '100%',
-                            objectFit: 'cover',
-                            objectPosition: 'center center'
-                          }}
-                          loading="lazy"
-                          onError={(e) => {
-                            handleImageError(index, file.url);
-                          }}
-                          onLoad={() => {
-                            handleImageLoad(index, file.url);
-                          }}
-                        />
-                      )}
-                    </div>
-                  ) : (
-                    <div className="relative w-full h-full bg-gray-100 flex items-center justify-center">
-                      {failedImages.has(index) ? (
-                        // Fallback for failed images
-                        <div className="text-center text-gray-500">
-                          <AlertCircle className="w-8 h-8 sm:w-12 sm:h-12 mx-auto mb-2 text-gray-400" />
-                          <p className="text-xs sm:text-sm">Image failed to load</p>
-                          {file.originalUrl && file.originalUrl !== file.url && (
-                            <button
-                              onClick={() => {
-                                // Try original URL
-                                const img = new window.Image();
-                                img.onload = () => {
-                                  setFailedImages(prev => {
-                                    const newSet = new Set(prev);
-                                    newSet.delete(index);
-                                    return newSet;
-                                  });
-                                };
-                                img.src = file.originalUrl!;
-                              }}
-                              className="mt-2 text-xs text-blue-500 hover:text-blue-600"
-                            >
-                              Try alternative URL
-                            </button>
-                          )}
-                        </div>
-                      ) : (
-                        <img
-                          src={file.url}
-                          alt={`Media ${index + 1}`}
-                          className="w-full h-full object-cover"
-                          style={{
-                            width: '100%',
-                            height: '100%',
-                            maxWidth: '100vw',
-                            maxHeight: '100%',
-                            objectFit: 'cover'
-                          }}
-                          loading="lazy"
-                          onError={(e) => {
-                            handleImageError(index, file.url);
-                          }}
-                          onLoad={() => {
-                            handleImageLoad(index, file.url);
-                          }}
-                        />
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-              
-              {/* Remove button for editable mode */}
-              {editable && onRemove && (
-                <button
-                  onClick={() => onRemove(index)}
-                  className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 sm:p-1.5 hover:bg-red-600 transition-colors shadow-lg"
-                >
-                  <X className="w-3 h-3 sm:w-4 sm:h-4" />
-                </button>
-              )}
+                )}
+              </div>
+            )}
+
+            {/* Remove button for editable mode */}
+            {editable && onRemove && (
+              <button
+                onClick={() => onRemove(index)}
+                className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 sm:p-1.5 hover:bg-red-600 transition-colors shadow-lg"
+              >
+                <X className="w-3 h-3 sm:w-4 sm:h-4" />
+              </button>
+            )}
           </div>
         ))}
       </div>
@@ -262,18 +201,14 @@ const MediaCarousel: React.FC<MediaCarouselProps> = ({
                 key={index}
                 onClick={() => scrollToIndex(index)}
                 className={`flex-shrink-0 w-12 h-12 sm:w-16 sm:h-16 rounded-lg overflow-hidden border-2 transition-all ${
-                  currentIndex === index 
-                    ? 'border-orange-500 ring-2 ring-orange-200' 
+                  currentIndex === index
+                    ? 'border-orange-500 ring-2 ring-orange-200'
                     : 'border-gray-200 hover:border-gray-300'
                 }`}
               >
                 {file.type === 'video' ? (
                   <div className="w-full h-full bg-gray-800 flex items-center justify-center relative">
-                    <video
-                      src={file.url}
-                      className="w-full h-full object-cover"
-                      preload="metadata"
-                    />
+                    <video src={file.url} className="w-full h-full object-cover" preload="metadata" />
                     <div className="absolute inset-0 flex items-center justify-center">
                       <Play className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
                     </div>
@@ -287,9 +222,7 @@ const MediaCarousel: React.FC<MediaCarouselProps> = ({
                     src={file.url}
                     alt={`Thumbnail ${index + 1}`}
                     className="w-full h-full object-cover"
-                    onError={(e) => {
-                      handleImageError(index, file.url);
-                    }}
+                    onError={() => handleImageError(index)}
                   />
                 )}
               </button>
