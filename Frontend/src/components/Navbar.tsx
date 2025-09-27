@@ -37,7 +37,7 @@ const Navbar = () => {
           >
             <Link to="/" className="flex items-center space-x-2">
         
-              <div className="w-28 h-24 aspect-square object-contain">
+              <div className="w-52 h-auto mt-6 object-cover">
                 <img src="/assets/logo1.png" alt="Truviews" />
               </div>
             </Link>
