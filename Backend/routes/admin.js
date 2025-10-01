@@ -49,12 +49,12 @@ router.post('/create-admin', async (req, res) => {
     
     await adminUser.save();
     
-    console.log('Admin account created successfully:', {
-      id: adminUser._id,
-      email: adminUser.email,
-      role: adminUser.role,
-      emailVerified: adminUser.emailVerified
-    });
+    // console.log('Admin account created successfully:', {
+    //   id: adminUser._id,
+    //   email: adminUser.email,
+    //   role: adminUser.role,
+    //   emailVerified: adminUser.emailVerified
+    // });
     
     res.status(201).json({ 
       message: 'Admin account created successfully',
@@ -67,7 +67,7 @@ router.post('/create-admin', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Admin creation error:', error);
+    // console.error('Admin creation error:', error);
     res.status(500).json({ message: 'Failed to create admin account' });
   }
 });
@@ -80,9 +80,9 @@ router.use(isAdmin);
 
 // Add error logging middleware
 router.use((req, res, next) => {
-  console.log(`Admin route accessed: ${req.method} ${req.path}`);
-  console.log('User:', req.user);
-  console.log('User profile:', req.userProfile);
+  // console.log(`Admin route accessed: ${req.method} ${req.path}`);
+  // console.log('User:', req.user);
+  // console.log('User profile:', req.userProfile);
   next();
 });
 

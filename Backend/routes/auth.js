@@ -62,7 +62,7 @@ router.post('/register', async (req, res) => {
       userId: user._id 
     });
   } catch (error) {
-    console.error('Registration error:', error);
+    // console.error('Registration error:', error);
     res.status(500).json({ message: 'Registration failed' });
   }
 });
@@ -119,7 +119,7 @@ router.post('/verify-email', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Email verification error:', error);
+    // console.error('Email verification error:', error);
     res.status(500).json({ message: 'Email verification failed' });
   }
 });
@@ -155,7 +155,7 @@ router.post('/resend-verification', async (req, res) => {
 
     res.json({ message: 'Verification OTP sent successfully' });
   } catch (error) {
-    console.error('Resend verification error:', error);
+    // console.error('Resend verification error:', error);
     res.status(500).json({ message: 'Failed to resend verification OTP' });
   }
 });
@@ -167,25 +167,25 @@ router.post('/login', async (req, res) => {
 
     const user = await User.findOne({ email });
     if (!user) {
-      console.log('Login attempt: User not found for email:', email);
+      // console.log('Login attempt: User not found for email:', email);
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    console.log('Login attempt: User found:', {
-      id: user._id,
-      email: user.email,
-      role: user.role,
-      emailVerified: user.emailVerified
-    });
+    // console.log('Login attempt: User found:', {
+    //   id: user._id,
+    //   email: user.email,
+    //   role: user.role,
+    //   emailVerified: user.emailVerified
+    // });
 
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
-      console.log('Login attempt: Invalid password for user:', email);
+      // console.log('Login attempt: Invalid password for user:', email);
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
     if (!user.emailVerified) {
-      console.log('Login attempt: Email not verified for user:', email);
+      // console.log('Login attempt: Email not verified for user:', email);
       return res.status(401).json({ message: 'Please verify your email before logging in' });
     }
 
@@ -214,7 +214,7 @@ router.post('/login', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Login error:', error);
+    // console.error('Login error:', error);
     res.status(500).json({ message: 'Login failed' });
   }
 });
@@ -246,7 +246,7 @@ router.post('/forgot-password', async (req, res) => {
 
     res.json({ message: 'Password reset OTP sent successfully' });
   } catch (error) {
-    console.error('Forgot password error:', error);
+    // console.error('Forgot password error:', error);
     res.status(500).json({ message: 'Failed to send password reset OTP' });
   }
 });
@@ -280,7 +280,7 @@ router.post('/reset-password', async (req, res) => {
 
     res.json({ message: 'Password reset successfully' });
   } catch (error) {
-    console.error('Reset password error:', error);
+    // console.error('Reset password error:', error);
     res.status(500).json({ message: 'Password reset failed' });
   }
 });

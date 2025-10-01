@@ -60,38 +60,38 @@ const productionOrigins = [
 const finalAllowedOrigins = [...new Set([...allowedOrigins, ...productionOrigins])];
 
 // Log allowed origins for debugging
-console.log('Allowed CORS origins:', finalAllowedOrigins);
-console.log('Environment FRONTEND_URL:', process.env.FRONTEND_URL);
+// console.log('Allowed CORS origins:', finalAllowedOrigins);
+// console.log('Environment FRONTEND_URL:', process.env.FRONTEND_URL);
 
 // More flexible CORS configuration for development and production
 const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) {
-      console.log('CORS: Allowing request with no origin');
+      // console.log('CORS: Allowing request with no origin');
       return callback(null, true);
     }
     
-    console.log('CORS: Checking origin:', origin);
+    // console.log('CORS: Checking origin:', origin);
     
     // Always allow localhost for development
     if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
-      console.log('CORS: Localhost origin allowed:', origin);
+      // console.log('CORS: Localhost origin allowed:', origin);
       return callback(null, true);
     }
     
     // Check against allowed origins
     if (finalAllowedOrigins.indexOf(origin) !== -1) {
-      console.log('CORS: Origin allowed:', origin);
+      // console.log('CORS: Origin allowed:', origin);
       callback(null, true);
     } else {
       // Log blocked origins for debugging
-      console.log('CORS blocked origin:', origin);
-      console.log('Allowed origins:', finalAllowedOrigins);
+      // console.log('CORS blocked origin:', origin);
+      // console.log('Allowed origins:', finalAllowedOrigins);
       
       // In development, be more permissive
       if (process.env.NODE_ENV === 'development') {
-        console.log('CORS: Development mode - allowing blocked origin:', origin);
+        // console.log('CORS: Development mode - allowing blocked origin:', origin);
         callback(null, true);
       } else {
         callback(new Error(`Origin ${origin} not allowed by CORS policy`));
@@ -185,7 +185,7 @@ app.use('*', (req, res) => {
 
 // Global error handling middleware
 app.use((error, req, res, next) => {
-  console.error('Global error handler:', error);
+  // console.error('Global error handler:', error);
   
   // Handle mongoose validation errors
   if (error.name === 'ValidationError') {
@@ -245,15 +245,15 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/trustpilo
     mongoose.set('autoIndex', false); // Disable auto-indexing in production
   })
   .catch(err => {
-    console.error('MongoDB connection error:', err);
+    // console.error('MongoDB connection error:', err);
     process.exit(1);
   });
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down gracefully');
+  // console.log('SIGTERM received, shutting down gracefully');
   mongoose.connection.close(() => {
-    console.log('MongoDB connection closed');
+    // console.log('MongoDB connection closed');
     process.exit(0);
   });
 });
@@ -261,7 +261,7 @@ process.on('SIGTERM', () => {
 const PORT = process.env.PORT || 5000;
 
 const server = app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT} with performance optimizations`);
+  console.log(`Server running on port ${PORT}`);
 });
 
 // Server timeout settings

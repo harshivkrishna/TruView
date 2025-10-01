@@ -13,12 +13,12 @@ const performanceMonitor = (req, res, next) => {
     
     // Log slow requests
     if (duration > 1000) {
-      console.warn(`Slow request: ${req.method} ${req.path} took ${duration.toFixed(2)}ms`);
+      // console.warn(`Slow request: ${req.method} ${req.path} took ${duration.toFixed(2)}ms`);
     }
     
     // Log performance metrics in development
     if (process.env.NODE_ENV === 'development') {
-      console.log(`${req.method} ${req.path} - ${duration.toFixed(2)}ms`);
+      // console.log(`${req.method} ${req.path} - ${duration.toFixed(2)}ms`);
     }
   });
   
@@ -121,12 +121,12 @@ const memoryMonitor = (req, res, next) => {
     
     // Log memory usage every 100 requests
     if (Math.random() < 0.01) {
-      console.log('Memory Usage:', memUsageMB);
+      // console.log('Memory Usage:', memUsageMB);
     }
     
     // Warn if memory usage is high
     if (memUsageMB.heapUsed > 500) { // 500MB
-      console.warn('High memory usage detected:', memUsageMB.heapUsed, 'MB');
+      // console.warn('High memory usage detected:', memUsageMB.heapUsed, 'MB');
     }
   }
   

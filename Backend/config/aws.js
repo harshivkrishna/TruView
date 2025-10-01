@@ -26,7 +26,7 @@ const uploadToS3 = async (buffer, fileName, contentType) => {
       ETag: result.ETag,
     };
   } catch (error) {
-    console.error('S3 upload error:', error);
+    // console.error('S3 upload error:', error);
     throw new Error('Failed to upload file to S3');
   }
 };

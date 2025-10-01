@@ -7,12 +7,12 @@ async function createAdminUser() {
   try {
     // Connect to MongoDB
     await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/trustpilot-clone');
-    console.log('Connected to MongoDB');
+    // console.log('Connected to MongoDB');
 
     // Check if admin user already exists
     const existingAdmin = await User.findOne({ role: 'admin' });
     if (existingAdmin) {
-      console.log('Admin user already exists:', existingAdmin.email);
+      // console.log('Admin user already exists:', existingAdmin.email);
       return;
     }
 
@@ -30,14 +30,14 @@ async function createAdminUser() {
     });
 
     await adminUser.save();
-    console.log('Admin user created successfully:', adminUser.email);
-    console.log('Password: admin123');
+    // console.log('Admin user created successfully:', adminUser.email);
+    // console.log('Password: admin123');
 
   } catch (error) {
-    console.error('Error creating admin user:', error);
+    // console.error('Error creating admin user:', error);
   } finally {
     await mongoose.disconnect();
-    console.log('Disconnected from MongoDB');
+    // console.log('Disconnected from MongoDB');
   }
 }
 

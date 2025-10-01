@@ -141,7 +141,7 @@ router.get('/most-viewed-week', async (req, res) => {
     
     res.json(reviews);
   } catch (error) {
-    console.error('Error fetching most viewed reviews:', error);
+    // console.error('Error fetching most viewed reviews:', error);
     res.status(500).json({ message: error.message });
   }
 });

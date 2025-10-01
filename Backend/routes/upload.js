@@ -106,11 +106,11 @@ router.post('/', upload.array('media', 5), (req, res) => {
       }
     });
 
-    console.log('Uploaded files:', uploadedFiles);
+    // console.log('Uploaded files:', uploadedFiles);
 
     res.json({ files: uploadedFiles });
   } catch (error) {
-    console.error('Upload error:', error);
+    // console.error('Upload error:', error);
     res.status(500).json({ message: error.message });
   }
 });

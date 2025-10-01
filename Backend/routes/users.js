@@ -129,7 +129,7 @@ router.post('/profile/photo', authenticateToken, profilePhotoUpload.single('prof
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
-    console.log('File uploaded successfully:', req.file);
+    // console.log('File uploaded successfully:', req.file);
 
     let avatarUrl;
     if (isAWSConfigured) {
@@ -152,10 +152,10 @@ router.post('/profile/photo', authenticateToken, profilePhotoUpload.single('prof
       return res.status(404).json({ message: 'User not found' });
     }
 
-    console.log('User updated with new avatar:', user.avatar);
+    // console.log('User updated with new avatar:', user.avatar);
     res.json(user);
   } catch (error) {
-    console.error('Profile photo upload error:', error);
+    // console.error('Profile photo upload error:', error);
     res.status(500).json({ message: 'Failed to upload profile photo', error: error.message });
   }
 });
@@ -181,7 +181,7 @@ router.get('/:userId/profile', async (req, res) => {
 
     res.json(profileData);
   } catch (error) {
-    console.error('Error fetching user profile:', error);
+    // console.error('Error fetching user profile:', error);
     res.status(500).json({ message: 'Failed to fetch user profile', error: error.message });
   }
 });
@@ -219,7 +219,7 @@ router.get('/:userId/reviews', async (req, res) => {
 
     res.json(formattedReviews);
   } catch (error) {
-    console.error('Error fetching user reviews:', error);
+    // console.error('Error fetching user reviews:', error);
     res.status(500).json({ message: 'Failed to fetch user reviews', error: error.message });
   }
 });
@@ -231,20 +231,20 @@ router.get('/leaderboard', async (req, res) => {
     const Review = require('../models/Review');
     const allUsers = await User.find({}).select('firstName lastName reviewCount trustScore');
     
-    console.log(`Found ${allUsers.length} total users`);
+    // console.log(`Found ${allUsers.length} total users`);
     
     // Check each user's actual review count and update if needed
     const usersWithReviews = [];
     for (const user of allUsers) {
       const actualReviewCount = await Review.countDocuments({ 'author.userId': user._id });
-      console.log(`User ${user.firstName} ${user.lastName}: stored=${user.reviewCount}, actual=${actualReviewCount}`);
+      // console.log(`User ${user.firstName} ${user.lastName}: stored=${user.reviewCount}, actual=${actualReviewCount}`);
       
       if (actualReviewCount > 0) {
         // Update user's review count if it's wrong
         if (user.reviewCount !== actualReviewCount) {
           user.reviewCount = actualReviewCount;
           await user.save();
-          console.log(`Updated ${user.firstName} ${user.lastName} review count to ${actualReviewCount}`);
+          // console.log(`Updated ${user.firstName} ${user.lastName} review count to ${actualReviewCount}`);
         }
         
         usersWithReviews.push({
@@ -257,7 +257,7 @@ router.get('/leaderboard', async (req, res) => {
       }
     }
     
-    console.log(`Found ${usersWithReviews.length} users with reviews`);
+    // console.log(`Found ${usersWithReviews.length} users with reviews`);
     
     // Sort by trust score, then by review count
     const sortedUsers = usersWithReviews.sort((a, b) => {
@@ -269,7 +269,7 @@ router.get('/leaderboard', async (req, res) => {
     
     res.json(sortedUsers);
   } catch (error) {
-    console.error('Error generating leaderboard:', error);
+    // console.error('Error generating leaderboard:', error);
     res.status(500).json({ message: error.message });
   }
 });
@@ -279,14 +279,14 @@ router.get('/leaderboard-test', async (req, res) => {
   try {
     // Just get all public users without any filtering
     const allUsers = await User.find({ isPublicProfile: true }).select('firstName lastName reviewCount trustScore');
-    console.log(`Test route found ${allUsers.length} public users`);
+    // console.log(`Test route found ${allUsers.length} public users`);
     
     // Show users with and without reviews
     const usersWithReviews = allUsers.filter(u => (u.reviewCount || 0) > 0);
     const usersWithoutReviews = allUsers.filter(u => (u.reviewCount || 0) === 0);
     
-    console.log(`Users with reviews: ${usersWithReviews.length}`);
-    console.log(`Users without reviews: ${usersWithoutReviews.length}`);
+    // console.log(`Users with reviews: ${usersWithReviews.length}`);
+    // console.log(`Users without reviews: ${usersWithoutReviews.length}`);
 
     res.json({
       totalPublicUsers: allUsers.length,
@@ -295,7 +295,7 @@ router.get('/leaderboard-test', async (req, res) => {
       allUsers: allUsers
     });
   } catch (error) {
-    console.error('Error in test route:', error);
+    // console.error('Error in test route:', error);
     res.status(500).json({ message: error.message });
   }
 });
@@ -433,7 +433,7 @@ router.post('/debug/force-update', async (req, res) => {
     const allUsers = await User.find();
     let updatedCount = 0;
     
-    console.log(`Force updating ${allUsers.length} users...`);
+    // console.log(`Force updating ${allUsers.length} users...`);
     
     for (const user of allUsers) {
       const reviewCount = await Review.countDocuments({ 'author.userId': user._id });
@@ -443,7 +443,7 @@ router.post('/debug/force-update', async (req, res) => {
         const userReviews = await Review.find({ 'author.userId': user._id });
         const totalTrustScore = userReviews.reduce((sum, rev) => sum + (rev.trustScore || 0), 0);
         trustScore = Math.round(totalTrustScore / userReviews.length);
-        console.log(`User ${user.firstName} ${user.lastName}: ${reviewCount} reviews, trustScore: ${trustScore}`);
+        // console.log(`User ${user.firstName} ${user.lastName}: ${reviewCount} reviews, trustScore: ${trustScore}`);
       }
       
       // Force update regardless of current values
@@ -453,7 +453,7 @@ router.post('/debug/force-update', async (req, res) => {
       updatedCount++;
     }
     
-    console.log(`Force updated ${updatedCount} users`);
+    // console.log(`Force updated ${updatedCount} users`);
     
     res.json({ 
       message: `Force updated ${updatedCount} users`,
@@ -461,7 +461,7 @@ router.post('/debug/force-update', async (req, res) => {
       updatedUsers: updatedCount
     });
   } catch (error) {
-    console.error('Error force updating users:', error);
+    // console.error('Error force updating users:', error);
     res.status(500).json({ message: error.message });
   }
 });

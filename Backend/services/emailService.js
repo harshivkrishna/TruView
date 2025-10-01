@@ -1,15 +1,15 @@
 const nodemailer = require('nodemailer');
 
 // Check if email credentials are configured
-console.log('Environment variables check:');
-console.log('EMAIL_USER:', process.env.EMAIL_USER ? 'Set' : 'Not set');
-console.log('EMAIL_PASSWORD:', process.env.EMAIL_PASSWORD ? 'Set' : 'Not set');
-console.log('All env vars:', Object.keys(process.env).filter(key => key.includes('EMAIL')));
+// console.log('Environment variables check:');
+// console.log('EMAIL_USER:', process.env.EMAIL_USER ? 'Set' : 'Not set');
+// console.log('EMAIL_PASSWORD:', process.env.EMAIL_PASSWORD ? 'Set' : 'Not set');
+// console.log('All env vars:', Object.keys(process.env).filter(key => key.includes('EMAIL')));
 
 if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
-  console.error('Email credentials not configured! Please set EMAIL_USER and EMAIL_PASSWORD in your .env file');
-  console.error('EMAIL_USER:', process.env.EMAIL_USER ? 'Set' : 'Not set');
-  console.error('EMAIL_PASSWORD:', process.env.EMAIL_PASSWORD ? 'Set' : 'Not set');
+  // console.error('Email credentials not configured! Please set EMAIL_USER and EMAIL_PASSWORD in your .env file');
+  // console.error('EMAIL_USER:', process.env.EMAIL_USER ? 'Set' : 'Not set');
+  // console.error('EMAIL_PASSWORD:', process.env.EMAIL_PASSWORD ? 'Set' : 'Not set');
 }
 
 // Create transporter
@@ -46,7 +46,7 @@ const sendVerificationOTP = async (email, otp, firstName) => {
     await transporter.sendMail(mailOptions);
     return true;
   } catch (error) {
-    console.error('Email sending error:', error);
+    // console.error('Email sending error:', error);
     return false;
   }
 };
@@ -76,7 +76,7 @@ const sendPasswordResetOTP = async (email, otp, firstName) => {
     await transporter.sendMail(mailOptions);
     return true;
   } catch (error) {
-    console.error('Email sending error:', error);
+    // console.error('Email sending error:', error);
     return false;
   }
 };
