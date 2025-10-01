@@ -53,9 +53,9 @@ const Footer: React.FC = () => {
             {/* Brand Section */}
             <div className="lg:col-span-1">
               <div className="flex items-center space-x-2 mb-4">
-                <Link to="/" className="flex items-center space-x-2">
+                <Link to="/" className="flex items-center">
                         
-                                <img src="/assets/logo.png" className='rounded-full h-20 w-20' alt="Truviews" />
+                                <img src="/assets/logo.png" className='rounded-full h-20 w-20 object-cover object-center' alt="Truviews" />
                 </Link>
               </div>
               <p className="text-gray-400 mb-4">

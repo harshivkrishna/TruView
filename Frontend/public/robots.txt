@@ -1,0 +1,13 @@
+# Allow all crawlers
+User-agent: *
+Allow: /
+
+# Disallow admin and private routes
+Disallow: /admin
+Disallow: /profile/
+
+# Sitemap location
+Sitemap: https://truview-steel.vercel.app/sitemap.xml
+
+# Crawl-delay (optional, in seconds)
+Crawl-delay: 1

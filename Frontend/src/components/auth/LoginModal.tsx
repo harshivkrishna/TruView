@@ -51,7 +51,10 @@ const LoginModal: React.FC<LoginModalProps> = ({
       handleClose();
     } catch (error: any) {
       // Handle specific authentication errors
-      if (error.response?.status === 404) {
+      if (error.response?.status === 429) {
+        // Rate limit error
+        setErrorMessage(error.response?.data?.message || 'Too many authentication attempts, please try again later.');
+      } else if (error.response?.status === 404) {
         setErrorMessage('Email does not exist. Please check your email or sign up.');
       } else if (error.response?.status === 401) {
         setErrorMessage('Incorrect password. Please try again.');

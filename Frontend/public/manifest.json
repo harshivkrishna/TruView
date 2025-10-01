@@ -1,0 +1,52 @@
+{
+  "name": "TruView - Authentic Reviews & Ratings",
+  "short_name": "TruView",
+  "description": "Discover genuine reviews and ratings for products, services, and experiences",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#f97316",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/assets/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "lifestyle", "shopping"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Browse Reviews",
+      "short_name": "Browse",
+      "description": "Browse all reviews",
+      "url": "/discover",
+      "icons": [
+        {
+          "src": "/assets/logo.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Submit Review",
+      "short_name": "Submit",
+      "description": "Submit a new review",
+      "url": "/submit",
+      "icons": [
+        {
+          "src": "/assets/logo.png",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ]
+}
