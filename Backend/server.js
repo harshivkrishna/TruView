@@ -42,6 +42,8 @@ const allowedOrigins = [
   'http://localhost:3000',           // Alternative local port
   'https://truview-steel.vercel.app', // Production frontend
   'https://truview.vercel.app',       // Alternative production domain
+  'https://www.truviews.in',          // Production frontend domain
+  'https://truviews.in',              // Production frontend domain (without www)
   'https://truview-y909.onrender.com' // Backend domain (for testing)
 ];
 
@@ -53,7 +55,9 @@ if (process.env.FRONTEND_URL) {
 // Ensure production domains are always included regardless of environment variables
 const productionOrigins = [
   'https://truview-steel.vercel.app',
-  'https://truview.vercel.app'
+  'https://truview.vercel.app',
+  'https://www.truviews.in',
+  'https://truviews.in'
 ];
 
 // Merge and deduplicate origins
