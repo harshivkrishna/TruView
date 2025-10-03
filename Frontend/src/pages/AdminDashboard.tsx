@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, FileText, Flag, TrendingUp, Search, Filter, Check, X, Eye, Key, BarChart3, PieChart, Calendar, Activity } from 'lucide-react';
+import { Users, FileText, Flag, TrendingUp, Search, Filter, Check, X, Eye, Key, BarChart3, PieChart, Calendar, Activity, LogOut } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getPassKey, updatePassKey, getAdminReviews, getAdminUsers, getAdminReports, handleReportAction } from '../services/api';
 import toast from 'react-hot-toast';
@@ -37,6 +37,7 @@ const BarChart3Icon = BarChart3 as React.ComponentType<any>;
 const PieChartIcon = PieChart as React.ComponentType<any>;
 const CalendarIcon = Calendar as React.ComponentType<any>;
 const ActivityIcon = Activity as React.ComponentType<any>;
+const LogOutIcon = LogOut as React.ComponentType<any>;
 
 // Type assertions for Recharts components to fix TypeScript compatibility
 const ResponsiveContainerComponent = ResponsiveContainer as React.ComponentType<any>;
@@ -50,7 +51,7 @@ const LegendComponent = Legend as any;
 const LineChartComponent = LineChart as React.ComponentType<any>;
 
 const AdminDashboard = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
   const [reviews, setReviews] = useState([]);
@@ -486,8 +487,20 @@ const AdminDashboard = () => {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
-          <p className="text-gray-600">Manage reviews, users, and platform content</p>
+          <div className="flex justify-between items-start">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
+              <p className="text-gray-600">Manage reviews, users, and platform content</p>
+            </div>
+            <button
+              onClick={logout}
+              className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+              title="Logout from admin panel"
+            >
+              <LogOutIcon className="w-4 h-4" />
+              Logout
+            </button>
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -527,7 +540,7 @@ const AdminDashboard = () => {
               <TrendingUpIcon className="w-8 h-8 text-orange-500" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Monthly Growth</p>
-                <p className="text-2xl font-bold text-gray-900">+{stats.monthlyGrowth}%</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.monthlyGrowth >= 0 ? '+' : ''}{stats.monthlyGrowth}%</p>
               </div>
             </div>
           </div>
@@ -623,7 +636,7 @@ const OverviewTab = ({ stats, chartData, timePeriod, setTimePeriod }: any) => {
             <div>
               <p className="text-blue-100 text-sm font-medium">Total Users</p>
               <p className="text-3xl font-bold">{stats.totalUsers}</p>
-              <p className="text-blue-100 text-xs mt-1">+{stats.monthlyGrowth}% this month</p>
+              <p className="text-blue-100 text-xs mt-1">{stats.monthlyGrowth >= 0 ? '+' : ''}{stats.monthlyGrowth}% this month</p>
             </div>
             <UsersIcon className="w-8 h-8 text-blue-200" />
           </div>

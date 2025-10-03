@@ -1,6 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
+import LoginModal from './auth/LoginModal';
+import RegisterModal from './auth/RegisterModal';
+import ForgotPasswordModal from './auth/ForgotPasswordModal';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -10,6 +13,9 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, fallback, adminOnly = false }) => {
   const { currentUser, loading } = useAuth();
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
+  const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
 
   // Show loading state while auth context is initializing
   if (loading) {
@@ -25,22 +31,88 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, fallback, adm
 
   if (!currentUser) {
     return fallback || (
-      <motion.div 
-        className="min-h-screen bg-gray-50 flex items-center justify-center"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5 }}
-      >
+      <>
         <motion.div 
-          className="text-center"
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
+          className="min-h-screen bg-gray-50 flex items-center justify-center"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5 }}
         >
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Authentication Required</h2>
-          <p className="text-gray-600 mb-6">Please login to access this page.</p>
+          <motion.div 
+            className="text-center max-w-md mx-auto p-6"
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
+            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+              {adminOnly ? 'Admin Access Required' : 'Authentication Required'}
+            </h2>
+            <p className="text-gray-600 mb-6">
+              {adminOnly 
+                ? 'Please login with admin credentials to access this page.' 
+                : 'Please login to access this page.'
+              }
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <button
+                onClick={() => setShowLoginModal(true)}
+                className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+              >
+                Login
+              </button>
+              <button
+                onClick={() => setShowRegisterModal(true)}
+                className="px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+              >
+                {adminOnly ? 'Sign Up as Admin' : 'Sign Up'}
+              </button>
+            </div>
+            {adminOnly && (
+              <p className="text-xs text-gray-500 mt-4">
+                Admin registration requires a passkey. Contact your administrator for access.
+              </p>
+            )}
+          </motion.div>
         </motion.div>
-      </motion.div>
+
+        {/* Auth Modals */}
+        <LoginModal
+          isOpen={showLoginModal}
+          onClose={() => setShowLoginModal(false)}
+          onSwitchToRegister={() => {
+            setShowLoginModal(false);
+            setShowRegisterModal(true);
+          }}
+          onSwitchToForgotPassword={() => {
+            setShowLoginModal(false);
+            setShowForgotPasswordModal(true);
+          }}
+        />
+        
+        <RegisterModal
+          isOpen={showRegisterModal}
+          onClose={() => setShowRegisterModal(false)}
+          onSwitchToLogin={() => {
+            setShowRegisterModal(false);
+            setShowLoginModal(true);
+          }}
+          isAdminMode={adminOnly}
+        />
+
+        <ForgotPasswordModal
+          isOpen={showForgotPasswordModal}
+          onClose={() => setShowForgotPasswordModal(false)}
+          onSwitchToLogin={() => {
+            setShowForgotPasswordModal(false);
+            setShowLoginModal(true);
+          }}
+        />
+      </>
     );
   }
 
@@ -93,7 +165,57 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, fallback, adm
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h2>
           <p className="text-gray-600 mb-6">You don't have permission to access this page. Admin privileges are required.</p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <button
+              onClick={() => setShowRegisterModal(true)}
+              className="px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+            >
+              Register as Admin
+            </button>
+            <button
+              onClick={() => window.location.href = '/'}
+              className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+            >
+              Go to Home
+            </button>
+          </div>
+          <p className="text-xs text-gray-500 mt-4">
+            Admin registration requires a passkey. Contact your administrator for access.
+          </p>
         </motion.div>
+
+        {/* Admin Registration Modal */}
+        <RegisterModal
+          isOpen={showRegisterModal}
+          onClose={() => setShowRegisterModal(false)}
+          onSwitchToLogin={() => {
+            setShowRegisterModal(false);
+            setShowLoginModal(true);
+          }}
+          isAdminMode={true}
+        />
+
+        <LoginModal
+          isOpen={showLoginModal}
+          onClose={() => setShowLoginModal(false)}
+          onSwitchToRegister={() => {
+            setShowLoginModal(false);
+            setShowRegisterModal(true);
+          }}
+          onSwitchToForgotPassword={() => {
+            setShowLoginModal(false);
+            setShowForgotPasswordModal(true);
+          }}
+        />
+
+        <ForgotPasswordModal
+          isOpen={showForgotPasswordModal}
+          onClose={() => setShowForgotPasswordModal(false)}
+          onSwitchToLogin={() => {
+            setShowForgotPasswordModal(false);
+            setShowLoginModal(true);
+          }}
+        />
       </motion.div>
     );
   }

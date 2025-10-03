@@ -16,6 +16,8 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
+    // Enable SPA fallback for development
+    historyApiFallback: true,
   },
   build: {
     target: 'es2022',
