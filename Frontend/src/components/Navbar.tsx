@@ -18,6 +18,9 @@ const Navbar = () => {
 
   // Check if we're on the admin route
   const isAdminRoute = location.pathname === '/admin';
+  
+  // Debug: Log the current route and admin status
+  console.log('Current pathname:', location.pathname, 'isAdminRoute:', isAdminRoute);
 
   const handleProfileClick = () => {
     if (currentUser?.id) {
@@ -95,7 +98,7 @@ const Navbar = () => {
               </>
             ) : (
               // Only show auth buttons if not on admin route (admin auth is handled by ProtectedRoute)
-              !isAdminRoute && (
+              location.pathname !== '/admin' && (
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => setShowLoginModal(true)}
@@ -191,7 +194,7 @@ const Navbar = () => {
                 </>
               ) : (
                 // Only show auth buttons if not on admin route (admin auth is handled by ProtectedRoute)
-                !isAdminRoute && (
+                location.pathname !== '/admin' && (
                   <>
                     <button
                       onClick={() => {
