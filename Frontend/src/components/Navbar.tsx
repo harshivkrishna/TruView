@@ -94,21 +94,23 @@ const Navbar = () => {
                 )}
               </>
             ) : (
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setShowLoginModal(true)}
-                  className="text-gray-700 hover:text-orange-500 transition-colors"
-                >
-                  Login
-                </button>
-                <button
-                  onClick={() => setShowRegisterModal(true)}
-                  className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors"
-                  title={isAdminRoute ? "Click to register as admin (use passkey: truviews)" : "Sign Up"}
-                >
-                  {isAdminRoute ? "Sign Up as Admin" : "Sign Up"}
-                </button>
-              </div>
+              // Only show auth buttons if not on admin route (admin auth is handled by ProtectedRoute)
+              !isAdminRoute && (
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setShowLoginModal(true)}
+                    className="text-gray-700 hover:text-orange-500 transition-colors"
+                  >
+                    Login
+                  </button>
+                  <button
+                    onClick={() => setShowRegisterModal(true)}
+                    className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors"
+                  >
+                    Sign Up
+                  </button>
+                </div>
+              )
             )}
           </motion.div>
 
@@ -188,26 +190,29 @@ const Navbar = () => {
                   )}
                 </>
               ) : (
-                <>
-                  <button
-                    onClick={() => {
-                      setShowLoginModal(true);
-                      setIsMenuOpen(false);
-                    }}
-                    className="block text-gray-700 hover:text-orange-500 transition-colors"
-                  >
-                    Login
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowRegisterModal(true);
-                      setIsMenuOpen(false);
-                    }}
-                    className="block bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors text-center"
-                  >
-                    Sign Up
-                  </button>
-                </>
+                // Only show auth buttons if not on admin route (admin auth is handled by ProtectedRoute)
+                !isAdminRoute && (
+                  <>
+                    <button
+                      onClick={() => {
+                        setShowLoginModal(true);
+                        setIsMenuOpen(false);
+                      }}
+                      className="block text-gray-700 hover:text-orange-500 transition-colors"
+                    >
+                      Login
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowRegisterModal(true);
+                        setIsMenuOpen(false);
+                      }}
+                      className="block bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors text-center"
+                    >
+                      Sign Up
+                    </button>
+                  </>
+                )
               )}
             </motion.div>
           )}
