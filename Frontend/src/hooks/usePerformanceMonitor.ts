@@ -33,12 +33,12 @@ export const usePerformanceMonitor = () => {
 
         // Log to console in development
         if (import.meta.env.DEV) {
-          console.log('⚡ Performance Metrics:', {
-            'Time to First Byte': `${metrics.ttfb.toFixed(2)}ms`,
-            'DOM Content Loaded': `${metrics.domContentLoaded.toFixed(2)}ms`,
-            'DOM Interactive': `${metrics.domInteractive.toFixed(2)}ms`,
-            'Total Load Time': `${metrics.totalLoadTime.toFixed(2)}ms`,
-          });
+          // console.log('⚡ Performance Metrics:', {
+          //   'Time to First Byte': `${metrics.ttfb.toFixed(2)}ms`,
+          //   'DOM Content Loaded': `${metrics.domContentLoaded.toFixed(2)}ms`,
+          //   'DOM Interactive': `${metrics.domInteractive.toFixed(2)}ms`,
+          //   'Total Load Time': `${metrics.totalLoadTime.toFixed(2)}ms`,
+          // });
         }
 
         // You can send these metrics to an analytics service
@@ -50,11 +50,11 @@ export const usePerformanceMonitor = () => {
       const slowResources = resources.filter((resource: any) => resource.duration > 1000);
       
       if (slowResources.length > 0 && import.meta.env.DEV) {
-        console.warn('⚠️ Slow Resources (>1s):', slowResources.map((r: any) => ({
-          name: r.name,
-          duration: `${r.duration.toFixed(2)}ms`,
-          type: r.initiatorType
-        })));
+        // console.warn('⚠️ Slow Resources (>1s):', slowResources.map((r: any) => ({
+        //   name: r.name,
+        //   duration: `${r.duration.toFixed(2)}ms`,
+        //   type: r.initiatorType
+        // })));
       }
     };
 
@@ -86,7 +86,7 @@ export const measureRender = (componentName: string) => {
     
     const measure = performance.getEntriesByName(measureName)[0];
     if (measure) {
-      console.log(`🎨 ${componentName} render time: ${measure.duration.toFixed(2)}ms`);
+      // console.log(`🎨 ${componentName} render time: ${measure.duration.toFixed(2)}ms`);
     }
 
     // Clean up marks
@@ -109,7 +109,7 @@ export const reportWebVitals = () => {
       const lastEntry = entries[entries.length - 1];
       
       if (import.meta.env.DEV) {
-        console.log('📊 LCP (Largest Contentful Paint):', `${lastEntry.startTime.toFixed(2)}ms`);
+        // console.log('📊 LCP (Largest Contentful Paint):', `${lastEntry.startTime.toFixed(2)}ms`);
       }
     });
 
@@ -128,7 +128,7 @@ export const reportWebVitals = () => {
         const fid = entry.processingStart - entry.startTime;
         
         if (import.meta.env.DEV) {
-          console.log('📊 FID (First Input Delay):', `${fid.toFixed(2)}ms`);
+          // console.log('📊 FID (First Input Delay):', `${fid.toFixed(2)}ms`);
         }
       });
     });
@@ -151,7 +151,7 @@ export const reportWebVitals = () => {
       });
 
       if (import.meta.env.DEV) {
-        console.log('📊 CLS (Cumulative Layout Shift):', clsScore.toFixed(4));
+        // console.log('📊 CLS (Cumulative Layout Shift):', clsScore.toFixed(4));
       }
     });
 

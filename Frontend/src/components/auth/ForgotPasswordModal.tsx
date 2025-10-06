@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Mail, Lock, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'react-hot-toast';
+import { resetPassword } from '../../services/api';
 
 interface ForgotPasswordModalProps {
   isOpen: boolean;
@@ -53,23 +54,11 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
 
     setIsLoading(true);
     try {
-      const response = await fetch('http://localhost:5000/api/auth/reset-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, otp, newPassword: 'temp' }), // We'll update this in the next step
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setStep('newPassword');
-      } else {
-        toast.error(data.message || 'Invalid OTP');
-      }
-    } catch (error) {
-      toast.error('Failed to verify OTP');
+      // Use the API service instead of hardcoded URL
+      await resetPassword({ email, otp, newPassword: 'temp' });
+      setStep('newPassword');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Invalid OTP');
     } finally {
       setIsLoading(false);
     }
@@ -90,25 +79,13 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
 
     setIsLoading(true);
     try {
-      const response = await fetch('http://localhost:5000/api/auth/reset-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, otp, newPassword }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        toast.success('Password reset successfully!');
-        handleClose();
-        onSwitchToLogin();
-      } else {
-        toast.error(data.message || 'Password reset failed');
-      }
-    } catch (error) {
-      toast.error('Failed to reset password');
+      // Use the API service instead of hardcoded URL
+      await resetPassword({ email, otp, newPassword });
+      toast.success('Password reset successfully!');
+      handleClose();
+      onSwitchToLogin();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Password reset failed');
     } finally {
       setIsLoading(false);
     }

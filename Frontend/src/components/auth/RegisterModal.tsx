@@ -52,22 +52,22 @@ const RegisterModal: React.FC<RegisterModalProps> = ({
 
     // First Name validation
     if (!formData.firstName.trim()) {
-      newErrors.firstName = 'First name is required';
+      newErrors.firstName = 'Please enter your first name';
     } else if (formData.firstName.trim().length < 2) {
-      newErrors.firstName = 'First name must be at least 2 characters';
+      newErrors.firstName = 'First name must be at least 2 characters long';
     } else if (formData.firstName.trim().length > 50) {
-      newErrors.firstName = 'First name must be less than 50 characters';
+      newErrors.firstName = 'First name cannot exceed 50 characters';
     } else if (!/^[a-zA-Z\s]+$/.test(formData.firstName.trim())) {
       newErrors.firstName = 'First name can only contain letters and spaces';
     }
 
     // Last Name validation
     if (!formData.lastName.trim()) {
-      newErrors.lastName = 'Last name is required';
+      newErrors.lastName = 'Please enter your last name';
     } else if (formData.lastName.trim().length < 2) {
-      newErrors.lastName = 'Last name must be at least 2 characters';
+      newErrors.lastName = 'Last name must be at least 2 characters long';
     } else if (formData.lastName.trim().length > 50) {
-      newErrors.lastName = 'Last name must be less than 50 characters';
+      newErrors.lastName = 'Last name cannot exceed 50 characters';
     } else if (!/^[a-zA-Z\s]+$/.test(formData.lastName.trim())) {
       newErrors.lastName = 'Last name can only contain letters and spaces';
     }
@@ -75,28 +75,28 @@ const RegisterModal: React.FC<RegisterModalProps> = ({
     // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
+      newErrors.email = 'Please enter your email address';
     } else if (!emailRegex.test(formData.email)) {
       newErrors.email = 'Please enter a valid email address';
     } else if (formData.email.trim().length > 100) {
-      newErrors.email = 'Email must be less than 100 characters';
+      newErrors.email = 'Email address cannot exceed 100 characters';
     }
 
     // Phone Number validation
     const phoneRegex = /^\d{10}$/;
     if (!formData.phoneNumber.trim()) {
-      newErrors.phoneNumber = 'Phone number is required';
+      newErrors.phoneNumber = 'Please enter your phone number';
     } else if (!phoneRegex.test(formData.phoneNumber.replace(/\D/g, ''))) {
       newErrors.phoneNumber = 'Phone number must be exactly 10 digits';
     }
 
     // Password validation
     if (!formData.password) {
-      newErrors.password = 'Password is required';
+      newErrors.password = 'Please enter a password';
     } else if (formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
+      newErrors.password = 'Password must be at least 6 characters long';
     } else if (formData.password.length > 128) {
-      newErrors.password = 'Password must be less than 128 characters';
+      newErrors.password = 'Password cannot exceed 128 characters';
     } else if (!/(?=.*[a-z])/.test(formData.password)) {
       newErrors.password = 'Password must contain at least one lowercase letter';
     } else if (!/(?=.*[A-Z])/.test(formData.password)) {
@@ -115,7 +115,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({
     // Admin PassKey validation (only for admin mode)
     if (isAdminMode) {
       if (!formData.passKey.trim()) {
-        newErrors.passKey = 'PassKey is required for admin registration';
+        newErrors.passKey = 'Please enter the admin PassKey';
       } else if (formData.passKey.trim() !== 'truviews') {
         newErrors.passKey = 'Invalid PassKey. Please contact the administrator for the correct PassKey.';
       }
@@ -183,26 +183,26 @@ const RegisterModal: React.FC<RegisterModalProps> = ({
         const errorMessage = error.response.data?.message;
         
         if (errorMessage?.includes('already exists with this email')) {
-          setErrors({ email: 'An account with this email already exists. Please login instead.' });
-        } else if (errorMessage?.includes('already exists with this phone number')) {
-          setErrors({ phoneNumber: 'An account with this phone number already exists.' });
+          setErrors(prev => ({ ...prev, email: 'An account with this email already exists. Please login instead.' }));
+        } else if (errorMessage?.includes('already exists with this phone number') || errorMessage?.includes('Phone number already registered')) {
+          setErrors(prev => ({ ...prev, phoneNumber: 'This phone number is already registered. Please use a different number or login instead.' }));
         } else if (errorMessage?.includes('All fields are required')) {
           toast.error('Please fill in all required fields');
         } else if (errorMessage?.includes('Phone number must be exactly 10 digits')) {
-          setErrors({ phoneNumber: 'Phone number must be exactly 10 digits' });
+          setErrors(prev => ({ ...prev, phoneNumber: 'Phone number must be exactly 10 digits' }));
         } else {
-          setErrors({ email: errorMessage || 'Registration failed. Please check your information.' });
+          setErrors(prev => ({ ...prev, email: errorMessage || 'Registration failed. Please check your information and try again.' }));
         }
       } else if (error.response?.status === 500) {
         if (error.response.data?.message?.includes('Failed to send verification email')) {
-          setErrors({ email: 'Registration successful but verification email failed to send. Please contact support.' });
+          setErrors(prev => ({ ...prev, email: 'Registration successful but verification email failed to send. Please contact support.' }));
         } else {
           toast.error('Registration failed due to server error. Please try again later.');
         }
       } else if (error.message && error.message.includes('passkey')) {
-        setErrors({ passKey: 'Invalid PassKey for admin registration' });
+        setErrors(prev => ({ ...prev, passKey: 'Invalid PassKey. Please enter the correct admin PassKey.' }));
       } else if (error.message && error.message.includes('Invalid secret code')) {
-        setErrors({ passKey: 'Invalid PassKey for admin registration' });
+        setErrors(prev => ({ ...prev, passKey: 'Invalid PassKey. Please enter the correct admin PassKey.' }));
       } else if (error.message) {
         toast.error(error.message);
       } else {
@@ -279,21 +279,6 @@ const RegisterModal: React.FC<RegisterModalProps> = ({
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
-                {/* General Error Message */}
-                {Object.keys(errors).length > 0 && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="bg-red-50 border border-red-200 rounded-lg p-3"
-                  >
-                    <p className="text-red-600 text-sm font-medium mb-2">Please fix the following errors:</p>
-                    <ul className="text-red-600 text-sm space-y-1">
-                      {Object.values(errors).map((error, index) => 
-                        error ? <li key={index}>• {error}</li> : null
-                      )}
-                    </ul>
-                  </motion.div>
-                )}
                 
                 <div className="grid grid-cols-2 gap-4">
                   <motion.div

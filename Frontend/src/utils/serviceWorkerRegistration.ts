@@ -9,7 +9,7 @@ export const registerServiceWorker = () => {
       navigator.serviceWorker
         .register('/sw.js')
         .then((registration) => {
-          console.log('✅ Service Worker registered:', registration.scope);
+          // console.log('✅ Service Worker registered:', registration.scope);
 
           // Check for updates periodically
           setInterval(() => {
@@ -32,7 +32,7 @@ export const registerServiceWorker = () => {
           });
         })
         .catch((error) => {
-          console.error('❌ Service Worker registration failed:', error);
+          // console.error('❌ Service Worker registration failed:', error);
         });
     });
   }
@@ -45,7 +45,7 @@ export const unregisterServiceWorker = () => {
         registration.unregister();
       })
       .catch((error) => {
-        console.error('Service Worker unregistration failed:', error);
+        // console.error('Service Worker unregistration failed:', error);
       });
   }
 };

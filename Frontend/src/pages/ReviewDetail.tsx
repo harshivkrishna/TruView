@@ -4,14 +4,14 @@ import { useAuth } from '../contexts/AuthContext';
 import { useReviewContext } from '../contexts/ReviewContext';
 import { getReview, incrementReviewView, upvoteReview } from '../services/api';
 import { toast } from 'react-hot-toast';
-import { Star, ThumbsUp, Eye, Share2, Flag, User, Calendar, Tag, ArrowLeft, Award } from 'lucide-react';
+import { ThumbsUp, Eye, Share2, Flag, User, Calendar, ArrowLeft, Award } from 'lucide-react';
 import MediaCarousel from '../components/MediaCarousel';
 import SocialShareModal from '../components/SocialShareModal';
 import { calculateTrustScore, getTrustLevel } from '../utils/trustPrediction';
 
 const ReviewDetail = () => {
   const { currentUser } = useAuth();
-  const { updateReview, incrementViewCount } = useReviewContext();
+  const { updateReview } = useReviewContext();
   const navigate = useNavigate();
   const { id } = useParams();
   const [review, setReview] = useState<any>(null);
@@ -20,6 +20,7 @@ const ReviewDetail = () => {
   const [showReportModal, setShowReportModal] = useState(false);
   const [hasUpvoted, setHasUpvoted] = useState(false);
   const [viewIncremented, setViewIncremented] = useState(false);
+  const [isUpvoting, setIsUpvoting] = useState(false);
 
   // Mobile-first responsive styles for media carousel
   const customStyles = `
@@ -324,30 +325,31 @@ const ReviewDetail = () => {
               // Update the local review state to reflect the new view count
               setReview((prev: any) => {
                 if (prev) {
-                  const updatedReview = { ...prev, views: result.views };
-                  
-                  // Also update the global review state
-                  updateReview(prev._id, { views: result.views });
-                  
-                  return updatedReview;
+                  return { ...prev, views: result.views };
                 }
                 return null;
               });
+              
+              // Update the global review state outside of setState
+              if (review) {
+                updateReview(review._id, { views: result.views });
+              }
             }
           } else {
             // Fallback: update locally even if API fails
             setReview((prev: any) => {
               if (prev) {
                 const newViews = (prev.views || 0) + 1;
-                const updatedReview = { ...prev, views: newViews };
-                
-                // Also update the global review state
-                updateReview(prev._id, { views: newViews });
-                
-                return updatedReview;
+                return { ...prev, views: newViews };
               }
               return null;
             });
+            
+            // Update the global review state outside of setState
+            if (review) {
+              const newViews = (review.views || 0) + 1;
+              updateReview(review._id, { views: newViews });
+            }
           }
         } catch (error) {
           // Don't increment view count on error to maintain consistency
@@ -368,6 +370,12 @@ const ReviewDetail = () => {
       return;
     }
 
+    // Prevent multiple clicks while upvoting
+    if (isUpvoting) {
+      return;
+    }
+
+    setIsUpvoting(true);
     try {
       if (!id) return;
       const updatedReview = await upvoteReview(id);
@@ -392,6 +400,8 @@ const ReviewDetail = () => {
       } else {
         toast.error('Failed to like review');
       }
+    } finally {
+      setIsUpvoting(false);
     }
   };
 
@@ -407,18 +417,15 @@ const ReviewDetail = () => {
 
   const handleReport = async (reason: string, description: string) => {
     try {
-      const token = localStorage.getItem('token');
-      await fetch('http://localhost:5000/api/reports', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          reviewId: id,
-          reason,
-          description
-        })
+      if (!id) {
+        toast.error('Review ID not found');
+        return;
+      }
+      const { createReport } = await import('../services/api');
+      await createReport({
+        reviewId: id,
+        reason,
+        description
       });
       setShowReportModal(false);
       toast.success('Report submitted successfully');
@@ -480,7 +487,6 @@ const ReviewDetail = () => {
                 <div className="custom-media-carousel">
                   <MediaCarousel 
                     files={review.media} 
-                    autoPlay={false}
                   />
                 </div>
               </div>
@@ -605,17 +611,19 @@ const ReviewDetail = () => {
               <div className="action-buttons flex items-center gap-2 sm:gap-4 w-full justify-between">
                 <button
                   onClick={handleUpvote}
-                  disabled={!currentUser}
+                  disabled={!currentUser || isUpvoting}
                   className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg transition-colors text-sm sm:text-base ${
-                    hasUpvoted 
-                      ? 'text-orange-500 bg-orange-50' 
-                      : currentUser 
-                        ? 'text-gray-600 hover:text-orange-500 hover:bg-orange-50' 
-                        : 'text-gray-400 cursor-not-allowed'
+                    isUpvoting
+                      ? 'text-gray-400 cursor-not-allowed bg-gray-100'
+                      : hasUpvoted 
+                        ? 'text-orange-500 bg-orange-50' 
+                        : currentUser 
+                          ? 'text-gray-600 hover:text-orange-500 hover:bg-orange-50' 
+                          : 'text-gray-400 cursor-not-allowed'
                   }`}
-                  title={!currentUser ? 'Please log in to like reviews' : ''}
+                  title={!currentUser ? 'Please log in to like reviews' : isUpvoting ? 'Updating...' : ''}
                 >
-                  <ThumbsUp className={`w-4 h-4 sm:w-5 sm:h-5 ${hasUpvoted ? 'fill-current' : ''}`} />
+                  <ThumbsUp className={`w-4 h-4 sm:w-5 sm:h-5 ${hasUpvoted ? 'fill-current' : ''} ${isUpvoting ? 'animate-pulse' : ''}`} />
                   <span>{review.upvotes || 0}</span>
                 </button>
                 

@@ -20,7 +20,7 @@ const Navbar = () => {
   const isAdminRoute = location.pathname === '/admin';
   
   // Debug: Log the current route and admin status
-  console.log('Current pathname:', location.pathname, 'isAdminRoute:', isAdminRoute);
+  // console.log('Current pathname:', location.pathname, 'isAdminRoute:', isAdminRoute);
 
   const handleProfileClick = () => {
     if (currentUser?.id) {
