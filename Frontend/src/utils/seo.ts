@@ -20,7 +20,7 @@ export const updateMetaTags = (config: MetaTagsConfig) => {
     title = 'TruView - Authentic Reviews & Ratings Platform',
     description = 'Discover genuine reviews and ratings for products, services, and experiences.',
     keywords = 'reviews, ratings, product reviews, service reviews',
-    image = 'https://truview-steel.vercel.app/assets/logo.png',
+    image = import.meta.env.VITE_FRONTEND_URL ? `${import.meta.env.VITE_FRONTEND_URL}/assets/logo.png` : '/assets/logo.png',
     url = window.location.href,
     type = 'website'
   } = config;

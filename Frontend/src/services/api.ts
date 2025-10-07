@@ -1,8 +1,11 @@
 import axios from 'axios';
 import { getAnonymousId } from '../utils/anonymousId';
 
-// Use environment variable or fallback to production backend URL
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://truview-xc01.onrender.com/api';
+// Use environment variable or fallback to localhost for development
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+console.log('API Base URL:', API_BASE_URL);
+console.log('Environment VITE_API_URL:', import.meta.env.VITE_API_URL);
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -305,6 +308,18 @@ export const createAdminAccount = async (adminData: {
 };
 
 // Admin Statistics
+// Admin Analytics (optimized)
+export const getAdminAnalytics = async (timePeriod = 30) => {
+  try {
+    const response = await api.get(`/admin/analytics?period=${timePeriod}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching admin analytics:', error);
+    throw error;
+  }
+};
+
+// Admin Stats (legacy - kept for compatibility)
 export const getAdminStats = async () => {
   try {
     const response = await api.get('/admin/stats');
@@ -314,30 +329,54 @@ export const getAdminStats = async () => {
   }
 };
 
-// Admin Reviews
-export const getAdminReviews = async () => {
+// Admin Reviews (optimized with pagination)
+export const getAdminReviews = async (page = 1, limit = 50) => {
   try {
-    const response = await api.get('/admin/reviews');
+    const response = await api.get(`/admin/reviews?page=${page}&limit=${limit}`);
     return response.data;
   } catch (error) {
     throw error;
   }
 };
 
-// Admin Users
-export const getAdminUsers = async () => {
+// Admin Users (optimized with pagination)
+export const getAdminUsers = async (page = 1, limit = 50) => {
   try {
-    const response = await api.get('/admin/users');
+    const response = await api.get(`/admin/users?page=${page}&limit=${limit}`);
     return response.data;
   } catch (error) {
     throw error;
   }
 };
 
-// Admin Reports
-export const getAdminReports = async () => {
+// Admin Reports (optimized with pagination)
+export const getAdminReports = async (page = 1, limit = 50) => {
   try {
-    const response = await api.get('/admin/reports');
+    const response = await api.get(`/admin/reports?page=${page}&limit=${limit}`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// Trigger analytics computation
+export const computeAnalytics = async (date?: string) => {
+  try {
+    console.log('Computing analytics with date:', date);
+    console.log('Making request to:', `${API_BASE_URL}/admin/analytics/compute`);
+    const response = await api.post('/admin/analytics/compute', { date });
+    console.log('Analytics computation response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Analytics computation error:', error);
+    throw error;
+  }
+};
+
+// Get analytics status
+export const getAnalyticsStatus = async () => {
+  try {
+    const response = await api.get('/admin/analytics/status');
     return response.data;
   } catch (error) {
     throw error;

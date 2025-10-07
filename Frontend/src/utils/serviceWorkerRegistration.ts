@@ -49,3 +49,20 @@ export const unregisterServiceWorker = () => {
       });
   }
 };
+
+export const clearServiceWorkerCache = async () => {
+  if ('caches' in window) {
+    try {
+      const cacheNames = await caches.keys();
+      await Promise.all(
+        cacheNames.map(cacheName => caches.delete(cacheName))
+      );
+      console.log('Service Worker cache cleared');
+      return true;
+    } catch (error) {
+      console.error('Failed to clear Service Worker cache:', error);
+      return false;
+    }
+  }
+  return false;
+};

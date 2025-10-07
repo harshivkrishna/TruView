@@ -1,9 +1,9 @@
 // Service Worker for TruView
 // Provides offline support and caching strategies
 
-const CACHE_NAME = 'truview-v1';
-const STATIC_CACHE = 'truview-static-v1';
-const DYNAMIC_CACHE = 'truview-dynamic-v1';
+const CACHE_NAME = 'truview-v2';
+const STATIC_CACHE = 'truview-static-v2';
+const DYNAMIC_CACHE = 'truview-dynamic-v2';
 
 // Assets to cache immediately
 const STATIC_ASSETS = [
@@ -82,7 +82,50 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Cache first for static assets
+  // Network first for JavaScript modules and dynamic assets
+  if (url.pathname.startsWith('/assets/') && 
+      (url.pathname.endsWith('.js') || url.pathname.endsWith('.mjs'))) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          // Don't cache JavaScript modules to avoid corruption
+          if (!response.ok) {
+            throw new Error(`Network response was not ok: ${response.status}`);
+          }
+          return response;
+        })
+        .catch((error) => {
+          console.error('Service Worker: Failed to fetch JS module:', url.pathname, error);
+          // Only fallback to cache if network completely fails
+          return caches.match(request);
+        })
+    );
+    return;
+  }
+
+  // Network first for HTML files to ensure fresh content
+  if (url.pathname.endsWith('.html') || url.pathname === '/') {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          // Cache HTML files for offline support
+          if (response.status === 200) {
+            const responseClone = response.clone();
+            caches.open(DYNAMIC_CACHE).then((cache) => {
+              cache.put(request, responseClone);
+            });
+          }
+          return response;
+        })
+        .catch(() => {
+          // Fallback to cache if network fails
+          return caches.match(request);
+        })
+    );
+    return;
+  }
+
+  // Cache first for other static assets (images, CSS, etc.)
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
       if (cachedResponse) {
