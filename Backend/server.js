@@ -110,8 +110,49 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url} - Origin: ${req.headers.origin || 'No origin'}`);
+  next();
+});
+
 // Handle preflight requests explicitly
 app.options('*', cors(corsOptions));
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || 'development',
+    mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    version: '1.0.0'
+  });
+});
+
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({
+    message: 'TruView API Server',
+    status: 'running',
+    timestamp: new Date().toISOString(),
+    version: '1.0.0',
+    environment: process.env.NODE_ENV || 'development',
+    mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+  });
+});
+
+// Test endpoint for debugging
+app.get('/test', (req, res) => {
+  res.json({
+    message: 'Test endpoint working',
+    timestamp: new Date().toISOString(),
+    headers: req.headers,
+    method: req.method,
+    url: req.url
+  });
+});
 
 // Rate limiting for API endpoints
 const limiter = rateLimit({
@@ -271,11 +312,22 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/trustpilo
     process.exit(1);
   });
 
+// Process error handlers
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  process.exit(1);
+});
+
 // Graceful shutdown
 process.on('SIGTERM', () => {
-  // console.log('SIGTERM received, shutting down gracefully');
+  console.log('SIGTERM received, shutting down gracefully');
   mongoose.connection.close(() => {
-    // console.log('MongoDB connection closed');
+    console.log('MongoDB connection closed');
     process.exit(0);
   });
 });
@@ -284,6 +336,12 @@ const PORT = process.env.PORT || 5000;
 
 const server = app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`MongoDB URI: ${process.env.MONGODB_URI ? 'Set' : 'Not set'}`);
+  console.log(`Allowed CORS origins: ${finalAllowedOrigins.join(', ')}`);
+}).on('error', (err) => {
+  console.error('Server startup error:', err);
+  process.exit(1);
 });
 
 // Server timeout settings
