@@ -44,7 +44,7 @@ const allowedOrigins = [
   'https://truview.vercel.app',       // Alternative production domain
   'https://www.truviews.in',          // Production frontend domain
   'https://truviews.in',              // Production frontend domain (without www)
-  'https://truview-y909.onrender.com' // Backend domain (for testing)
+  'https://truview-xc01.onrender.com' // Current backend domain
 ];
 
 // Add any additional origins from environment variable
@@ -64,38 +64,38 @@ const productionOrigins = [
 const finalAllowedOrigins = [...new Set([...allowedOrigins, ...productionOrigins])];
 
 // Log allowed origins for debugging
-// console.log('Allowed CORS origins:', finalAllowedOrigins);
-// console.log('Environment FRONTEND_URL:', process.env.FRONTEND_URL);
+console.log('Allowed CORS origins:', finalAllowedOrigins);
+console.log('Environment FRONTEND_URL:', process.env.FRONTEND_URL);
 
 // More flexible CORS configuration for development and production
 const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) {
-      // console.log('CORS: Allowing request with no origin');
+      console.log('CORS: Allowing request with no origin');
       return callback(null, true);
     }
     
-    // console.log('CORS: Checking origin:', origin);
+    console.log('CORS: Checking origin:', origin);
     
     // Always allow localhost for development
     if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
-      // console.log('CORS: Localhost origin allowed:', origin);
+      console.log('CORS: Localhost origin allowed:', origin);
       return callback(null, true);
     }
     
     // Check against allowed origins
     if (finalAllowedOrigins.indexOf(origin) !== -1) {
-      // console.log('CORS: Origin allowed:', origin);
+      console.log('CORS: Origin allowed:', origin);
       callback(null, true);
     } else {
       // Log blocked origins for debugging
-      // console.log('CORS blocked origin:', origin);
-      // console.log('Allowed origins:', finalAllowedOrigins);
+      console.log('CORS blocked origin:', origin);
+      console.log('Allowed origins:', finalAllowedOrigins);
       
       // In development, be more permissive
       if (process.env.NODE_ENV === 'development') {
-        // console.log('CORS: Development mode - allowing blocked origin:', origin);
+        console.log('CORS: Development mode - allowing blocked origin:', origin);
         callback(null, true);
       } else {
         callback(new Error(`Origin ${origin} not allowed by CORS policy`));
