@@ -19,15 +19,18 @@ router.get('/', async (req, res) => {
     const [reviews, totalCount] = await Promise.all([
       Review.find(query)
         .populate('author.userId', 'firstName lastName avatar')
+        .select('title description rating category subcategory tags author upvotes views trustScore createdAt updatedAt media')
         .sort({ [sort]: -1 })
         .skip(skip)
-        .limit(parseInt(limit)),
+        .limit(parseInt(limit))
+        .lean(), // Use lean() for better performance
       Review.countDocuments(query)
     ]);
     
     // Map the populated data to match the expected format
     const formattedReviews = reviews.map(review => {
-      const reviewObj = review.toObject();
+      // Since we're using lean(), review is already a plain object
+      const reviewObj = review;
       if (reviewObj.author && reviewObj.author.userId) {
         reviewObj.author.name = `${reviewObj.author.userId.firstName} ${reviewObj.author.userId.lastName}`;
         reviewObj.author.avatar = reviewObj.author.userId.avatar;
@@ -47,6 +50,7 @@ router.get('/', async (req, res) => {
       }
     });
   } catch (error) {
+    console.error('Error fetching reviews:', error);
     res.status(500).json({ message: error.message });
   }
 });
@@ -56,12 +60,15 @@ router.get('/trending', async (req, res) => {
   try {
     const reviews = await Review.find()
       .populate('author.userId', 'firstName lastName avatar')
+      .select('title description rating category subcategory tags author upvotes views trustScore createdAt updatedAt media')
       .sort({ views: -1, upvotes: -1, createdAt: -1 })
-      .limit(10);
+      .limit(10)
+      .lean(); // Use lean() for better performance
     
     // Map the populated data to match the expected format
     const formattedReviews = reviews.map(review => {
-      const reviewObj = review.toObject();
+      // Since we're using lean(), review is already a plain object
+      const reviewObj = review;
       if (reviewObj.author && reviewObj.author.userId) {
         reviewObj.author.name = `${reviewObj.author.userId.firstName} ${reviewObj.author.userId.lastName}`;
         reviewObj.author.avatar = reviewObj.author.userId.avatar;
@@ -72,6 +79,7 @@ router.get('/trending', async (req, res) => {
     
     res.json(formattedReviews);
   } catch (error) {
+    console.error('Error fetching trending reviews:', error);
     res.status(500).json({ message: error.message });
   }
 });

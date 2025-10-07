@@ -233,23 +233,41 @@ const mongoOptions = {
   maxPoolSize: 10,
   minPoolSize: 2,
   maxIdleTimeMS: 30000,
-  serverSelectionTimeoutMS: 5000,
-  socketTimeoutMS: 45000,
+  serverSelectionTimeoutMS: 30000, // Increased from 5s to 30s
+  socketTimeoutMS: 60000, // Increased from 45s to 60s
+  connectTimeoutMS: 30000, // Added connection timeout
   bufferCommands: false,
   useNewUrlParser: true,
   useUnifiedTopology: true,
+  retryWrites: true,
+  w: 'majority',
 };
 
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/trustpilot-clone', mongoOptions)
   .then(() => {
     console.log('MongoDB connected with optimized settings');
+    console.log('MongoDB URI:', process.env.MONGODB_URI ? 'Using environment variable' : 'Using default localhost');
     
     // Set global mongoose options for better performance
     mongoose.set('debug', process.env.NODE_ENV === 'development');
     mongoose.set('autoIndex', false); // Disable auto-indexing in production
+    
+    // Add connection event listeners
+    mongoose.connection.on('error', (err) => {
+      console.error('MongoDB connection error:', err);
+    });
+    
+    mongoose.connection.on('disconnected', () => {
+      console.log('MongoDB disconnected');
+    });
+    
+    mongoose.connection.on('reconnected', () => {
+      console.log('MongoDB reconnected');
+    });
   })
   .catch(err => {
-    // console.error('MongoDB connection error:', err);
+    console.error('MongoDB connection error:', err);
+    console.error('MongoDB URI:', process.env.MONGODB_URI || 'mongodb://localhost:27017/trustpilot-clone');
     process.exit(1);
   });
 

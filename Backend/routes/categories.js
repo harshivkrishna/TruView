@@ -5,9 +5,13 @@ const router = express.Router();
 // Get all categories with subcategories
 router.get('/', async (req, res) => {
   try {
-    const categories = await Category.find().sort({ name: 1 });
+    const categories = await Category.find()
+      .select('name slug description subcategories reviewCount trending')
+      .sort({ name: 1 })
+      .lean(); // Use lean() for better performance
     res.json(categories);
   } catch (error) {
+    console.error('Error fetching categories:', error);
     res.status(500).json({ message: error.message });
   }
 });
@@ -39,10 +43,13 @@ router.get('/:categorySlug/subcategories', async (req, res) => {
 router.get('/trending', async (req, res) => {
   try {
     const categories = await Category.find({ trending: true })
+      .select('name slug description reviewCount trending')
       .sort({ reviewCount: -1 })
-      .limit(8);
+      .limit(8)
+      .lean(); // Use lean() for better performance
     res.json(categories);
   } catch (error) {
+    console.error('Error fetching trending categories:', error);
     res.status(500).json({ message: error.message });
   }
 });
