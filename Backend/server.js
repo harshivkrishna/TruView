@@ -15,16 +15,10 @@ dotenv.config();
 
 const app = express();
 
-// Compression middleware for response optimization
+// Compression middleware - optimized for Render
 app.use(compression({
-  level: 6, // Compression level (0-9)
-  threshold: 1024, // Only compress responses larger than 1KB
-  filter: (req, res) => {
-    if (req.headers['x-no-compression']) {
-      return false;
-    }
-    return compression.filter(req, res);
-  }
+  level: 4, // Reduced compression level for faster processing
+  threshold: 2048, // Only compress responses larger than 2KB
 }));
 
 // Security and performance middleware
@@ -119,28 +113,17 @@ app.use((req, res, next) => {
 // Handle preflight requests explicitly
 app.options('*', cors(corsOptions));
 
-// Health check endpoint
+// Health check endpoint - optimized for Render
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'OK',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    environment: process.env.NODE_ENV || 'development',
-    mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-    version: '1.0.0'
+    timestamp: new Date().toISOString()
   });
 });
 
-// Root endpoint
+// Root endpoint - lightweight
 app.get('/', (req, res) => {
-  res.json({
-    message: 'TruView API Server',
-    status: 'running',
-    timestamp: new Date().toISOString(),
-    version: '1.0.0',
-    environment: process.env.NODE_ENV || 'development',
-    mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
-  });
+  res.json({ status: 'running' });
 });
 
 // Test endpoint for debugging
@@ -194,15 +177,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    environment: process.env.NODE_ENV || 'development'
-  });
-});
 
 // CORS test endpoint for debugging
 app.get('/api/cors-test', (req, res) => {
@@ -269,19 +243,21 @@ app.use((error, req, res, next) => {
   });
 });
 
-// MongoDB connection with performance optimizations
+// MongoDB connection optimized for Render deployment
 const mongoOptions = {
-  maxPoolSize: 10,
-  minPoolSize: 2,
+  maxPoolSize: 5, // Reduced for faster startup
+  minPoolSize: 1, // Reduced for faster startup
   maxIdleTimeMS: 30000,
-  serverSelectionTimeoutMS: 30000, // Increased from 5s to 30s
-  socketTimeoutMS: 60000, // Increased from 45s to 60s
-  connectTimeoutMS: 30000, // Added connection timeout
+  serverSelectionTimeoutMS: 10000, // Reduced to 10s for faster startup
+  socketTimeoutMS: 30000, // Reduced to 30s
+  connectTimeoutMS: 10000, // Reduced to 10s
   bufferCommands: false,
   useNewUrlParser: true,
   useUnifiedTopology: true,
   retryWrites: true,
   w: 'majority',
+  // Additional optimizations for Render
+  heartbeatFrequencyMS: 10000,
 };
 
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/trustpilot-clone', mongoOptions)
