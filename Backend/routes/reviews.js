@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const Review = require('../models/Review');
 const { authenticateToken } = require('../middleware/auth');
 const { calculateTrustScore } = require('../utils/trustCalculator');
@@ -7,6 +8,16 @@ const router = express.Router();
 // Get all reviews
 router.get('/', async (req, res) => {
   try {
+    // Check MongoDB connection state
+    if (mongoose.connection.readyState !== 1) {
+      console.error('MongoDB not connected. State:', mongoose.connection.readyState);
+      return res.status(503).json({ 
+        message: 'Database temporarily unavailable. Please try again.',
+        reviews: [],
+        pagination: { currentPage: 1, totalPages: 0, totalReviews: 0, hasNextPage: false, hasPrevPage: false }
+      });
+    }
+
     const { category, subcategory, tag, sort = 'createdAt', page = 1, limit = 15 } = req.query;
     let query = {};
     
@@ -18,26 +29,52 @@ router.get('/', async (req, res) => {
     
     const [reviews, totalCount] = await Promise.all([
       Review.find(query)
-        .populate('author.userId', 'firstName lastName avatar')
+        .populate({
+          path: 'author.userId',
+          select: 'firstName lastName avatar',
+          options: { strictPopulate: false }
+        })
         .select('title description rating category subcategory tags author upvotes views trustScore createdAt updatedAt media')
         .sort({ [sort]: -1 })
         .skip(skip)
         .limit(parseInt(limit))
-        .lean(), // Use lean() for better performance
-      Review.countDocuments(query)
+        .lean()
+        .exec(),
+      Review.countDocuments(query).exec()
     ]);
     
-    // Map the populated data to match the expected format
+    // Map the populated data to match the expected format with null safety
     const formattedReviews = reviews.map(review => {
-      // Since we're using lean(), review is already a plain object
-      const reviewObj = review;
+      const reviewObj = { ...review };
+      
+      // Safely handle author population
       if (reviewObj.author && reviewObj.author.userId) {
-        reviewObj.author.name = `${reviewObj.author.userId.firstName} ${reviewObj.author.userId.lastName}`;
-        reviewObj.author.avatar = reviewObj.author.userId.avatar;
-        reviewObj.author.userId = reviewObj.author.userId._id;
+        const userId = reviewObj.author.userId;
+        
+        // Check if userId was populated successfully
+        if (userId && typeof userId === 'object' && userId.firstName) {
+          reviewObj.author.name = `${userId.firstName} ${userId.lastName}`;
+          reviewObj.author.avatar = userId.avatar;
+          reviewObj.author.userId = userId._id;
+        } else {
+          // Handle case where user was deleted or not found
+          reviewObj.author.name = 'Anonymous';
+          reviewObj.author.avatar = null;
+          reviewObj.author.userId = null;
+        }
+      } else {
+        // Handle missing author
+        reviewObj.author = {
+          name: 'Anonymous',
+          avatar: null,
+          userId: null
+        };
       }
+      
       return reviewObj;
     });
+    
+    console.log(`Fetched ${formattedReviews.length} reviews out of ${totalCount} total`);
     
     res.json({
       reviews: formattedReviews,
@@ -51,36 +88,86 @@ router.get('/', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching reviews:', error);
-    res.status(500).json({ message: error.message });
+    console.error('Error stack:', error.stack);
+    
+    // Return empty result instead of error to prevent UI breaks
+    res.status(200).json({
+      reviews: [],
+      pagination: { currentPage: 1, totalPages: 0, totalReviews: 0, hasNextPage: false, hasPrevPage: false }
+    });
   }
 });
 
 // Get trending reviews (most viewed)
 router.get('/trending', async (req, res) => {
   try {
+    // Check MongoDB connection state
+    if (mongoose.connection.readyState !== 1) {
+      console.error('MongoDB not connected. State:', mongoose.connection.readyState);
+      return res.status(503).json({ 
+        message: 'Database temporarily unavailable. Please try again.',
+        reviews: [] 
+      });
+    }
+
+    // Fetch reviews with proper error handling
     const reviews = await Review.find()
-      .populate('author.userId', 'firstName lastName avatar')
+      .populate({
+        path: 'author.userId',
+        select: 'firstName lastName avatar',
+        options: { strictPopulate: false }
+      })
       .select('title description rating category subcategory tags author upvotes views trustScore createdAt updatedAt media')
       .sort({ views: -1, upvotes: -1, createdAt: -1 })
       .limit(10)
-      .lean(); // Use lean() for better performance
+      .lean()
+      .exec();
     
-    // Map the populated data to match the expected format
+    // Handle empty results
+    if (!reviews || reviews.length === 0) {
+      console.log('No trending reviews found');
+      return res.json([]);
+    }
+
+    // Map the populated data to match the expected format with null safety
     const formattedReviews = reviews.map(review => {
-      // Since we're using lean(), review is already a plain object
-      const reviewObj = review;
+      const reviewObj = { ...review };
+      
+      // Safely handle author population
       if (reviewObj.author && reviewObj.author.userId) {
-        reviewObj.author.name = `${reviewObj.author.userId.firstName} ${reviewObj.author.userId.lastName}`;
-        reviewObj.author.avatar = reviewObj.author.userId.avatar;
-        reviewObj.author.userId = reviewObj.author.userId._id;
+        const userId = reviewObj.author.userId;
+        
+        // Check if userId was populated successfully
+        if (userId && typeof userId === 'object' && userId.firstName) {
+          reviewObj.author.name = `${userId.firstName} ${userId.lastName}`;
+          reviewObj.author.avatar = userId.avatar;
+          reviewObj.author.userId = userId._id;
+        } else {
+          // Handle case where user was deleted or not found
+          reviewObj.author.name = 'Anonymous';
+          reviewObj.author.avatar = null;
+          reviewObj.author.userId = null;
+        }
+      } else {
+        // Handle missing author
+        reviewObj.author = {
+          name: 'Anonymous',
+          avatar: null,
+          userId: null
+        };
       }
+      
       return reviewObj;
     });
     
+    console.log(`Successfully fetched ${formattedReviews.length} trending reviews`);
     res.json(formattedReviews);
   } catch (error) {
     console.error('Error fetching trending reviews:', error);
-    res.status(500).json({ message: error.message });
+    console.error('Error stack:', error.stack);
+    
+    // Return empty array instead of error to prevent UI breaks
+    res.status(200).json([]);
   }
 });
 

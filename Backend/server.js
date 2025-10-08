@@ -15,6 +15,10 @@ dotenv.config();
 
 const app = express();
 
+// Trust proxy - REQUIRED for Render and other proxy services
+// This allows express-rate-limit to correctly identify users behind proxies
+app.set('trust proxy', 1);
+
 // Compression middleware - optimized for Render
 app.use(compression({
   level: 4, // Reduced compression level for faster processing
@@ -137,23 +141,28 @@ app.get('/test', (req, res) => {
   });
 });
 
-// Rate limiting for API endpoints
+// Rate limiting for API endpoints - relaxed for production use
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  max: 200, // Increased limit for better user experience
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => {
+    // Skip rate limiting for health checks
+    return req.path === '/health' || req.path === '/api/health';
+  }
 });
 app.use('/api/', limiter);
 
-// Stricter rate limiting for auth endpoints
+// Rate limiting for auth endpoints - more reasonable limits
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // limit each IP to 5 requests per windowMs
+  max: 20, // Increased from 5 to 20 for better user experience
   message: { message: 'Too many authentication attempts, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
+  skipSuccessfulRequests: true, // Don't count successful requests
 });
 app.use('/api/auth', authLimiter);
 
@@ -272,14 +281,20 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/trustpilo
     // Add connection event listeners
     mongoose.connection.on('error', (err) => {
       console.error('MongoDB connection error:', err);
+      // Don't exit on connection errors during runtime, allow reconnection
     });
     
     mongoose.connection.on('disconnected', () => {
-      console.log('MongoDB disconnected');
+      console.warn('⚠️ MongoDB disconnected. Attempting to reconnect...');
+      // Mongoose will automatically attempt to reconnect with retryWrites: true
     });
     
     mongoose.connection.on('reconnected', () => {
-      console.log('MongoDB reconnected');
+      console.log('✅ MongoDB reconnected successfully');
+    });
+    
+    mongoose.connection.on('close', () => {
+      console.log('MongoDB connection closed');
     });
   })
   .catch(err => {

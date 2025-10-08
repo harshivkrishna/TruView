@@ -1,25 +1,40 @@
 const nodemailer = require('nodemailer');
 
 // Check if email credentials are configured
-// console.log('Environment variables check:');
-// console.log('EMAIL_USER:', process.env.EMAIL_USER ? 'Set' : 'Not set');
-// console.log('EMAIL_PASSWORD:', process.env.EMAIL_PASSWORD ? 'Set' : 'Not set');
-// console.log('All env vars:', Object.keys(process.env).filter(key => key.includes('EMAIL')));
+console.log('📧 Email Service Initialization:');
+console.log('EMAIL_USER:', process.env.EMAIL_USER ? 'Set ✓' : 'Not set ✗');
+console.log('EMAIL_PASSWORD:', process.env.EMAIL_PASSWORD ? 'Set ✓' : 'Not set ✗');
 
 if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
-  // console.error('Email credentials not configured! Please set EMAIL_USER and EMAIL_PASSWORD in your .env file');
-  // console.error('EMAIL_USER:', process.env.EMAIL_USER ? 'Set' : 'Not set');
-  // console.error('EMAIL_PASSWORD:', process.env.EMAIL_PASSWORD ? 'Set' : 'Not set');
+  console.error('⚠️ Email credentials not configured! Emails will fail to send.');
+  console.error('Please set EMAIL_USER and EMAIL_PASSWORD in your environment variables on Render.');
 }
 
 // Create transporter
 const transporter = nodemailer.createTransport({
   service: 'gmail', // or your email service
+  host: 'smtp.gmail.com',
+  port: 587,
+  secure: false, // Use TLS
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASSWORD // Use app password for Gmail
+  },
+  tls: {
+    rejectUnauthorized: false
   }
 });
+
+// Verify transporter configuration on startup
+if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
+  transporter.verify((error, success) => {
+    if (error) {
+      console.error('❌ Email transporter verification failed:', error.message);
+    } else {
+      console.log('✅ Email service is ready to send emails');
+    }
+  });
+}
 
 // Send verification OTP
 const sendVerificationOTP = async (email, otp, firstName) => {
@@ -43,10 +58,13 @@ const sendVerificationOTP = async (email, otp, firstName) => {
   };
 
   try {
-    await transporter.sendMail(mailOptions);
+    console.log(`📨 Attempting to send verification OTP to ${email}`);
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`✅ Verification OTP sent successfully to ${email}. Message ID: ${info.messageId}`);
     return true;
   } catch (error) {
-    // console.error('Email sending error:', error);
+    console.error(`❌ Failed to send verification OTP to ${email}:`, error.message);
+    console.error('Full error:', error);
     return false;
   }
 };
@@ -73,10 +91,13 @@ const sendPasswordResetOTP = async (email, otp, firstName) => {
   };
 
   try {
-    await transporter.sendMail(mailOptions);
+    console.log(`📨 Attempting to send password reset OTP to ${email}`);
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`✅ Password reset OTP sent successfully to ${email}. Message ID: ${info.messageId}`);
     return true;
   } catch (error) {
-    // console.error('Email sending error:', error);
+    console.error(`❌ Failed to send password reset OTP to ${email}:`, error.message);
+    console.error('Full error:', error);
     return false;
   }
 };

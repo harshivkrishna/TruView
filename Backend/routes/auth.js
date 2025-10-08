@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { sendVerificationOTP, sendPasswordResetOTP } = require('../services/emailService');
@@ -6,7 +7,15 @@ const router = express.Router();
 
 // Register user
 router.post('/register', async (req, res) => {
+  const startTime = Date.now();
+  
   try {
+    // Check MongoDB connection
+    if (mongoose.connection.readyState !== 1) {
+      console.error('MongoDB not connected during registration');
+      return res.status(503).json({ message: 'Service temporarily unavailable. Please try again.' });
+    }
+
     const { email, password, firstName, lastName, phoneNumber } = req.body;
 
     // Validate required fields
@@ -20,17 +29,29 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ message: 'Phone number must be exactly 10 digits' });
     }
 
-    // Check if user already exists with email
-    const existingUserByEmail = await User.findOne({ email });
+    console.log(`⏱️ Registration validation took ${Date.now() - startTime}ms`);
+    const dbCheckStart = Date.now();
+
+    // Check both email and phone in parallel for faster response
+    const [existingUserByEmail, existingUserByPhone] = await Promise.all([
+      User.findOne({ email }).select('_id').lean().exec(),
+      User.findOne({ phoneNumber }).select('_id').lean().exec()
+    ]);
+
+    console.log(`⏱️ DB existence check took ${Date.now() - dbCheckStart}ms`);
+
     if (existingUserByEmail) {
       return res.status(400).json({ message: 'User already exists with this email' });
     }
 
-    // Check if user already exists with phone number
-    const existingUserByPhone = await User.findOne({ phoneNumber });
     if (existingUserByPhone) {
       return res.status(400).json({ message: 'User already exists with this phone number' });
     }
+
+    // Generate OTP before creating user
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    const userCreateStart = Date.now();
 
     // Create user with unverified email
     const user = new User({
@@ -39,40 +60,52 @@ router.post('/register', async (req, res) => {
       firstName,
       lastName,
       phoneNumber,
-      emailVerified: false
+      emailVerified: false,
+      verificationOTP: {
+        code: otp,
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
+      }
     });
 
-    // Generate OTP
-    const otp = user.generateOTP();
-    user.verificationOTP = {
-      code: otp,
-      expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
-    };
-
     await user.save();
+    console.log(`⏱️ User creation (including bcrypt) took ${Date.now() - userCreateStart}ms`);
 
-    // Send verification email
-    const emailSent = await sendVerificationOTP(email, otp, firstName);
-    if (!emailSent) {
-      return res.status(500).json({ message: 'Failed to send verification email' });
-    }
+    // Send verification email asynchronously (don't wait)
+    sendVerificationOTP(email, otp, firstName).catch(err => {
+      console.error('Failed to send verification email (async):', err.message);
+    });
+
+    const totalTime = Date.now() - startTime;
+    console.log(`✅ Registration completed in ${totalTime}ms`);
 
     res.status(201).json({ 
       message: 'Registration successful. Please check your email for verification OTP.',
       userId: user._id 
     });
   } catch (error) {
-    // console.error('Registration error:', error);
+    console.error('Registration error:', error.message);
+    console.error('Registration error stack:', error.stack);
     res.status(500).json({ message: 'Registration failed' });
   }
 });
 
 // Verify email with OTP
 router.post('/verify-email', async (req, res) => {
+  const startTime = Date.now();
+  
   try {
+    // Check MongoDB connection
+    if (mongoose.connection.readyState !== 1) {
+      console.error('MongoDB not connected during email verification');
+      return res.status(503).json({ message: 'Service temporarily unavailable. Please try again.' });
+    }
+
     const { email, otp } = req.body;
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email })
+      .select('email firstName lastName phoneNumber role emailVerified verificationOTP')
+      .exec();
+      
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -93,10 +126,14 @@ router.post('/verify-email', async (req, res) => {
       return res.status(400).json({ message: 'Invalid OTP' });
     }
 
-    // Mark email as verified
-    user.emailVerified = true;
-    user.verificationOTP = undefined;
-    await user.save();
+    // Mark email as verified using updateOne for better performance
+    await User.updateOne(
+      { _id: user._id },
+      { 
+        $set: { emailVerified: true },
+        $unset: { verificationOTP: '' }
+      }
+    ).exec();
 
     // Generate JWT token
     const token = jwt.sign(
@@ -104,6 +141,9 @@ router.post('/verify-email', async (req, res) => {
       process.env.JWT_SECRET || 'your-secret-key',
       { expiresIn: '7d' }
     );
+
+    const totalTime = Date.now() - startTime;
+    console.log(`✅ Email verification completed in ${totalTime}ms`);
 
     res.json({
       message: 'Email verified successfully',
@@ -115,11 +155,11 @@ router.post('/verify-email', async (req, res) => {
         lastName: user.lastName,
         phoneNumber: user.phoneNumber,
         role: user.role,
-        emailVerified: user.emailVerified
+        emailVerified: true
       }
     });
   } catch (error) {
-    // console.error('Email verification error:', error);
+    console.error('Email verification error:', error.message);
     res.status(500).json({ message: 'Email verification failed' });
   }
 });
@@ -162,36 +202,46 @@ router.post('/resend-verification', async (req, res) => {
 
 // Login
 router.post('/login', async (req, res) => {
+  const startTime = Date.now();
+  
   try {
+    // Check MongoDB connection
+    if (mongoose.connection.readyState !== 1) {
+      console.error('MongoDB not connected during login');
+      return res.status(503).json({ message: 'Service temporarily unavailable. Please try again.' });
+    }
+
     const { email, password } = req.body;
 
-    const user = await User.findOne({ email });
+    const dbQueryStart = Date.now();
+    // Only fetch fields we need for better performance
+    const user = await User.findOne({ email })
+      .select('email password firstName lastName phoneNumber role emailVerified lastLogin')
+      .exec();
+    
+    console.log(`⏱️ User lookup took ${Date.now() - dbQueryStart}ms`);
+
     if (!user) {
-      // console.log('Login attempt: User not found for email:', email);
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    // console.log('Login attempt: User found:', {
-    //   id: user._id,
-    //   email: user.email,
-    //   role: user.role,
-    //   emailVerified: user.emailVerified
-    // });
-
+    const passwordCheckStart = Date.now();
     const isPasswordValid = await user.comparePassword(password);
+    console.log(`⏱️ Password verification took ${Date.now() - passwordCheckStart}ms`);
+
     if (!isPasswordValid) {
-      // console.log('Login attempt: Invalid password for user:', email);
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
     if (!user.emailVerified) {
-      // console.log('Login attempt: Email not verified for user:', email);
       return res.status(401).json({ message: 'Please verify your email before logging in' });
     }
 
-    // Update last login
-    user.lastLogin = new Date();
-    await user.save();
+    // Update last login asynchronously (don't wait for it)
+    User.updateOne(
+      { _id: user._id },
+      { $set: { lastLogin: new Date() } }
+    ).exec().catch(err => console.error('Failed to update lastLogin:', err));
 
     // Generate JWT token
     const token = jwt.sign(
@@ -199,6 +249,9 @@ router.post('/login', async (req, res) => {
       process.env.JWT_SECRET || 'your-secret-key',
       { expiresIn: '7d' }
     );
+
+    const totalTime = Date.now() - startTime;
+    console.log(`✅ Login completed in ${totalTime}ms`);
 
     res.json({
       message: 'Login successful',
@@ -214,7 +267,8 @@ router.post('/login', async (req, res) => {
       }
     });
   } catch (error) {
-    // console.error('Login error:', error);
+    console.error('Login error:', error.message);
+    console.error('Login error stack:', error.stack);
     res.status(500).json({ message: 'Login failed' });
   }
 });
