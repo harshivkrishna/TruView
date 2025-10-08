@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { X, Mail, Lock, Eye, EyeOff, Shield } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import api from '../../services/api';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -20,6 +21,9 @@ const LoginModal: React.FC<LoginModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [showOTPVerification, setShowOTPVerification] = useState(false);
+  const [otpData, setOtpData] = useState({ email: '', otp: '' });
+  const [isVerifyingOTP, setIsVerifyingOTP] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -47,6 +51,20 @@ const LoginModal: React.FC<LoginModalProps> = ({
     setErrorMessage('');
     
     try {
+      const response = await api.post('/auth/login', {
+        email: formData.email,
+        password: formData.password
+      });
+
+      // Check if email verification is required
+      if (response.data.requiresVerification) {
+        setOtpData({ email: formData.email, otp: '' });
+        setShowOTPVerification(true);
+        setIsLoading(false);
+        return;
+      }
+
+      // Normal login flow
       await login(formData.email, formData.password);
       handleClose();
     } catch (error: any) {
@@ -70,10 +88,47 @@ const LoginModal: React.FC<LoginModalProps> = ({
     }
   };
 
+  const handleOTPVerification = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!otpData.otp) {
+      setErrorMessage('Please enter the OTP');
+      return;
+    }
+    
+    setIsVerifyingOTP(true);
+    setErrorMessage('');
+    
+    try {
+      const response = await api.post('/auth/verify-login-otp', {
+        email: otpData.email,
+        otp: otpData.otp
+      });
+
+      // Store the token and user data
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+      
+      // Update auth context
+      window.location.reload(); // Simple way to refresh auth state
+      
+    } catch (error: any) {
+      if (error.response?.data?.message) {
+        setErrorMessage(error.response.data.message);
+      } else {
+        setErrorMessage('OTP verification failed. Please try again.');
+      }
+    } finally {
+      setIsVerifyingOTP(false);
+    }
+  };
+
   const handleClose = () => {
     setFormData({ email: '', password: '' });
     setShowPassword(false);
     setErrorMessage('');
+    setShowOTPVerification(false);
+    setOtpData({ email: '', otp: '' });
     onClose();
   };
 
@@ -102,7 +157,8 @@ const LoginModal: React.FC<LoginModalProps> = ({
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            {!showOTPVerification ? (
+              <form onSubmit={handleSubmit} className="space-y-4">
               <motion.div
                 initial={{ x: -20, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
@@ -187,23 +243,83 @@ const LoginModal: React.FC<LoginModalProps> = ({
                 {isLoading ? 'Logging in...' : 'Login'}
               </motion.button>
             </form>
-
-            <motion.div
-              initial={{ x: -20, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              transition={{ delay: 0.5 }}
-              className="mt-6 text-center"
-            >
-              <p className="text-gray-600">
-                Don't have an account?{' '}
-                <button
-                  onClick={onSwitchToRegister}
-                  className="text-orange-600 hover:text-orange-700 hover:underline font-medium"
+            ) : (
+              <form onSubmit={handleOTPVerification} className="space-y-4">
+                <motion.div
+                  initial={{ x: -20, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ delay: 0.1 }}
+                  className="text-center mb-6"
                 >
-                  Sign up
-                </button>
-              </p>
-            </motion.div>
+                  <Shield className="w-12 h-12 text-orange-500 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Email Verification Required</h3>
+                  <p className="text-sm text-gray-600">
+                    We've sent a verification code to <strong>{otpData.email}</strong>
+                  </p>
+                </motion.div>
+
+                <motion.div
+                  initial={{ x: -20, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Verification Code</label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <input
+                      type="text"
+                      value={otpData.otp}
+                      onChange={(e) => setOtpData(prev => ({ ...prev, otp: e.target.value }))}
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-center text-lg tracking-widest"
+                      placeholder="Enter 6-digit code"
+                      maxLength={6}
+                      required
+                    />
+                  </div>
+                </motion.div>
+
+                <motion.button
+                  type="submit"
+                  disabled={isVerifyingOTP}
+                  initial={{ x: -20, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ delay: 0.3 }}
+                  className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {isVerifyingOTP ? 'Verifying...' : 'Verify Email'}
+                </motion.button>
+
+                <motion.button
+                  type="button"
+                  onClick={() => setShowOTPVerification(false)}
+                  initial={{ x: -20, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ delay: 0.4 }}
+                  className="w-full text-gray-600 hover:text-gray-800 py-2 px-4 rounded-lg border border-gray-300 hover:border-gray-400 transition-colors"
+                >
+                  Back to Login
+                </motion.button>
+              </form>
+            )}
+
+            {!showOTPVerification && (
+              <motion.div
+                initial={{ x: -20, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                className="mt-6 text-center"
+              >
+                <p className="text-gray-600">
+                  Don't have an account?{' '}
+                  <button
+                    onClick={onSwitchToRegister}
+                    className="text-orange-600 hover:text-orange-700 hover:underline font-medium"
+                  >
+                    Sign up
+                  </button>
+                </p>
+              </motion.div>
+            )}
           </motion.div>
         </motion.div>
       )}

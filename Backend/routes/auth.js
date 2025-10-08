@@ -234,7 +234,30 @@ router.post('/login', async (req, res) => {
     }
 
     if (!user.emailVerified) {
-      return res.status(401).json({ message: 'Please verify your email before logging in' });
+      console.log(`📧 User ${user.email} is not verified, sending verification OTP`);
+      
+      // Generate verification OTP
+      const otp = user.generateOTP();
+      user.verificationOTP = {
+        code: otp,
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
+      };
+      
+      await user.save();
+      
+      // Send verification OTP
+      const emailSent = await sendVerificationOTP(user.email, otp, user.firstName);
+      if (!emailSent) {
+        console.error(`❌ Failed to send verification OTP to: ${user.email}`);
+        return res.status(500).json({ message: 'Failed to send verification OTP' });
+      }
+      
+      console.log(`✅ Verification OTP sent to: ${user.email}`);
+      return res.status(200).json({ 
+        message: 'Email verification required. OTP sent to your email.',
+        requiresVerification: true,
+        email: user.email
+      });
     }
 
     // Update last login asynchronously (don't wait for it)
@@ -276,32 +299,145 @@ router.post('/login', async (req, res) => {
 // Request password reset
 router.post('/forgot-password', async (req, res) => {
   try {
-    const { email } = req.body;
+    console.log('📧 Forgot password request received');
+    
+    // Check MongoDB connection
+    if (mongoose.connection.readyState !== 1) {
+      console.error('MongoDB not connected during forgot password');
+      return res.status(503).json({ message: 'Service temporarily unavailable. Please try again.' });
+    }
 
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+
+    console.log(`🔍 Looking for user with email: ${email}`);
     const user = await User.findOne({ email });
     if (!user) {
+      console.log(`❌ User not found with email: ${email}`);
       return res.status(404).json({ message: 'User not found' });
     }
 
+    console.log(`✅ User found: ${user.firstName} ${user.lastName}`);
+
     // Generate OTP
     const otp = user.generateOTP();
+    console.log(`🔐 Generated OTP for user: ${user.email}`);
+    
     user.resetPasswordOTP = {
       code: otp,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
     };
 
     await user.save();
+    console.log(`💾 OTP saved to database for user: ${user.email}`);
 
     // Send password reset email
+    console.log(`📨 Attempting to send password reset OTP to: ${email}`);
     const emailSent = await sendPasswordResetOTP(email, otp, user.firstName);
+    
     if (!emailSent) {
+      console.error(`❌ Failed to send password reset OTP to: ${email}`);
       return res.status(500).json({ message: 'Failed to send password reset email' });
     }
 
+    console.log(`✅ Password reset OTP sent successfully to: ${email}`);
     res.json({ message: 'Password reset OTP sent successfully' });
   } catch (error) {
-    // console.error('Forgot password error:', error);
+    console.error('❌ Forgot password error:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
     res.status(500).json({ message: 'Failed to send password reset OTP' });
+  }
+});
+
+// Verify OTP during login
+router.post('/verify-login-otp', async (req, res) => {
+  try {
+    console.log('🔐 Login OTP verification request received');
+    
+    // Check MongoDB connection
+    if (mongoose.connection.readyState !== 1) {
+      console.error('MongoDB not connected during OTP verification');
+      return res.status(503).json({ message: 'Service temporarily unavailable. Please try again.' });
+    }
+
+    const { email, otp } = req.body;
+    
+    if (!email || !otp) {
+      return res.status(400).json({ message: 'Email and OTP are required' });
+    }
+
+    console.log(`🔍 Looking for user with email: ${email}`);
+    const user = await User.findOne({ email });
+    if (!user) {
+      console.log(`❌ User not found with email: ${email}`);
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Check if OTP exists and is valid
+    if (!user.verificationOTP || !user.verificationOTP.code) {
+      console.log(`❌ No verification OTP found for user: ${email}`);
+      return res.status(400).json({ message: 'No verification OTP found. Please request a new one.' });
+    }
+
+    if (user.verificationOTP.expiresAt < new Date()) {
+      console.log(`❌ Verification OTP expired for user: ${email}`);
+      return res.status(400).json({ message: 'Verification OTP has expired. Please request a new one.' });
+    }
+
+    if (user.verificationOTP.code !== otp) {
+      console.log(`❌ Invalid OTP for user: ${email}`);
+      return res.status(400).json({ message: 'Invalid verification OTP' });
+    }
+
+    // Mark email as verified
+    user.emailVerified = true;
+    user.verificationOTP = undefined; // Clear the OTP
+    await user.save();
+
+    console.log(`✅ Email verified successfully for user: ${email}`);
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: user._id, email: user.email },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '7d' }
+    );
+
+    // Update last login asynchronously
+    User.updateOne(
+      { _id: user._id },
+      { $set: { lastLogin: new Date() } }
+    ).exec().catch(err => console.error('Failed to update lastLogin:', err));
+
+    console.log(`✅ Login successful for verified user: ${email}`);
+    res.json({
+      message: 'Email verified and login successful',
+      token,
+      user: {
+        id: user._id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        phoneNumber: user.phoneNumber,
+        role: user.role,
+        emailVerified: true
+      }
+    });
+  } catch (error) {
+    console.error('❌ Login OTP verification error:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    res.status(500).json({ message: 'Failed to verify OTP' });
   }
 });
 

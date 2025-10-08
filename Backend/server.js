@@ -5,7 +5,6 @@ const dotenv = require('dotenv');
 const path = require('path');
 
 const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
 const mongoSanitize = require('express-mongo-sanitize');
 const hpp = require('hpp');
 const compression = require('compression');
@@ -16,13 +15,20 @@ dotenv.config();
 const app = express();
 
 // Trust proxy - REQUIRED for Render and other proxy services
-// This allows express-rate-limit to correctly identify users behind proxies
 app.set('trust proxy', 1);
 
-// Compression middleware - optimized for Render
+// Compression middleware - optimized for high-scale usage
 app.use(compression({
-  level: 4, // Reduced compression level for faster processing
-  threshold: 2048, // Only compress responses larger than 2KB
+  level: 6, // Balanced compression for bandwidth vs CPU
+  threshold: 1024, // Compress responses larger than 1KB
+  filter: (req, res) => {
+    // Don't compress if client doesn't support it
+    if (req.headers['x-no-compression']) {
+      return false;
+    }
+    // Use compression filter
+    return compression.filter(req, res);
+  }
 }));
 
 // Security and performance middleware
@@ -184,34 +190,20 @@ app.get('/test', (req, res) => {
   });
 });
 
-// Rate limiting for API endpoints - relaxed for production use
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 200, // Increased limit for better user experience
-  message: 'Too many requests from this IP, please try again later.',
-  standardHeaders: true,
-  legacyHeaders: false,
-  skip: (req) => {
-    // Skip rate limiting for health checks
-    return req.path === '/health' || req.path === '/api/health';
-  }
-});
-app.use('/api/', limiter);
+// Rate limiting removed for high-scale usage (10k+ users)
+// Consider implementing application-level rate limiting if needed
 
-// Rate limiting for auth endpoints - more reasonable limits
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 20, // Increased from 5 to 20 for better user experience
-  message: { message: 'Too many authentication attempts, please try again later.' },
-  standardHeaders: true,
-  legacyHeaders: false,
-  skipSuccessfulRequests: true, // Don't count successful requests
-});
-app.use('/api/auth', authLimiter);
-
-// Body parsing with limits
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// Body parsing optimized for high-scale usage
+app.use(express.json({ 
+  limit: '50mb', // Increased for large file uploads
+  parameterLimit: 10000, // Increased parameter limit
+  extended: false
+}));
+app.use(express.urlencoded({ 
+  extended: true, 
+  limit: '50mb',
+  parameterLimit: 10000
+}));
 
 // Static file serving with caching
 app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
@@ -221,11 +213,33 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
 }));
 
 // Cache control middleware
+// Advanced caching middleware for high-scale usage
 app.use((req, res, next) => {
-  // Cache API responses for 5 minutes
-  if (req.method === 'GET' && req.path.startsWith('/api/')) {
-    res.set('Cache-Control', 'public, max-age=300');
+  // Set appropriate cache headers based on endpoint
+  if (req.method === 'GET') {
+    if (req.path.startsWith('/api/categories')) {
+      // Categories rarely change - cache for 1 hour
+      res.set('Cache-Control', 'public, max-age=3600, s-maxage=3600');
+    } else if (req.path.startsWith('/api/reviews') && !req.path.includes('/trending')) {
+      // Individual reviews - cache for 5 minutes
+      res.set('Cache-Control', 'public, max-age=300, s-maxage=300');
+    } else if (req.path.startsWith('/api/reviews/trending')) {
+      // Trending reviews - cache for 2 minutes
+      res.set('Cache-Control', 'public, max-age=120, s-maxage=120');
+    } else if (req.path.startsWith('/api/users/leaderboard')) {
+      // Leaderboard - cache for 10 minutes
+      res.set('Cache-Control', 'public, max-age=600, s-maxage=600');
+    } else if (req.path.startsWith('/api/')) {
+      // Other API endpoints - cache for 1 minute
+      res.set('Cache-Control', 'public, max-age=60, s-maxage=60');
+    }
   }
+  
+  // Add performance headers
+  res.set('X-Content-Type-Options', 'nosniff');
+  res.set('X-Frame-Options', 'DENY');
+  res.set('X-XSS-Protection', '1; mode=block');
+  
   next();
 });
 
@@ -295,33 +309,46 @@ app.use((error, req, res, next) => {
   });
 });
 
-// MongoDB connection optimized for production stability
+// MongoDB connection optimized for 10k+ concurrent users
 const mongoOptions = {
-  maxPoolSize: 10, // Increased for better connection handling
-  minPoolSize: 2, // Increased for stability
+  // Connection pool settings for high concurrency
+  maxPoolSize: 50, // Increased from 10 to handle 10k users
+  minPoolSize: 10, // Increased from 2 for better stability
   maxIdleTimeMS: 30000,
-  serverSelectionTimeoutMS: 30000, // Increased to 30s for better reliability
-  socketTimeoutMS: 45000, // Increased to 45s
-  connectTimeoutMS: 30000, // Increased to 30s
+  
+  // Timeout settings optimized for high load
+  serverSelectionTimeoutMS: 30000,
+  socketTimeoutMS: 45000,
+  connectTimeoutMS: 30000,
+  
+  // Performance optimizations
   bufferCommands: false,
   useNewUrlParser: true,
   useUnifiedTopology: true,
   retryWrites: true,
   w: 'majority',
-  // Additional optimizations for production stability
+  
+  // High-load optimizations
   heartbeatFrequencyMS: 10000,
-  // Connection retry settings
   retryReads: true,
   maxStalenessSeconds: 90,
-  // Network settings
   family: 4, // Force IPv4
-  // Connection pool settings
-  maxConnecting: 2,
-  // Additional stability settings
+  
+  // Connection management for scale
+  maxConnecting: 10, // Increased from 2
   directConnection: false,
-  // Compression
+  
+  // Compression for bandwidth optimization
   compressors: ['zlib'],
   zlibCompressionLevel: 6,
+  
+  // Additional settings for high concurrency
+  readPreference: 'secondaryPreferred', // Distribute reads
+  readConcern: { level: 'majority' },
+  writeConcern: { w: 'majority', j: true },
+  
+  // Connection monitoring
+  monitorCommands: process.env.NODE_ENV === 'development'
 };
 
 // Enhanced MongoDB connection with better error handling
@@ -410,16 +437,23 @@ process.on('SIGTERM', () => {
 const PORT = process.env.PORT || 5000;
 
 const server = app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`MongoDB URI: ${process.env.MONGODB_URI ? 'Set' : 'Not set'}`);
-  console.log(`Allowed CORS origins: ${finalAllowedOrigins.join(', ')}`);
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`📊 Optimized for 10k+ concurrent users`);
+  console.log(`🔗 MongoDB URI: ${process.env.MONGODB_URI ? 'Set' : 'Not set'}`);
+  console.log(`🌐 Allowed CORS origins: ${finalAllowedOrigins.join(', ')}`);
+  console.log(`⚡ Rate limiting: DISABLED for high-scale usage`);
 }).on('error', (err) => {
-  console.error('Server startup error:', err);
+  console.error('❌ Server startup error:', err);
   process.exit(1);
 });
 
-// Server timeout settings
-server.timeout = 30000; // 30 seconds
-server.keepAliveTimeout = 65000; // 65 seconds
-server.headersTimeout = 66000; // 66 seconds 
+// Server timeout settings optimized for high concurrency
+server.timeout = 60000; // Increased to 60 seconds for high load
+server.keepAliveTimeout = 120000; // Increased to 2 minutes
+server.headersTimeout = 125000; // Increased to 2 minutes 5 seconds
+
+// Additional server optimizations for high-scale usage
+server.maxConnections = 10000; // Allow up to 10k concurrent connections
+server.maxHeadersCount = 2000; // Increased header limit
+server.maxHeaderSize = 16384; // 16KB header size limit 
