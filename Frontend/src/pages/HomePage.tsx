@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useInView, useAnimation } from 'framer-motion';
 import { 
@@ -8,6 +8,9 @@ import {
 import ReviewCard from '../components/ReviewCard';
 import Footer from '../components/Footer';
 import { getMostViewedReviewsWeek } from '../services/api';
+import { getCachedData, reviewCache } from '../utils/cache';
+import { updateMetaTags, generateOrganizationStructuredData, addStructuredData } from '../utils/seo';
+import { preloadImage } from '../utils/imageOptimization';
 
 // Type assertions for Lucide icons and Link to fix TypeScript compatibility
 const StarIcon = Star as React.ComponentType<any>;
@@ -27,46 +30,66 @@ const ClockIcon = Clock as React.ComponentType<any>;
 const LinkComponent = Link as React.ComponentType<any>;
 
 const HomePage = () => {
-
-  
   const [mostViewedReviews, setMostViewedReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchMostViewedReviews = async () => {
-      try {
-        setLoading(true);
-        const reviews = await getMostViewedReviewsWeek();
-        setMostViewedReviews(reviews);
-      } catch (error) {
-        setError('Failed to load trending reviews');
-        // Don't let API errors block the page render
-        setMostViewedReviews([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-            // Fetch the trending reviews
-    fetchMostViewedReviews();
+  // Optimized data fetching with caching
+  const fetchMostViewedReviews = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Try to get from cache first
+      const reviews = await getCachedData(
+        reviewCache,
+        'most-viewed-reviews-week',
+        () => getMostViewedReviewsWeek()
+      );
+      
+      setMostViewedReviews(reviews);
+      
+      // Preload images for better UX
+      reviews.slice(0, 6).forEach((review: any) => {
+        if (review.media && review.media.length > 0) {
+          const firstImage = review.media.find((media: any) => media.type === 'image');
+          if (firstImage) {
+            preloadImage(firstImage.url).catch(() => {
+              // Ignore preload errors
+            });
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching most viewed reviews:', error);
+      setError('Failed to load trending reviews');
+      setMostViewedReviews([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  // Retry function for failed requests
-  const retryFetch = () => {
-    const fetchMostViewedReviews = async () => {
-      try {
-        setLoading(true);
-        const reviews = await getMostViewedReviewsWeek();
-        setMostViewedReviews(reviews);
-      } catch (error) {
-        // Handle error silently
-      } finally {
-        setLoading(false);
-      }
-    };
+  useEffect(() => {
+    // Update SEO meta tags
+    updateMetaTags({
+      title: 'TruView - Authentic Reviews & Ratings Platform',
+      description: 'Discover genuine reviews and ratings for products, services, and experiences. Join our community of authentic reviewers.',
+      keywords: 'reviews, ratings, product reviews, service reviews, authentic reviews, trustpilot alternative',
+      canonical: window.location.origin
+    });
+
+    // Add organization structured data
+    const orgData = generateOrganizationStructuredData();
+    addStructuredData(orgData);
+
+    // Fetch the trending reviews
     fetchMostViewedReviews();
-  };
+  }, [fetchMostViewedReviews]);
+
+  // Retry function for failed requests
+  const retryFetch = useCallback(() => {
+    fetchMostViewedReviews();
+  }, [fetchMostViewedReviews]);
 
   return (
     <div className="min-h-screen">

@@ -1,18 +1,36 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const Category = require('../models/Category');
 const router = express.Router();
 
 // Get all categories with subcategories
 router.get('/', async (req, res) => {
+  const startTime = Date.now();
+  
   try {
+    // Check MongoDB connection
+    if (mongoose.connection.readyState !== 1) {
+      console.error('MongoDB not connected during categories fetch');
+      return res.status(503).json({ 
+        message: 'Service temporarily unavailable. Please try again.',
+        categories: [] 
+      });
+    }
+
     const categories = await Category.find()
       .select('name slug description subcategories reviewCount trending')
       .sort({ name: 1 })
-      .lean(); // Use lean() for better performance
+      .lean()
+      .exec();
+    
+    const totalTime = Date.now() - startTime;
+    console.log(`✅ Categories fetched in ${totalTime}ms (${categories.length} categories)`);
+    
     res.json(categories);
   } catch (error) {
-    console.error('Error fetching categories:', error);
-    res.status(500).json({ message: error.message });
+    console.error('Error fetching categories:', error.message);
+    console.error('Error stack:', error.stack);
+    res.status(200).json([]); // Return empty array instead of error
   }
 });
 

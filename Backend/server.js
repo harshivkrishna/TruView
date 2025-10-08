@@ -119,10 +119,48 @@ app.options('*', cors(corsOptions));
 
 // Health check endpoint - optimized for Render
 app.get('/health', (req, res) => {
+  const mongoStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+  const mongoState = ['disconnected', 'connected', 'connecting', 'disconnecting'][mongoose.connection.readyState];
+  
   res.status(200).json({
     status: 'OK',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    mongodb: {
+      status: mongoStatus,
+      state: mongoState,
+      readyState: mongoose.connection.readyState
+    }
   });
+});
+
+// MongoDB-specific health check
+app.get('/health/mongodb', (req, res) => {
+  const mongoStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+  const mongoState = ['disconnected', 'connected', 'connecting', 'disconnecting'][mongoose.connection.readyState];
+  
+  if (mongoose.connection.readyState === 1) {
+    res.status(200).json({
+      status: 'OK',
+      mongodb: {
+        status: mongoStatus,
+        state: mongoState,
+        readyState: mongoose.connection.readyState,
+        host: mongoose.connection.host,
+        port: mongoose.connection.port,
+        name: mongoose.connection.name
+      }
+    });
+  } else {
+    res.status(503).json({
+      status: 'ERROR',
+      mongodb: {
+        status: mongoStatus,
+        state: mongoState,
+        readyState: mongoose.connection.readyState,
+        error: 'MongoDB connection not available'
+      }
+    });
+  }
 });
 
 // Root endpoint - lightweight
@@ -252,41 +290,60 @@ app.use((error, req, res, next) => {
   });
 });
 
-// MongoDB connection optimized for Render deployment
+// MongoDB connection optimized for production stability
 const mongoOptions = {
-  maxPoolSize: 5, // Reduced for faster startup
-  minPoolSize: 1, // Reduced for faster startup
+  maxPoolSize: 10, // Increased for better connection handling
+  minPoolSize: 2, // Increased for stability
   maxIdleTimeMS: 30000,
-  serverSelectionTimeoutMS: 10000, // Reduced to 10s for faster startup
-  socketTimeoutMS: 30000, // Reduced to 30s
-  connectTimeoutMS: 10000, // Reduced to 10s
+  serverSelectionTimeoutMS: 30000, // Increased to 30s for better reliability
+  socketTimeoutMS: 45000, // Increased to 45s
+  connectTimeoutMS: 30000, // Increased to 30s
   bufferCommands: false,
   useNewUrlParser: true,
   useUnifiedTopology: true,
   retryWrites: true,
   w: 'majority',
-  // Additional optimizations for Render
+  // Additional optimizations for production stability
   heartbeatFrequencyMS: 10000,
+  // Connection retry settings
+  retryReads: true,
+  maxStalenessSeconds: 90,
+  // Network settings
+  family: 4, // Force IPv4
+  // Connection pool settings
+  maxConnecting: 2,
+  // Additional stability settings
+  directConnection: false,
+  // Compression
+  compressors: ['zlib'],
+  zlibCompressionLevel: 6,
 };
 
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/trustpilot-clone', mongoOptions)
-  .then(() => {
-    console.log('MongoDB connected with optimized settings');
+// Enhanced MongoDB connection with better error handling
+const connectToMongoDB = async () => {
+  try {
+    console.log('🔄 Attempting to connect to MongoDB...');
     console.log('MongoDB URI:', process.env.MONGODB_URI ? 'Using environment variable' : 'Using default localhost');
+    
+    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/trustpilot-clone', mongoOptions);
+    
+    console.log('✅ MongoDB connected successfully with optimized settings');
     
     // Set global mongoose options for better performance
     mongoose.set('debug', process.env.NODE_ENV === 'development');
     mongoose.set('autoIndex', false); // Disable auto-indexing in production
     
-    // Add connection event listeners
+    // Add comprehensive connection event listeners
     mongoose.connection.on('error', (err) => {
-      console.error('MongoDB connection error:', err);
-      // Don't exit on connection errors during runtime, allow reconnection
+      console.error('❌ MongoDB connection error:', err.message);
+      console.error('Error type:', err.name);
+      if (err.name === 'MongoNetworkTimeoutError') {
+        console.error('🔄 Network timeout detected, will retry connection...');
+      }
     });
     
     mongoose.connection.on('disconnected', () => {
       console.warn('⚠️ MongoDB disconnected. Attempting to reconnect...');
-      // Mongoose will automatically attempt to reconnect with retryWrites: true
     });
     
     mongoose.connection.on('reconnected', () => {
@@ -294,14 +351,36 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/trustpilo
     });
     
     mongoose.connection.on('close', () => {
-      console.log('MongoDB connection closed');
+      console.log('🔒 MongoDB connection closed');
     });
-  })
-  .catch(err => {
-    console.error('MongoDB connection error:', err);
+    
+    mongoose.connection.on('connecting', () => {
+      console.log('🔄 MongoDB connecting...');
+    });
+    
+    mongoose.connection.on('connected', () => {
+      console.log('✅ MongoDB connected');
+    });
+    
+    mongoose.connection.on('open', () => {
+      console.log('🚀 MongoDB connection opened');
+    });
+    
+  } catch (err) {
+    console.error('❌ Failed to connect to MongoDB:', err.message);
+    console.error('Error type:', err.name);
     console.error('MongoDB URI:', process.env.MONGODB_URI || 'mongodb://localhost:27017/trustpilot-clone');
-    process.exit(1);
-  });
+    
+    // Don't exit immediately, try to reconnect
+    console.log('🔄 Will attempt to reconnect in 5 seconds...');
+    setTimeout(() => {
+      connectToMongoDB();
+    }, 5000);
+  }
+};
+
+// Start MongoDB connection
+connectToMongoDB();
 
 // Process error handlers
 process.on('uncaughtException', (err) => {

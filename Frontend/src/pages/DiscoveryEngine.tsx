@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TrendingUp, Flame, AlertTriangle, Trophy, Crown, Medal, Award, Star } from 'lucide-react';
 import ReviewCard from '../components/ReviewCard';
 import { getReviews, getLeaderboard, getMostViewedReviewsWeek } from '../services/api';
+import { getCachedData, reviewCache } from '../utils/cache';
+import { updateMetaTags } from '../utils/seo';
+import { preloadImage } from '../utils/imageOptimization';
 
 // Type assertions for Lucide icons to fix TypeScript compatibility
 const TrendingUpIcon = TrendingUp as React.ComponentType<any>;
@@ -28,56 +31,92 @@ const DiscoveryEngine = () => {
     { id: 'leaderboard', label: 'Leaderboard', icon: TrophyIcon }
   ];
 
-  const fetchReviews = async () => {
+  // Optimized data fetching with caching
+  const fetchReviews = useCallback(async () => {
     setLoading(true);
     try {
       let reviewsData = [];
       
       switch (activeTab) {
         case 'trending':
-          // Use the same logic as HomePage for trending reviews
-          reviewsData = await getMostViewedReviewsWeek();
+          reviewsData = await getCachedData(
+            reviewCache,
+            'most-viewed-reviews-week',
+            () => getMostViewedReviewsWeek()
+          );
           break;
         case 'weekly-bombs':
-          const brutalResponse = await getReviews({ tag: 'Brutal' });
-          reviewsData = brutalResponse.reviews || [];
+          reviewsData = await getCachedData(
+            reviewCache,
+            'reviews-brutal-tag',
+            () => getReviews({ tag: 'Brutal' }).then(r => r.reviews || [])
+          );
           break;
         case 'avoid-this':
-          const warningResponse = await getReviews({ tag: 'Warning' });
-          reviewsData = warningResponse.reviews || [];
+          reviewsData = await getCachedData(
+            reviewCache,
+            'reviews-warning-tag',
+            () => getReviews({ tag: 'Warning' }).then(r => r.reviews || [])
+          );
           break;
         default:
-          const defaultResponse = await getReviews();
-          reviewsData = defaultResponse.reviews || [];
+          reviewsData = await getCachedData(
+            reviewCache,
+            'reviews-default',
+            () => getReviews().then(r => r.reviews || [])
+          );
       }
       
       setReviews(reviewsData);
+      
+      // Preload images for better UX
+      reviewsData.slice(0, 6).forEach((review: any) => {
+        if (review.media && review.media.length > 0) {
+          const firstImage = review.media.find((media: any) => media.type === 'image');
+          if (firstImage) {
+            preloadImage(firstImage.url).catch(() => {
+              // Ignore preload errors
+            });
+          }
+        }
+      });
     } catch (error) {
+      console.error('Error fetching reviews:', error);
       setReviews([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab]);
 
-  const fetchLeaderboard = async () => {
-    setLoading(true);
+  const fetchLeaderboard = useCallback(async () => {
     try {
-      const leaderboardData = await getLeaderboard();
+      const leaderboardData = await getCachedData(
+        reviewCache,
+        'leaderboard',
+        () => getLeaderboard()
+      );
       setLeaderboard(leaderboardData);
     } catch (error) {
-      // Handle error silently
-    } finally {
-      setLoading(false);
+      console.error('Error fetching leaderboard:', error);
+      setLeaderboard([]);
     }
-  };
+  }, []);
 
   useEffect(() => {
+    // Update SEO meta tags
+    updateMetaTags({
+      title: 'Discovery Engine - Trending Reviews & Leaderboard | TruView',
+      description: 'Discover trending reviews, weekly bombs, warnings, and top reviewers. Explore the most engaging content on TruView.',
+      keywords: 'trending reviews, leaderboard, weekly bombs, warnings, top reviewers, discovery',
+      canonical: `${window.location.origin}/discovery`
+    });
+
     if (activeTab === 'leaderboard') {
       fetchLeaderboard();
     } else {
       fetchReviews();
     }
-  }, [activeTab]);
+  }, [activeTab, fetchReviews, fetchLeaderboard]);
 
   const getTabDescription = () => {
     switch (activeTab) {

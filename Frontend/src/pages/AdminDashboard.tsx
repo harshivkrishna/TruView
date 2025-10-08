@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Users, FileText, Flag, TrendingUp, Search, Filter, Check, X, Eye, Key, BarChart3, PieChart, Calendar, Activity, LogOut } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getPassKey, updatePassKey, getAdminReviews, getAdminUsers, getAdminReports, handleReportAction } from '../services/api';
@@ -21,6 +21,8 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import { useNavigate } from 'react-router-dom';
+import { getCachedData, reviewCache } from '../utils/cache';
+import { updateMetaTags } from '../utils/seo';
 
 // Type assertions for Lucide icons to fix TypeScript compatibility
 const UsersIcon = Users as React.ComponentType<any>;
@@ -89,15 +91,27 @@ const AdminDashboard = () => {
   const [newPassKey, setNewPassKey] = useState('');
   const [showPassKeyForm, setShowPassKeyForm] = useState(false);
 
-  const fetchAdminData = async () => {
+  const fetchAdminData = useCallback(async () => {
     try {
       setLoading(true);
       
-      // Fetch reviews, users, and reports data using admin endpoints
+      // Fetch reviews, users, and reports data using admin endpoints with caching
       const [reviewsData, usersData, reportsData] = await Promise.all([
-        getAdminReviews(),
-        getAdminUsers(),
-        getAdminReports()
+        getCachedData(
+          reviewCache,
+          'admin-reviews',
+          () => getAdminReviews()
+        ),
+        getCachedData(
+          reviewCache,
+          'admin-users',
+          () => getAdminUsers()
+        ),
+        getCachedData(
+          reviewCache,
+          'admin-reports',
+          () => getAdminReports()
+        )
       ]);
       
       setReviews(reviewsData);
@@ -138,11 +152,12 @@ const AdminDashboard = () => {
       });
       
     } catch (error) {
+      console.error('Error fetching admin data:', error);
       toast.error('Failed to fetch admin data');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const fetchPassKey = async () => {
     try {
@@ -155,10 +170,18 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     if (currentUser) {
+      // Update SEO meta tags
+      updateMetaTags({
+        title: 'Admin Dashboard - TruView',
+        description: 'Admin dashboard for managing reviews, users, and reports on TruView platform.',
+        keywords: 'admin dashboard, review management, user management, reports',
+        canonical: `${window.location.origin}/admin`
+      });
+
       fetchAdminData();
       fetchPassKey();
     }
-  }, [currentUser]);
+  }, [currentUser, fetchAdminData]);
 
   // Re-process chart data when time period changes
   useEffect(() => {

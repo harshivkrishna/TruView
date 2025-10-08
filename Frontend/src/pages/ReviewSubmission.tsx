@@ -1,9 +1,12 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Upload, X, Star, Camera, Video, Play } from 'lucide-react';
 import { createReview, uploadMedia, getCategoriesWithSubcategories } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import MediaCarousel from '../components/MediaCarousel';
+import { getCachedData, reviewCache } from '../utils/cache';
+import { updateMetaTags } from '../utils/seo';
+import { compressImage } from '../utils/imageOptimization';
 
 interface Category {
   id: number;
@@ -36,18 +39,33 @@ const ReviewSubmission = () => {
 
   const sentimentTags = ['Honest', 'Brutal', 'Fair', 'Rant', 'Praise', 'Caution'];
 
+  // Optimized categories fetching with caching
+  const fetchCategories = useCallback(async () => {
+    try {
+      const categoriesData = await getCachedData(
+        reviewCache,
+        'categories-with-subcategories',
+        () => getCategoriesWithSubcategories()
+      );
+      setCategories(categoriesData);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      // Handle error silently
+    }
+  }, []);
+
   // Fetch categories on component mount
   useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const categoriesData = await getCategoriesWithSubcategories();
-        setCategories(categoriesData);
-      } catch (error) {
-        // Handle error silently
-      }
-    };
     fetchCategories();
-  }, []);
+    
+    // Update SEO meta tags
+    updateMetaTags({
+      title: 'Submit a Review - TruView',
+      description: 'Share your authentic review and help others make informed decisions. Submit your honest feedback about products and services.',
+      keywords: 'submit review, write review, review submission, authentic review',
+      canonical: `${window.location.origin}/submit-review`
+    });
+  }, [fetchCategories]);
 
   // Update available subcategories when category changes
   useEffect(() => {
@@ -107,7 +125,7 @@ const ReviewSubmission = () => {
     setFormData(prev => ({ ...prev, rating }));
   };
 
-  const handleFileUpload = async (files: FileList) => {
+  const handleFileUpload = useCallback(async (files: FileList) => {
     setUploadError('');
     
     // Validate file types and count
@@ -135,18 +153,32 @@ const ReviewSubmission = () => {
       return;
     }
 
-    const formData = new FormData();
-    fileArray.forEach(file => {
-      formData.append('media', file);
-    });
-
     try {
+      const formData = new FormData();
+      
+      // Process images with compression
+      for (const image of images) {
+        try {
+          const compressedImage = await compressImage(image, 0.8, 1200, 1200);
+          formData.append('media', compressedImage, image.name);
+        } catch (compressionError) {
+          console.warn('Compression failed, using original image:', compressionError);
+          formData.append('media', image);
+        }
+      }
+      
+      // Add videos as-is (no compression for videos)
+      videos.forEach(video => {
+        formData.append('media', video);
+      });
+
       const result = await uploadMedia(formData);
       setUploadedFiles(prev => [...prev, ...result.files]);
     } catch (error) {
+      console.error('Error uploading files:', error);
       setUploadError('Error uploading files. Please try again.');
     }
-  };
+  }, [uploadedFiles]);
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();

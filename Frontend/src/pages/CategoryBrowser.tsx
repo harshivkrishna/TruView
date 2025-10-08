@@ -1,10 +1,13 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Search, Filter, TrendingUp, SlidersHorizontal, X, ArrowUp } from 'lucide-react';
 import ReviewCard from '../components/ReviewCard';
 import ReviewCardSkeleton from '../components/ReviewCardSkeleton';
 import AdvancedSearch from '../components/AdvancedSearch';
 import { getReviews, getCategoriesWithSubcategories } from '../services/api';
+import { getCachedData, reviewCache } from '../utils/cache';
+import { updateMetaTags, generateCategoryStructuredData, addStructuredData } from '../utils/seo';
+import { lazyLoadImage } from '../utils/imageOptimization';
 
 // Define review type
 interface Review {
@@ -93,7 +96,7 @@ const CategoryBrowser: React.FC = () => {
     fetchData();
   }, []);
 
-  // Fetch reviews function
+  // Fetch reviews function with caching
   const fetchReviews = useCallback(async (page: number, reset: boolean = false) => {
     try {
       setLoadingMore(true);
@@ -103,7 +106,15 @@ const CategoryBrowser: React.FC = () => {
       if (selectedSubcategory) queryParams.subcategory = selectedSubcategory;
       if (searchQuery) queryParams.query = searchQuery;
       
-      const response = await getReviews(queryParams);
+      // Create cache key based on query parameters
+      const cacheKey = `reviews-${JSON.stringify(queryParams)}`;
+      
+      // Try to get from cache first
+      const response = await getCachedData(
+        reviewCache,
+        cacheKey,
+        () => getReviews(queryParams)
+      );
       
       if (reset) {
         setReviews(response.reviews);
@@ -114,7 +125,16 @@ const CategoryBrowser: React.FC = () => {
       }
       
       setHasMore(response.pagination.hasNextPage);
+      
+      // Apply lazy loading to new images
+      if (response.reviews.length > 0) {
+        setTimeout(() => {
+          const images = document.querySelectorAll('img[data-src]');
+          images.forEach(img => lazyLoadImage(img as HTMLImageElement));
+        }, 100);
+      }
     } catch (error) {
+      console.error('Error fetching reviews:', error);
       // Handle error silently
     } finally {
       setLoadingMore(false);
@@ -137,6 +157,36 @@ const CategoryBrowser: React.FC = () => {
       }
     }
   }, [searchParams]);
+
+  // Update SEO meta tags when category changes
+  useEffect(() => {
+    if (selectedCategory) {
+      const category = categories.find(cat => cat.name === selectedCategory);
+      if (category) {
+        updateMetaTags({
+          title: `${selectedCategory} Reviews - TruView`,
+          description: `Browse authentic ${selectedCategory.toLowerCase()} reviews and ratings. Discover genuine feedback from real users.`,
+          keywords: `${selectedCategory.toLowerCase()}, reviews, ratings, ${selectedCategory.toLowerCase()} reviews`,
+          canonical: `${window.location.origin}/categories?category=${encodeURIComponent(selectedCategory)}`
+        });
+
+        // Add category structured data
+        const categoryData = generateCategoryStructuredData({
+          name: selectedCategory,
+          description: `Browse authentic ${selectedCategory.toLowerCase()} reviews and ratings`,
+          slug: selectedCategory.toLowerCase().replace(/\s+/g, '-')
+        });
+        addStructuredData(categoryData);
+      }
+    } else {
+      updateMetaTags({
+        title: 'Browse Reviews by Category - TruView',
+        description: 'Explore authentic reviews and ratings across all categories. Find genuine feedback for products and services.',
+        keywords: 'reviews, ratings, categories, browse reviews, authentic reviews',
+        canonical: `${window.location.origin}/categories`
+      });
+    }
+  }, [selectedCategory, categories]);
 
   // Update available subcategories when category changes
   useEffect(() => {

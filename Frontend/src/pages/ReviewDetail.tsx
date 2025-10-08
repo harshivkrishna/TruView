@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useReviewContext } from '../contexts/ReviewContext';
@@ -8,6 +8,9 @@ import { ThumbsUp, Eye, Share2, Flag, User, Calendar, ArrowLeft, Award } from 'l
 import MediaCarousel from '../components/MediaCarousel';
 import SocialShareModal from '../components/SocialShareModal';
 import { calculateTrustScore, getTrustLevel } from '../utils/trustPrediction';
+import { updateMetaTags, generateReviewStructuredData, addStructuredData } from '../utils/seo';
+import { getCachedData, reviewCache } from '../utils/cache';
+import { lazyLoadImage, preloadImage } from '../utils/imageOptimization';
 
 const ReviewDetail = () => {
   const { currentUser } = useAuth();
@@ -279,9 +282,15 @@ const ReviewDetail = () => {
     }
   `;
 
-  const fetchReview = async (reviewId: any) => {
+  const fetchReview = useCallback(async (reviewId: string) => {
     try {
-      const reviewData = await getReview(reviewId);
+      // Try to get from cache first
+      const reviewData = await getCachedData(
+        reviewCache,
+        `review-${reviewId}`,
+        () => getReview(reviewId)
+      );
+      
       setReview(reviewData);
       
       // Store the review in global state for other components to access
@@ -292,12 +301,39 @@ const ReviewDetail = () => {
         const hasUpvoted = reviewData.upvotedBy.some((userId: any) => userId === currentUser.id);
         setHasUpvoted(hasUpvoted);
       }
+
+      // Update SEO meta tags
+      updateMetaTags({
+        title: `${reviewData.title} - Review by ${reviewData.author?.name || 'Anonymous'}`,
+        description: reviewData.description.substring(0, 160),
+        keywords: reviewData.tags?.join(', ') || reviewData.category,
+        author: reviewData.author?.name || 'Anonymous',
+        publishedTime: reviewData.createdAt,
+        tags: reviewData.tags || [],
+        canonical: `${window.location.origin}/review/${reviewId}`
+      });
+
+      // Add structured data
+      const structuredData = generateReviewStructuredData(reviewData);
+      addStructuredData(structuredData);
+
+      // Preload images for better UX
+      if (reviewData.media && reviewData.media.length > 0) {
+        reviewData.media.slice(0, 3).forEach((media: any) => {
+          if (media.type === 'image') {
+            preloadImage(media.url).catch(() => {
+              // Ignore preload errors
+            });
+          }
+        });
+      }
     } catch (error) {
+      console.error('Error fetching review:', error);
       // Handle error silently
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentUser, updateReview]);
 
   useEffect(() => {
     if (id) {
@@ -363,7 +399,7 @@ const ReviewDetail = () => {
     }
   }, [id]);
 
-  const handleUpvote = async () => {
+  const handleUpvote = useCallback(async () => {
     // Check if user is logged in
     if (!currentUser) {
       toast.error('Please log in to like reviews');
@@ -378,23 +414,57 @@ const ReviewDetail = () => {
     setIsUpvoting(true);
     try {
       if (!id) return;
+      
+      // Optimistic update for better UX
+      const previousUpvotes = review?.upvotes || 0;
+      const previousHasUpvoted = hasUpvoted;
+      
+      // Update UI immediately
+      setReview(prev => prev ? {
+        ...prev,
+        upvotes: previousHasUpvoted ? previousUpvotes - 1 : previousUpvotes + 1,
+        upvotedBy: previousHasUpvoted 
+          ? prev.upvotedBy?.filter((userId: any) => userId !== currentUser.id) || []
+          : [...(prev.upvotedBy || []), currentUser.id]
+      } : null);
+      
+      setHasUpvoted(!previousHasUpvoted);
+      
+      // Make API call
       const updatedReview = await upvoteReview(id);
+      
+      // Update with actual response
       setReview(updatedReview);
       
       // Update upvote state based on the updated review
       if (updatedReview.upvotedBy) {
         const newHasUpvoted = updatedReview.upvotedBy.some((userId: any) => userId === currentUser.id);
-        const wasUpvoted = hasUpvoted;
         setHasUpvoted(newHasUpvoted);
         
         // Only show toast if the state actually changed
-        if (newHasUpvoted && !wasUpvoted) {
+        if (newHasUpvoted && !previousHasUpvoted) {
           toast.success('Review liked!');
-        } else if (!newHasUpvoted && wasUpvoted) {
+        } else if (!newHasUpvoted && previousHasUpvoted) {
           toast.success('Like removed');
         }
       }
+      
+      // Update global state
+      updateReview(id, updatedReview);
+      
+      // Update cache
+      reviewCache.set(`review-${id}`, updatedReview);
     } catch (error: any) {
+      // Revert optimistic update on error
+      setReview(prev => prev ? {
+        ...prev,
+        upvotes: previousUpvotes,
+        upvotedBy: previousHasUpvoted 
+          ? [...(prev.upvotedBy || []), currentUser.id]
+          : prev.upvotedBy?.filter((userId: any) => userId !== currentUser.id) || []
+      } : null);
+      setHasUpvoted(previousHasUpvoted);
+      
       if (error.response?.status === 401) {
         toast.error('Please log in to like reviews');
       } else {
@@ -403,19 +473,19 @@ const ReviewDetail = () => {
     } finally {
       setIsUpvoting(false);
     }
-  };
+  }, [currentUser, isUpvoting, id, review, hasUpvoted, updateReview]);
 
-  const handleAuthorClick = () => {
-    if (review.author?.userId) {
+  const handleAuthorClick = useCallback(() => {
+    if (review?.author?.userId) {
       navigate(`/profile/${review.author.userId}`);
     }
-  };
+  }, [review?.author?.userId, navigate]);
 
-  const handleShare = () => {
+  const handleShare = useCallback(() => {
     setShowShareModal(true);
-  };
+  }, []);
 
-  const handleReport = async (reason: string, description: string) => {
+  const handleReport = useCallback(async (reason: string, description: string) => {
     try {
       if (!id) {
         toast.error('Review ID not found');
@@ -432,7 +502,67 @@ const ReviewDetail = () => {
     } catch (error) {
       toast.error('Error submitting report');
     }
-  };
+  }, [id]);
+
+  // Memoized trust score component
+  const TrustScore = useMemo(() => {
+    if (!review) return null;
+    
+    const score = review.trustScore || calculateTrustScore(review);
+    const trustLevel = getTrustLevel(score);
+    
+    return (
+      <div className={`trust-score flex items-center sm:ml-4 px-2 sm:px-3 py-1.5 bg-white shadow-lg border-2 rounded-full ${
+        trustLevel.level === 'High' ? 'border-green-500' :
+        trustLevel.level === 'Good' ? 'border-blue-500' :
+        trustLevel.level === 'Fair' ? 'border-yellow-500' :
+        trustLevel.level === 'Low' ? 'border-orange-500' :
+        'border-red-500'
+      }`}>
+        <div className="flex items-center gap-1 sm:gap-1.5">
+          <Award className={`w-3 h-3 sm:w-4 sm:h-4 ${
+            trustLevel.level === 'High' ? 'text-green-600' :
+            trustLevel.level === 'Good' ? 'text-blue-600' :
+            trustLevel.level === 'Fair' ? 'text-yellow-600' :
+            trustLevel.level === 'Low' ? 'text-orange-600' :
+            'text-red-600'
+          }`} />
+          <span className={`text-xs sm:text-sm font-bold font-mono ${
+            trustLevel.level === 'High' ? 'text-green-700' :
+            trustLevel.level === 'Good' ? 'text-blue-700' :
+            trustLevel.level === 'Fair' ? 'text-yellow-700' :
+            trustLevel.level === 'Low' ? 'text-orange-700' :
+            'text-red-700'
+          }`}>
+            {score}%
+          </span>
+        </div>
+      </div>
+    );
+  }, [review]);
+
+  // Memoized rating component
+  const RatingStars = useMemo(() => {
+    if (!review) return null;
+    
+    return (
+      <div className="flex items-center">
+        <div className="flex">
+          {[...Array(5)].map((_, i) => (
+            <svg
+              key={i}
+              className={`w-4 h-4 sm:w-5 sm:h-5 ${i < review.rating ? 'text-orange-500' : 'text-gray-300'}`}
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
+              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+            </svg>
+          ))}
+        </div>
+        <span className="ml-2 text-xs sm:text-sm text-gray-600">({review.rating}/5)</span>
+      </div>
+    );
+  }, [review]);
 
   if (loading) {
     return (
@@ -548,55 +678,8 @@ const ReviewDetail = () => {
 
             {/* Rating and Trust Score - Mobile responsive */}
             <div className="rating-trust-container flex flex-col sm:flex-row sm:items-center mb-6 sm:mb-8 gap-3 sm:gap-0">
-              <div className="flex items-center">
-                <div className="flex">
-                  {[...Array(5)].map((_, i) => (
-                    <svg
-                      key={i}
-                      className={`w-4 h-4 sm:w-5 sm:h-5 ${i < review.rating ? 'text-orange-500' : 'text-gray-300'}`}
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                    </svg>
-                  ))}
-                </div>
-                <span className="ml-2 text-xs sm:text-sm text-gray-600">({review.rating}/5)</span>
-              </div>
-              
-              {/* Trust Score - Mobile responsive */}
-              {(() => {
-                const score = review.trustScore || calculateTrustScore(review);
-                const trustLevel = getTrustLevel(score);
-                return (
-                  <div className={`trust-score flex items-center sm:ml-4 px-2 sm:px-3 py-1.5 bg-white shadow-lg border-2 rounded-full ${
-                    trustLevel.level === 'High' ? 'border-green-500' :
-                    trustLevel.level === 'Good' ? 'border-blue-500' :
-                    trustLevel.level === 'Fair' ? 'border-yellow-500' :
-                    trustLevel.level === 'Low' ? 'border-orange-500' :
-                    'border-red-500'
-                  }`}>
-                    <div className="flex items-center gap-1 sm:gap-1.5">
-                      <Award className={`w-3 h-3 sm:w-4 sm:h-4 ${
-                        trustLevel.level === 'High' ? 'text-green-600' :
-                        trustLevel.level === 'Good' ? 'text-blue-600' :
-                        trustLevel.level === 'Fair' ? 'text-yellow-600' :
-                        trustLevel.level === 'Low' ? 'text-orange-600' :
-                        'text-red-600'
-                      }`} />
-                      <span className={`text-xs sm:text-sm font-bold font-mono ${
-                        trustLevel.level === 'High' ? 'text-green-700' :
-                        trustLevel.level === 'Good' ? 'text-blue-700' :
-                        trustLevel.level === 'Fair' ? 'text-yellow-700' :
-                        trustLevel.level === 'Low' ? 'text-orange-700' :
-                        'text-red-700'
-                      }`}>
-                        {score}%
-                      </span>
-                    </div>
-                  </div>
-                );
-              })()}
+              {RatingStars}
+              {TrustScore}
             </div>
 
             {/* Description - Mobile responsive */}

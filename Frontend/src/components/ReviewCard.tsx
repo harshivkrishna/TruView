@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Star, ThumbsUp, Eye, Calendar, User, Share2, Award, TrendingUp, Image } from 'lucide-react';
@@ -6,6 +6,7 @@ import SocialShareModal from './SocialShareModal';
 import MediaCarousel from './MediaCarousel';
 import { calculateTrustScore, getTrustLevel } from '../utils/trustPrediction';
 import { useReviewContext } from '../contexts/ReviewContext';
+import { lazyLoadImage } from '../utils/imageOptimization';
 
 interface ReviewCardProps {
   review: {
@@ -35,7 +36,7 @@ interface ReviewCardProps {
   rank?: number;
 }
 
-const ReviewCard: React.FC<ReviewCardProps> = ({ review, showRank = false, rank }) => {
+const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = false, rank }) => {
   const navigate = useNavigate();
   const [showShareModal, setShowShareModal] = useState(false);
   const { getReview } = useReviewContext();
@@ -46,11 +47,101 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showRank = false, rank 
   // Ensure currentReview has the correct type
   const safeReview = currentReview as typeof review;
 
-  // Calculate AI trust score if not provided
-  const trustScore = safeReview.trustScore || calculateTrustScore(safeReview);
-  const trustLevel = getTrustLevel(trustScore);
+  // Memoized trust score calculation
+  const { trustScore, trustLevel } = useMemo(() => {
+    const score = safeReview.trustScore || calculateTrustScore(safeReview);
+    const level = getTrustLevel(score);
+    return { trustScore: score, trustLevel: level };
+  }, [safeReview]);
 
-  const formatDate = (dateString: string) => {
+  // Memoized formatted date
+  const formattedDate = useMemo(() => {
+    return new Date(safeReview.createdAt).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  }, [safeReview.createdAt]);
+
+  // Memoized truncated description
+  const truncatedDescription = useMemo(() => {
+    return safeReview.description.length > 150 
+      ? safeReview.description.substring(0, 150) + '...'
+      : safeReview.description;
+  }, [safeReview.description]);
+
+  // Memoized rating stars
+  const ratingStars = useMemo(() => {
+    return [...Array(5)].map((_, i) => (
+      <Star
+        key={i}
+        className={`w-4 h-4 ${i < safeReview.rating ? 'text-orange-500 fill-current' : 'text-gray-300'}`}
+      />
+    ));
+  }, [safeReview.rating]);
+
+  // Memoized trust score component
+  const trustScoreComponent = useMemo(() => (
+    <div className={`flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+      trustLevel.level === 'High' ? 'bg-green-100 text-green-700' :
+      trustLevel.level === 'Good' ? 'bg-blue-100 text-blue-700' :
+      trustLevel.level === 'Fair' ? 'bg-yellow-100 text-yellow-700' :
+      trustLevel.level === 'Low' ? 'bg-orange-100 text-orange-700' :
+      'bg-red-100 text-red-700'
+    }`}>
+      <Award className="w-3 h-3 mr-1" />
+      {trustScore}%
+    </div>
+  ), [trustScore, trustLevel]);
+
+  // Memoized tags
+  const tagsComponent = useMemo(() => (
+    <div className="flex flex-wrap gap-1">
+      {safeReview.tags.slice(0, 3).map((tag) => (
+        <span
+          key={tag}
+          className={`px-2 py-1 text-xs font-medium rounded-full ${
+            tag === 'Brutal' ? 'bg-red-100 text-red-700' :
+            tag === 'Honest' ? 'bg-blue-100 text-blue-700' :
+            tag === 'Praise' ? 'bg-green-100 text-green-700' :
+            'bg-gray-100 text-gray-700'
+          }`}
+        >
+          {tag}
+        </span>
+      ))}
+      {safeReview.tags.length > 3 && (
+        <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700">
+          +{safeReview.tags.length - 3}
+        </span>
+      )}
+    </div>
+  ), [safeReview.tags]);
+
+  // Callback handlers
+  const handleShare = useCallback(() => {
+    setShowShareModal(true);
+  }, []);
+
+  const handleAuthorClick = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (safeReview.author?.userId) {
+      navigate(`/profile/${safeReview.author.userId}`);
+    }
+  }, [safeReview.author?.userId, navigate]);
+
+  const handleCardClick = useCallback(() => {
+    navigate(`/review/${safeReview._id}`);
+  }, [safeReview._id, navigate]);
+
+  // Memoized utility functions
+  const truncateText = useCallback((text: string, maxLength: number) => {
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
+  }, []);
+
+  const formatDate = useCallback((dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
     const diffTime = Math.abs(now.getTime() - date.getTime());
@@ -60,20 +151,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showRank = false, rank 
     if (diffDays === 2) return 'Yesterday';
     if (diffDays <= 7) return `${diffDays} days ago`;
     return date.toLocaleDateString();
-  };
-
-  const truncateText = (text: string, maxLength: number) => {
-    if (text.length <= maxLength) return text;
-    return text.substring(0, maxLength) + '...';
-  };
-
-  const handleAuthorClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (currentReview.author?.userId) {
-      navigate(`/profile/${currentReview.author.userId}`);
-    }
-  };
+  }, []);
 
   const getTagStyle = (tag: string) => {
     const styles = {
@@ -125,7 +203,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showRank = false, rank 
           {/* Tags Section - Only top 2 tags visible */}
           <div className="p-6 py-5 bg-gray-50 border-b border-gray-200">
             <div className="flex items-center gap-2 flex-wrap">
-              {safeReview.tags.slice(0, 2).map((tag, index) => (
+              {currentReview.tags.slice(0, 2).map((tag, index) => (
                 <span
                   key={tag}
                   className={`px-3 py-1.5 text-xs font-semibold rounded-full bg-gradient-to-r ${getTagStyle(tag)} text-white`}
@@ -143,9 +221,9 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showRank = false, rank 
                   <span className={`px-3 py-1.5 text-xs font-semibold rounded-full bg-gradient-to-r ${getCategoryGradient(currentReview.category)} text-white`}>
                     {currentReview.category}
                   </span>
-                                {safeReview.subcategory && (
+                {currentReview.subcategory && (
                 <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700">
-                  {safeReview.subcategory}
+                  {currentReview.subcategory}
                 </span>
               )}
                 </div>
@@ -168,9 +246,9 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showRank = false, rank 
                 <div className="px-2 py-1 bg-black bg-opacity-70 text-white text-xs font-medium rounded-full">
                   {currentReview.category}
                 </div>
-                {safeReview.subcategory && (
+                {currentReview.subcategory && (
                   <div className="px-2 py-1 bg-black bg-opacity-50 text-white text-xs font-medium rounded-full">
-                    {safeReview.subcategory}
+                    {currentReview.subcategory}
                   </div>
                 )}
               </div>
@@ -326,6 +404,6 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showRank = false, rank 
       )}
     </>
   );
-  };
-  
-  export default ReviewCard;
+});
+
+export default ReviewCard;

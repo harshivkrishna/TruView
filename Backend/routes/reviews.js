@@ -241,34 +241,85 @@ router.get('/most-viewed-week', async (req, res) => {
   }
 });
 
-// Get single review
+// Get single review - Optimized version
 router.get('/:id', async (req, res) => {
+  const startTime = Date.now();
+  
   try {
-    const review = await Review.findById(req.params.id)
-      .populate('author.userId', 'firstName lastName avatar');
+    // Check MongoDB connection
+    if (mongoose.connection.readyState !== 1) {
+      console.error('MongoDB not connected during review fetch');
+      return res.status(503).json({ 
+        message: 'Service temporarily unavailable. Please try again.',
+        review: null 
+      });
+    }
+
+    const reviewId = req.params.id;
+    
+    // Fetch review with optimized query
+    const review = await Review.findById(reviewId)
+      .populate({
+        path: 'author.userId',
+        select: 'firstName lastName avatar',
+        options: { strictPopulate: false }
+      })
+      .select('title description rating category subcategory tags author upvotes views trustScore createdAt updatedAt media upvotedBy')
+      .lean()
+      .exec();
     
     if (!review) {
       return res.status(404).json({ message: 'Review not found' });
     }
+
+    // Format the review data with null safety
+    const reviewObj = { ...review };
     
-    // Add view if user is authenticated
+    // Safely handle author population
+    if (reviewObj.author && reviewObj.author.userId) {
+      const userId = reviewObj.author.userId;
+      
+      // Check if userId was populated successfully
+      if (userId && typeof userId === 'object' && userId.firstName) {
+        reviewObj.author.name = `${userId.firstName} ${userId.lastName}`;
+        reviewObj.author.avatar = userId.avatar;
+        reviewObj.author.userId = userId._id;
+      } else {
+        // Handle case where user was deleted or not found
+        reviewObj.author.name = 'Anonymous';
+        reviewObj.author.avatar = null;
+        reviewObj.author.userId = null;
+      }
+    } else {
+      // Handle missing author
+      reviewObj.author = {
+        name: 'Anonymous',
+        avatar: null,
+        userId: null
+      };
+    }
+
+    // Add view count asynchronously (don't wait for it)
     const userId = req.user?.userId;
     if (userId) {
-      review.addView(userId);
-      await review.save();
+      // Use updateOne for better performance instead of save()
+      Review.updateOne(
+        { _id: reviewId },
+        { 
+          $inc: { views: 1 },
+          $addToSet: { viewedBy: userId }
+        }
+      ).exec().catch(err => console.error('Failed to increment view count:', err));
     }
-    
-    // Format the review data
-    const reviewObj = review.toObject();
-    if (reviewObj.author && reviewObj.author.userId) {
-      reviewObj.author.name = `${reviewObj.author.userId.firstName} ${reviewObj.author.userId.lastName}`;
-      reviewObj.author.avatar = reviewObj.author.userId.avatar;
-      reviewObj.author.userId = reviewObj.author.userId._id;
-    }
+
+    const totalTime = Date.now() - startTime;
+    console.log(`✅ Review ${reviewId} fetched in ${totalTime}ms`);
     
     res.json(reviewObj);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Error fetching review:', error.message);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ message: 'Failed to fetch review' });
   }
 });
 
@@ -324,31 +375,92 @@ router.post('/', authenticateToken, async (req, res) => {
   }
 });
 
-// Upvote review
+// Upvote review - Optimized version
 router.patch('/:id/upvote', authenticateToken, async (req, res) => {
+  const startTime = Date.now();
+  
   try {
-    const review = await Review.findById(req.params.id);
+    // Check MongoDB connection
+    if (mongoose.connection.readyState !== 1) {
+      console.error('MongoDB not connected during upvote');
+      return res.status(503).json({ 
+        message: 'Service temporarily unavailable. Please try again.' 
+      });
+    }
+
+    const reviewId = req.params.id;
+    const userId = req.user.userId;
+
+    // Use atomic update for better performance
+    const review = await Review.findById(reviewId)
+      .select('upvotedBy upvotes')
+      .lean()
+      .exec();
+    
     if (!review) {
       return res.status(404).json({ message: 'Review not found' });
     }
-    
-    const result = review.toggleUpvote(req.user.userId);
-    await review.save();
-    
-    // Populate and return the updated review object
-    const populatedReview = await Review.findById(req.params.id)
-      .populate('author.userId', 'firstName lastName avatar');
-    
-    const reviewObj = populatedReview.toObject();
-    if (reviewObj.author && reviewObj.author.userId) {
-      reviewObj.author.name = `${reviewObj.author.userId.firstName} ${reviewObj.author.userId.lastName}`;
-      reviewObj.author.avatar = reviewObj.author.userId.avatar;
-      reviewObj.author.userId = reviewObj.author.userId._id;
+
+    const hasUpvoted = review.upvotedBy && review.upvotedBy.includes(userId);
+    const newUpvoteCount = hasUpvoted ? (review.upvotes || 0) - 1 : (review.upvotes || 0) + 1;
+
+    // Perform atomic update
+    const updatedReview = await Review.findByIdAndUpdate(
+      reviewId,
+      {
+        $inc: { upvotes: hasUpvoted ? -1 : 1 },
+        [hasUpvoted ? '$pull' : '$addToSet']: { 
+          upvotedBy: userId 
+        }
+      },
+      { 
+        new: true,
+        select: 'title description rating category subcategory tags author upvotes views trustScore createdAt updatedAt media upvotedBy'
+      }
+    )
+    .populate({
+      path: 'author.userId',
+      select: 'firstName lastName avatar',
+      options: { strictPopulate: false }
+    })
+    .lean()
+    .exec();
+
+    if (!updatedReview) {
+      return res.status(404).json({ message: 'Review not found' });
     }
+
+    // Format the review data with null safety
+    const reviewObj = { ...updatedReview };
+    
+    // Safely handle author population
+    if (reviewObj.author && reviewObj.author.userId) {
+      const authorUserId = reviewObj.author.userId;
+      
+      if (authorUserId && typeof authorUserId === 'object' && authorUserId.firstName) {
+        reviewObj.author.name = `${authorUserId.firstName} ${authorUserId.lastName}`;
+        reviewObj.author.avatar = authorUserId.avatar;
+        reviewObj.author.userId = authorUserId._id;
+      } else {
+        reviewObj.author.name = 'Anonymous';
+        reviewObj.author.avatar = null;
+        reviewObj.author.userId = null;
+      }
+    } else {
+      reviewObj.author = {
+        name: 'Anonymous',
+        avatar: null,
+        userId: null
+      };
+    }
+
+    const totalTime = Date.now() - startTime;
+    console.log(`✅ Review ${reviewId} upvote processed in ${totalTime}ms`);
     
     res.json(reviewObj);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Error upvoting review:', error.message);
+    res.status(500).json({ message: 'Failed to upvote review' });
   }
 });
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { 
   Edit, 
@@ -21,6 +21,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { getUserProfile, getUserReviews, updateUserProfile, uploadProfilePhoto } from '../services/api';
 import ReviewCard from '../components/ReviewCard';
 import { motion } from 'framer-motion';
+import { getCachedData, reviewCache } from '../utils/cache';
+import { updateMetaTags, generateUserProfileStructuredData, addStructuredData } from '../utils/seo';
+import { preloadImage } from '../utils/imageOptimization';
 
 interface UserProfileData {
   _id: string;
@@ -83,45 +86,80 @@ const UserProfile = () => {
     isPublicProfile: true
   });
 
+  // Optimized data fetching with caching
+  const fetchUserData = useCallback(async () => {
+    if (!userId) return;
+    
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Try to get from cache first
+      const [profileData, reviewsData] = await Promise.all([
+        getCachedData(
+          reviewCache,
+          `user-profile-${userId}`,
+          () => getUserProfile(userId)
+        ),
+        getCachedData(
+          reviewCache,
+          `user-reviews-${userId}`,
+          () => getUserReviews(userId)
+        )
+      ]);
+      
+      setProfile(profileData);
+      setUserReviews(reviewsData);
+      
+      // Initialize edit form with profile data
+      setEditForm({
+        firstName: profileData.firstName || '',
+        lastName: profileData.lastName || '',
+        phoneNumber: profileData.phoneNumber || '',
+        dateOfBirth: profileData.dateOfBirth ? profileData.dateOfBirth.split('T')[0] : '',
+        city: profileData.location?.city || '',
+        state: profileData.location?.state || '',
+        country: profileData.location?.country || '',
+        bio: profileData.bio || '',
+        isPublicProfile: profileData.isPublicProfile || true
+      });
+
+      // Update SEO meta tags
+      updateMetaTags({
+        title: `${profileData.firstName} ${profileData.lastName} - Profile | TruView`,
+        description: profileData.bio || `Reviewer with ${profileData.reviewCount} reviews on TruView`,
+        keywords: `${profileData.firstName} ${profileData.lastName}, reviewer, reviews, profile`,
+        canonical: `${window.location.origin}/profile/${userId}`
+      });
+
+      // Add user profile structured data
+      const userData = generateUserProfileStructuredData({
+        firstName: profileData.firstName,
+        lastName: profileData.lastName,
+        bio: profileData.bio,
+        reviewCount: profileData.reviewCount
+      });
+      addStructuredData(userData);
+
+      // Preload avatar image
+      if (profileData.avatar) {
+        preloadImage(profileData.avatar).catch(() => {
+          // Ignore preload errors
+        });
+      }
+      
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+      setError('Failed to load user profile');
+    } finally {
+      setLoading(false);
+    }
+  }, [userId]);
+
   // Fetch user profile and reviews data
   useEffect(() => {
-    const fetchUserData = async () => {
-      if (!userId) return;
-      
-      try {
-        setLoading(true);
-        setError(null);
-        
-        const [profileData, reviewsData] = await Promise.all([
-          getUserProfile(userId),
-          getUserReviews(userId)
-        ]);
-        
-        setProfile(profileData);
-        setUserReviews(reviewsData);
-        
-        // Initialize edit form with profile data
-        setEditForm({
-          firstName: profileData.firstName || '',
-          lastName: profileData.lastName || '',
-          phoneNumber: profileData.phoneNumber || '',
-          dateOfBirth: profileData.dateOfBirth ? profileData.dateOfBirth.split('T')[0] : '', // Convert ISO to YYYY-MM-DD for input
-          city: profileData.location?.city || '',
-          state: profileData.location?.state || '',
-          country: profileData.location?.country || '',
-          bio: profileData.bio || '',
-          isPublicProfile: profileData.isPublicProfile || true
-        });
-        
-      } catch (error) {
-        setError('Failed to load user profile');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchUserData();
-  }, [userId]);
+  }, [fetchUserData]);
 
   // Refresh profile data when component becomes active (e.g., after navigation)
   useEffect(() => {
