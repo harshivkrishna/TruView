@@ -118,9 +118,13 @@ app.use((req, res, next) => {
 app.options('*', cors(corsOptions));
 
 // Health check endpoint - optimized for Render
-app.get('/health', (req, res) => {
+app.get('/health', async (req, res) => {
   const mongoStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
   const mongoState = ['disconnected', 'connected', 'connecting', 'disconnecting'][mongoose.connection.readyState];
+  
+  // Check email service health
+  const emailService = require('./services/emailService');
+  const emailHealth = await emailService.checkEmailServiceHealth();
   
   res.status(200).json({
     status: 'OK',
@@ -129,7 +133,8 @@ app.get('/health', (req, res) => {
       status: mongoStatus,
       state: mongoState,
       readyState: mongoose.connection.readyState
-    }
+    },
+    email: emailHealth
   });
 });
 
