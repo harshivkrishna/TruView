@@ -14,8 +14,8 @@ if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   host: 'smtp.gmail.com',
-  port: 587,
-  secure: false, // Use TLS
+  port: 465, // Use SSL port instead of TLS
+  secure: true, // Use SSL instead of TLS
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASSWORD // Use app password for Gmail
@@ -24,18 +24,15 @@ const transporter = nodemailer.createTransport({
     rejectUnauthorized: false,
     ciphers: 'SSLv3'
   },
-  // Connection timeout settings
-  connectionTimeout: 60000, // 60 seconds
-  greetingTimeout: 30000,   // 30 seconds
-  socketTimeout: 60000,     // 60 seconds
-  // Connection pooling
-  pool: true,
-  maxConnections: 5,
-  maxMessages: 100,
-  rateLimit: 14, // max 14 emails per second
+  // Connection timeout settings - reduced for Render
+  connectionTimeout: 30000, // 30 seconds
+  greetingTimeout: 15000,   // 15 seconds
+  socketTimeout: 30000,     // 30 seconds
+  // Connection pooling - disabled for Render
+  pool: false,
   // Retry settings
-  retryDelay: 5000, // 5 seconds between retries
-  retryAttempts: 3
+  retryDelay: 2000, // 2 seconds between retries
+  retryAttempts: 2
 });
 
 // Verify transporter configuration on startup with retry
@@ -45,22 +42,22 @@ const verifyEmailService = async () => {
     return false;
   }
 
-  for (let attempt = 1; attempt <= 3; attempt++) {
+  for (let attempt = 1; attempt <= 2; attempt++) {
     try {
-      console.log(`🔍 Verifying email service connection (attempt ${attempt}/3)...`);
+      console.log(`🔍 Verifying email service connection (attempt ${attempt}/2)...`);
       await transporter.verify();
       console.log('✅ Email service is ready to send emails');
       return true;
     } catch (error) {
-      console.error(`❌ Email transporter verification failed (attempt ${attempt}/3):`, error.message);
+      console.error(`❌ Email transporter verification failed (attempt ${attempt}/2):`, error.message);
       
-      if (attempt === 3) {
-        console.error('❌ Email service verification failed after 3 attempts. Emails may not work.');
+      if (attempt === 2) {
+        console.error('❌ Email service verification failed after 2 attempts. Emails may not work.');
         return false;
       }
       
       // Wait before retry
-      const delay = attempt * 2000; // 2s, 4s
+      const delay = 2000; // 2s
       console.log(`⏳ Retrying verification in ${delay}ms...`);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
@@ -72,7 +69,7 @@ const verifyEmailService = async () => {
 verifyEmailService();
 
 // Helper function to send email with retry logic
-const sendEmailWithRetry = async (mailOptions, emailType, maxRetries = 3) => {
+const sendEmailWithRetry = async (mailOptions, emailType, maxRetries = 2) => {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       console.log(`📨 Attempting to send ${emailType} to ${mailOptions.to} (attempt ${attempt}/${maxRetries})`);
@@ -88,8 +85,8 @@ const sendEmailWithRetry = async (mailOptions, emailType, maxRetries = 3) => {
         return false;
       }
       
-      // Wait before retry (exponential backoff)
-      const delay = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
+      // Wait before retry (shorter delay for Render)
+      const delay = 2000; // 2s
       console.log(`⏳ Retrying in ${delay}ms...`);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
