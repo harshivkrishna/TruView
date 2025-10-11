@@ -1,5 +1,18 @@
 const nodemailer = require('nodemailer');
 
+// Check if SendGrid is available as fallback
+let sendGridAvailable = false;
+try {
+  if (process.env.SENDGRID_API_KEY) {
+    const sgMail = require('@sendgrid/mail');
+    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+    sendGridAvailable = true;
+    console.log('📧 SendGrid is available as fallback email service');
+  }
+} catch (error) {
+  console.log('📧 SendGrid not available:', error.message);
+}
+
 // Check if email credentials are configured
 console.log('📧 Email Service Initialization:');
 console.log('EMAIL_USER:', process.env.EMAIL_USER ? 'Set ✓' : 'Not set ✗');
@@ -36,24 +49,58 @@ const transporterConfig = {
   retryAttempts: 2
 };
 
-// Alternative configuration for production issues
-const alternativeConfig = {
-  service: 'gmail',
-  host: 'smtp.gmail.com',
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASSWORD
+// Alternative configurations for production issues
+const alternativeConfigs = [
+  // Config 1: TLS with different settings
+  {
+    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASSWORD
+    },
+    tls: {
+      rejectUnauthorized: false,
+      ciphers: 'SSLv3'
+    },
+    connectionTimeout: 15000,
+    greetingTimeout: 8000,
+    socketTimeout: 15000,
+    pool: false
   },
-  tls: {
-    rejectUnauthorized: false
+  // Config 2: SSL with different port
+  {
+    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASSWORD
+    },
+    tls: {
+      rejectUnauthorized: false
+    },
+    connectionTimeout: 10000,
+    greetingTimeout: 5000,
+    socketTimeout: 10000,
+    pool: false
   },
-  connectionTimeout: 20000,
-  greetingTimeout: 10000,
-  socketTimeout: 20000,
-  pool: false
-};
+  // Config 3: Minimal config for Render
+  {
+    service: 'gmail',
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASSWORD
+    },
+    connectionTimeout: 5000,
+    greetingTimeout: 3000,
+    socketTimeout: 5000,
+    pool: false
+  }
+];
 
 console.log('📧 Transporter Configuration:');
 console.log('Host:', transporterConfig.host);
@@ -84,21 +131,30 @@ const verifyEmailService = async () => {
       console.error('Error command:', error.command);
       
       if (attempt === 2) {
-        console.log('🔄 Trying alternative configuration...');
-        try {
-          transporter = nodemailer.createTransport(alternativeConfig);
-          await transporter.verify();
-          console.log('✅ Email service is ready to send emails (using alternative config)');
-          return true;
-        } catch (altError) {
-          console.error('❌ Alternative configuration also failed:', altError.message);
-          console.error('🔧 Troubleshooting tips:');
-          console.error('1. Check if EMAIL_USER and EMAIL_PASSWORD are set correctly in Render environment variables');
-          console.error('2. Ensure EMAIL_PASSWORD is a Gmail App Password (not regular password)');
-          console.error('3. Verify Gmail account has 2FA enabled');
-          console.error('4. Check if Gmail account is not locked or suspended');
-          console.error('5. Try using a different Gmail account');
-          return false;
+        console.log('🔄 Trying alternative configurations...');
+        
+        for (let configIndex = 0; configIndex < alternativeConfigs.length; configIndex++) {
+          try {
+            console.log(`🔄 Trying alternative config ${configIndex + 1}/${alternativeConfigs.length}...`);
+            transporter = nodemailer.createTransport(alternativeConfigs[configIndex]);
+            await transporter.verify();
+            console.log(`✅ Email service is ready to send emails (using alternative config ${configIndex + 1})`);
+            return true;
+          } catch (altError) {
+            console.error(`❌ Alternative config ${configIndex + 1} failed:`, altError.message);
+            if (configIndex === alternativeConfigs.length - 1) {
+              console.error('❌ All email configurations failed!');
+              console.error('🔧 Troubleshooting tips:');
+              console.error('1. Check if EMAIL_USER and EMAIL_PASSWORD are set correctly in Render environment variables');
+              console.error('2. Ensure EMAIL_PASSWORD is a Gmail App Password (not regular password)');
+              console.error('3. Verify Gmail account has 2FA enabled');
+              console.error('4. Check if Gmail account is not locked or suspended');
+              console.error('5. Try using a different Gmail account');
+              console.error('6. Consider using SendGrid, Mailgun, or other email services for production');
+              console.error('7. Render may be blocking SMTP connections - check Render documentation');
+              return false;
+            }
+          }
         }
       }
       
@@ -113,7 +169,7 @@ const verifyEmailService = async () => {
 // Initialize email service
 verifyEmailService();
 
-// Helper function to send email with retry logic
+// Helper function to send email with retry logic and SendGrid fallback
 const sendEmailWithRetry = async (mailOptions, emailType, maxRetries = 2) => {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -127,11 +183,31 @@ const sendEmailWithRetry = async (mailOptions, emailType, maxRetries = 2) => {
       
       if (attempt === maxRetries) {
         console.error('Full error:', error);
+        
+        // Try SendGrid as fallback if available
+        if (sendGridAvailable) {
+          console.log('🔄 Trying SendGrid as fallback...');
+          try {
+            const sgMail = require('@sendgrid/mail');
+            const msg = {
+              to: mailOptions.to,
+              from: process.env.EMAIL_USER,
+              subject: mailOptions.subject,
+              html: mailOptions.html
+            };
+            
+            await sgMail.send(msg);
+            console.log(`✅ ${emailType} sent successfully via SendGrid to ${mailOptions.to}`);
+            return true;
+          } catch (sgError) {
+            console.error('❌ SendGrid fallback also failed:', sgError.message);
+          }
+        }
+        
         return false;
       }
       
-      // Wait before retry (shorter delay for Render)
-      const delay = 2000; // 2s
+      const delay = 2000;
       console.log(`⏳ Retrying in ${delay}ms...`);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
