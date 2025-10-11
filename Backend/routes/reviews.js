@@ -5,6 +5,42 @@ const { authenticateToken } = require('../middleware/auth');
 const { calculateTrustScore } = require('../utils/trustCalculator');
 const router = express.Router();
 
+// Check if AWS is configured
+const isAWSConfigured = process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY && process.env.AWS_S3_BUCKET;
+
+// Import CloudFront URL converter
+let convertToCloudFrontUrl;
+if (isAWSConfigured) {
+  const { convertToCloudFrontUrl: converter } = require('../config/aws');
+  convertToCloudFrontUrl = converter;
+} else {
+  convertToCloudFrontUrl = (url) => url; // Return original URL if AWS not configured
+}
+
+// Helper function to convert S3 URLs to CloudFront URLs in review data
+const convertReviewUrls = (review) => {
+  if (!review) return review;
+  
+  const reviewObj = review.toObject ? review.toObject() : review;
+  
+  // Convert author avatar URL
+  if (reviewObj.author && reviewObj.author.avatar && reviewObj.author.avatar.includes('s3.amazonaws.com')) {
+    reviewObj.author.avatar = convertToCloudFrontUrl(reviewObj.author.avatar);
+  }
+  
+  // Convert media URLs
+  if (reviewObj.media && Array.isArray(reviewObj.media)) {
+    reviewObj.media = reviewObj.media.map(media => {
+      if (media.url && media.url.includes('s3.amazonaws.com')) {
+        return { ...media, url: convertToCloudFrontUrl(media.url) };
+      }
+      return media;
+    });
+  }
+  
+  return reviewObj;
+};
+
 // Get all reviews
 router.get('/', async (req, res) => {
   try {
@@ -71,7 +107,8 @@ router.get('/', async (req, res) => {
         };
       }
       
-      return reviewObj;
+      // Convert S3 URLs to CloudFront URLs
+      return convertReviewUrls(reviewObj);
     });
     
     console.log(`Fetched ${formattedReviews.length} reviews out of ${totalCount} total`);
@@ -315,7 +352,10 @@ router.get('/:id', async (req, res) => {
     const totalTime = Date.now() - startTime;
     console.log(`✅ Review ${reviewId} fetched in ${totalTime}ms`);
     
-    res.json(reviewObj);
+    // Convert S3 URLs to CloudFront URLs
+    const convertedReview = convertReviewUrls(reviewObj);
+    
+    res.json(convertedReview);
   } catch (error) {
     console.error('Error fetching review:', error.message);
     console.error('Error stack:', error.stack);
@@ -369,7 +409,10 @@ router.post('/', authenticateToken, async (req, res) => {
       reviewObj.author.userId = reviewObj.author.userId._id;
     }
     
-    res.status(201).json(reviewObj);
+    // Convert S3 URLs to CloudFront URLs
+    const convertedReview = convertReviewUrls(reviewObj);
+    
+    res.status(201).json(convertedReview);
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
@@ -401,7 +444,7 @@ router.patch('/:id/upvote', authenticateToken, async (req, res) => {
       return res.status(404).json({ message: 'Review not found' });
     }
 
-    const hasUpvoted = review.upvotedBy && review.upvotedBy.includes(userId);
+    const hasUpvoted = review.upvotedBy && review.upvotedBy.some(id => id.toString() === userId.toString());
     const newUpvoteCount = hasUpvoted ? (review.upvotes || 0) - 1 : (review.upvotes || 0) + 1;
 
     // Perform atomic update

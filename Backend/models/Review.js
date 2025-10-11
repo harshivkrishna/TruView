@@ -21,7 +21,7 @@ const ReviewSchema = new mongoose.Schema({
   },
   tags: [{
     type: String,
-    enum: ['Brutal', 'Honest', 'Praise', 'Rant', 'Warning', 'Recommended']
+    enum: ['Brutal', 'Honest', 'Praise', 'Rant', 'Warning', 'Recommended', 'Caution', 'Fair']
   }],
   media: [{
     type: {

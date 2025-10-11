@@ -12,6 +12,10 @@ const compression = require('compression');
 
 dotenv.config();
 
+// Check CloudFront configuration on startup
+const { checkCloudFrontConfig } = require('./utils/cloudFrontCheck');
+checkCloudFrontConfig();
+
 const app = express();
 
 // Trust proxy - REQUIRED for Render and other proxy services

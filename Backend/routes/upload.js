@@ -7,6 +7,17 @@ const router = express.Router();
 // Check if AWS is configured
 const isAWSConfigured = process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY && process.env.AWS_S3_BUCKET;
 
+// Import CloudFront functions at top level
+let convertToCloudFrontUrl, generateCloudFrontUrl;
+if (isAWSConfigured) {
+  const { convertToCloudFrontUrl: converter, generateCloudFrontUrl: generator } = require('../config/aws');
+  convertToCloudFrontUrl = converter;
+  generateCloudFrontUrl = generator;
+} else {
+  convertToCloudFrontUrl = (url) => url;
+  generateCloudFrontUrl = (key) => null;
+}
+
 let storage;
 let upload;
 
@@ -26,6 +37,7 @@ if (isAWSConfigured) {
       const folder = file.mimetype.startsWith('video') ? 'videos' : 'images';
       cb(null, `${folder}/${file.fieldname}-${uniqueSuffix}${path.extname(file.originalname)}`);
     }
+    // Removed acl: 'public-read' because bucket doesn't allow ACLs
   });
 } else {
   // Local storage configuration (fallback)
@@ -74,7 +86,13 @@ upload = multer({
   fileFilter
 });
 
-router.post('/', upload.array('media', 5), (req, res) => {
+router.post('/', upload.array('media', 5), (err, req, res, next) => {
+  if (err) {
+    console.error('Multer error:', err);
+    return res.status(500).json({ message: 'File upload error', error: err.message });
+  }
+  next();
+}, (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ message: 'No files uploaded' });
@@ -82,16 +100,17 @@ router.post('/', upload.array('media', 5), (req, res) => {
 
     const uploadedFiles = req.files.map(file => {
       if (isAWSConfigured) {
-        // AWS S3 response - add cache busting and error handling
-        const s3Url = file.location;
-        const urlWithCacheBust = s3Url.includes('?') ? `${s3Url}&t=${Date.now()}` : `${s3Url}?t=${Date.now()}`;
+        // Generate CloudFront URL directly from S3 key
+        const cloudFrontUrl = generateCloudFrontUrl(file.key) || convertToCloudFrontUrl(file.location);
+        const urlWithCacheBust = cloudFrontUrl.includes('?') ? `${cloudFrontUrl}&t=${Date.now()}` : `${cloudFrontUrl}?t=${Date.now()}`;
         
         return {
           type: file.mimetype.startsWith('video') ? 'video' : 'image',
-          url: urlWithCacheBust, // S3 URL with cache busting
+          url: urlWithCacheBust, // CloudFront URL with cache busting
           filename: file.key,  // S3 key
           bucket: file.bucket,
-          originalUrl: file.location // Keep original for fallback
+          originalUrl: file.location, // Keep original S3 URL for fallback
+          cloudFrontUrl: cloudFrontUrl // CloudFront URL without cache busting
         };
       } else {
         // Local storage response
@@ -106,12 +125,10 @@ router.post('/', upload.array('media', 5), (req, res) => {
       }
     });
 
-    // console.log('Uploaded files:', uploadedFiles);
-
     res.json({ files: uploadedFiles });
   } catch (error) {
-    // console.error('Upload error:', error);
-    res.status(500).json({ message: error.message });
+    console.error('Upload error:', error);
+    res.status(500).json({ message: error.message, error: error.stack });
   }
 });
 

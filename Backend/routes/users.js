@@ -15,7 +15,7 @@ let profilePhotoUpload;
 if (isAWSConfigured) {
   // AWS S3 storage configuration
   const multerS3 = require('multer-s3');
-  const { s3Client } = require('../config/aws');
+  const { s3Client, convertToCloudFrontUrl, generateCloudFrontUrl } = require('../config/aws');
   
   profilePhotoUpload = multer({
     storage: multerS3({
@@ -80,6 +80,12 @@ router.get('/me', authenticateToken, async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
+    
+    // Convert S3 avatar URL to CloudFront URL if needed
+    if (user.avatar && user.avatar.includes('s3.amazonaws.com') && isAWSConfigured) {
+      user.avatar = convertToCloudFrontUrl(user.avatar);
+    }
+    
     res.json(user);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -117,6 +123,11 @@ router.put('/profile', authenticateToken, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
+    // Convert S3 avatar URL to CloudFront URL if needed
+    if (user.avatar && user.avatar.includes('s3.amazonaws.com') && isAWSConfigured) {
+      user.avatar = convertToCloudFrontUrl(user.avatar);
+    }
+
     res.json(user);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -134,8 +145,9 @@ router.post('/profile/photo', authenticateToken, profilePhotoUpload.single('prof
 
     let avatarUrl;
     if (isAWSConfigured) {
-      // AWS S3 response
-      avatarUrl = req.file.location;
+      // Generate CloudFront URL directly from S3 key
+      const cloudFrontUrl = generateCloudFrontUrl(req.file.key);
+      avatarUrl = cloudFrontUrl || convertToCloudFrontUrl(req.file.location);
     } else {
       // Local storage response
       const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
@@ -179,6 +191,11 @@ router.get('/:userId/profile', async (req, res) => {
     if (!profileData.reviewCount) profileData.reviewCount = 0;
     if (!profileData.trustScore) profileData.trustScore = 50;
     if (!profileData.isPublicProfile) profileData.isPublicProfile = true;
+
+    // Convert S3 avatar URL to CloudFront URL if needed
+    if (profileData.avatar && profileData.avatar.includes('s3.amazonaws.com') && isAWSConfigured) {
+      profileData.avatar = convertToCloudFrontUrl(profileData.avatar);
+    }
 
     res.json(profileData);
   } catch (error) {

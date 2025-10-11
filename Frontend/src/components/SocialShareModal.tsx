@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Facebook, Twitter, MessageCircle, Instagram, Copy, Linkedin, Mail } from 'lucide-react';
 import { Star } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -10,6 +11,13 @@ interface SocialShareModalProps {
 }
 
 const SocialShareModal: React.FC<SocialShareModalProps> = ({ review, onClose }) => {
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, []);
   const openInNewTab = (url: string, platform: string) => {
     try {
       // Open in new tab with proper security and window specifications
@@ -135,9 +143,9 @@ const SocialShareModal: React.FC<SocialShareModalProps> = ({ review, onClose }) 
     }
   ];
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+  return createPortal(
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[9999]" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
+      <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
         <div className="flex justify-between items-center mb-6">
           <h3 className="text-xl font-semibold text-gray-900">Share Review</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
@@ -216,7 +224,8 @@ const SocialShareModal: React.FC<SocialShareModalProps> = ({ review, onClose }) 
           Cancel
         </button>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

@@ -37,7 +37,7 @@ const ReviewSubmission = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [availableSubcategories, setAvailableSubcategories] = useState<string[]>([]);
 
-  const sentimentTags = ['Honest', 'Brutal', 'Fair', 'Rant', 'Praise', 'Caution'];
+  const sentimentTags = ['Honest', 'Brutal', 'Fair', 'Rant', 'Praise', 'Caution', 'Warning', 'Recommended'];
 
   // Optimized categories fetching with caching
   const fetchCategories = useCallback(async () => {
@@ -468,7 +468,9 @@ const ReviewSubmission = () => {
       'Fair': isSelected ? 'bg-green-500 text-white' : 'bg-green-100 text-green-700 hover:bg-green-200',
       'Rant': isSelected ? 'bg-purple-500 text-white' : 'bg-purple-100 text-purple-700 hover:bg-purple-200',
       'Praise': isSelected ? 'bg-yellow-500 text-white' : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200',
-      'Caution': isSelected ? 'bg-orange-500 text-white' : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+      'Caution': isSelected ? 'bg-orange-500 text-white' : 'bg-orange-100 text-orange-700 hover:bg-orange-200',
+      'Warning': isSelected ? 'bg-red-600 text-white' : 'bg-red-200 text-red-800 hover:bg-red-300',
+      'Recommended': isSelected ? 'bg-emerald-500 text-white' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
     };
     return styles[tag] || (isSelected ? 'bg-gray-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200');
   };
