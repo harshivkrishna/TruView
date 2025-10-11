@@ -118,56 +118,71 @@ const verifyEmailService = async () => {
     return false;
   }
 
-  // Try primary configuration first
-  for (let attempt = 1; attempt <= 2; attempt++) {
-    try {
-      console.log(`🔍 Verifying email service connection (attempt ${attempt}/2) with primary config...`);
-      await transporter.verify();
-      console.log('✅ Email service is ready to send emails');
-      return true;
-    } catch (error) {
-      console.error(`❌ Email transporter verification failed (attempt ${attempt}/2):`, error.message);
-      console.error('Error code:', error.code);
-      console.error('Error command:', error.command);
-      
-      if (attempt === 2) {
-        console.log('🔄 Trying alternative configurations...');
-        
-        for (let configIndex = 0; configIndex < alternativeConfigs.length; configIndex++) {
-          try {
-            console.log(`🔄 Trying alternative config ${configIndex + 1}/${alternativeConfigs.length}...`);
-            transporter = nodemailer.createTransport(alternativeConfigs[configIndex]);
-            await transporter.verify();
-            console.log(`✅ Email service is ready to send emails (using alternative config ${configIndex + 1})`);
-            return true;
-          } catch (altError) {
-            console.error(`❌ Alternative config ${configIndex + 1} failed:`, altError.message);
-            if (configIndex === alternativeConfigs.length - 1) {
-              console.error('❌ All email configurations failed!');
-              console.error('🔧 Troubleshooting tips:');
-              console.error('1. Check if EMAIL_USER and EMAIL_PASSWORD are set correctly in Render environment variables');
-              console.error('2. Ensure EMAIL_PASSWORD is a Gmail App Password (not regular password)');
-              console.error('3. Verify Gmail account has 2FA enabled');
-              console.error('4. Check if Gmail account is not locked or suspended');
-              console.error('5. Try using a different Gmail account');
-              console.error('6. Consider using SendGrid, Mailgun, or other email services for production');
-              console.error('7. Render may be blocking SMTP connections - check Render documentation');
-              return false;
-            }
-          }
-        }
-      }
-      
-      const delay = 2000;
-      console.log(`⏳ Retrying verification in ${delay}ms...`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
+  // Skip SMTP verification in production if SendGrid is available
+  if (sendGridAvailable && process.env.NODE_ENV === 'production') {
+    console.log('⏭️ Skipping SMTP verification in production (SendGrid available)');
+    console.log('✅ Email service is ready to send emails (via SendGrid)');
+    return true;
   }
-  return false;
+
+  // Create timeout wrapper for verification
+  const verifyWithTimeout = (trans, timeout) => {
+    return Promise.race([
+      trans.verify(),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Verification timeout')), timeout)
+      )
+    ]);
+  };
+
+  // Try primary configuration first with shorter timeout
+  try {
+    console.log(`🔍 Verifying email service connection with primary config...`);
+    await verifyWithTimeout(transporter, 5000); // 5 second timeout
+    console.log('✅ Email service is ready to send emails');
+    return true;
+  } catch (error) {
+    console.error(`❌ Email transporter verification failed:`, error.message);
+    
+    // Try alternative configurations quickly
+    console.log('🔄 Trying alternative configurations...');
+    
+    for (let configIndex = 0; configIndex < alternativeConfigs.length; configIndex++) {
+      try {
+        console.log(`🔄 Trying alternative config ${configIndex + 1}/${alternativeConfigs.length}...`);
+        transporter = nodemailer.createTransport(alternativeConfigs[configIndex]);
+        await verifyWithTimeout(transporter, 3000); // 3 second timeout
+        console.log(`✅ Email service is ready to send emails (using alternative config ${configIndex + 1})`);
+        return true;
+      } catch (altError) {
+        console.error(`❌ Alternative config ${configIndex + 1} failed:`, altError.message);
+      }
+    }
+    
+    // All failed
+    console.error('❌ All email configurations failed!');
+    console.error('🔧 Troubleshooting tips:');
+    console.error('1. Render may be blocking SMTP - consider using SendGrid');
+    console.error('2. Add SENDGRID_API_KEY to your environment variables');
+    console.error('3. Emails will still be attempted during actual send');
+    return false;
+  }
 };
 
-// Initialize email service
-verifyEmailService();
+// Initialize email service (non-blocking)
+let emailServiceVerified = false;
+verifyEmailService()
+  .then(result => {
+    emailServiceVerified = result;
+    if (!result) {
+      console.log('⚠️ Email service verification failed, but email sending will still be attempted');
+      console.log('📧 Emails may work even if verification failed (common on Render)');
+    }
+  })
+  .catch(error => {
+    console.error('❌ Email service verification error:', error.message);
+    console.log('📧 Email sending will still be attempted despite verification failure');
+  });
 
 // Helper function to send email with retry logic and SendGrid fallback
 const sendEmailWithRetry = async (mailOptions, emailType, maxRetries = 2) => {
