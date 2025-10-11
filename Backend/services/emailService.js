@@ -4,36 +4,65 @@ const nodemailer = require('nodemailer');
 console.log('📧 Email Service Initialization:');
 console.log('EMAIL_USER:', process.env.EMAIL_USER ? 'Set ✓' : 'Not set ✗');
 console.log('EMAIL_PASSWORD:', process.env.EMAIL_PASSWORD ? 'Set ✓' : 'Not set ✗');
+console.log('NODE_ENV:', process.env.NODE_ENV || 'development');
+console.log('Platform:', process.platform);
 
 if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
   console.error('⚠️ Email credentials not configured! Emails will fail to send.');
   console.error('Please set EMAIL_USER and EMAIL_PASSWORD in your environment variables on Render.');
+  console.error('Current EMAIL_USER:', process.env.EMAIL_USER || 'undefined');
+  console.error('Current EMAIL_PASSWORD:', process.env.EMAIL_PASSWORD ? '[HIDDEN]' : 'undefined');
 }
 
 // Create transporter with optimized settings for Render
-const transporter = nodemailer.createTransport({
+const transporterConfig = {
   service: 'gmail',
   host: 'smtp.gmail.com',
-  port: 465, // Use SSL port instead of TLS
-  secure: true, // Use SSL instead of TLS
+  port: 465,
+  secure: true,
   auth: {
     user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASSWORD // Use app password for Gmail
+    pass: process.env.EMAIL_PASSWORD
   },
   tls: {
     rejectUnauthorized: false,
     ciphers: 'SSLv3'
   },
-  // Connection timeout settings - reduced for Render
-  connectionTimeout: 30000, // 30 seconds
-  greetingTimeout: 15000,   // 15 seconds
-  socketTimeout: 30000,     // 30 seconds
-  // Connection pooling - disabled for Render
+  connectionTimeout: 30000,
+  greetingTimeout: 15000,
+  socketTimeout: 30000,
   pool: false,
-  // Retry settings
-  retryDelay: 2000, // 2 seconds between retries
+  retryDelay: 2000,
   retryAttempts: 2
-});
+};
+
+// Alternative configuration for production issues
+const alternativeConfig = {
+  service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 587,
+  secure: false,
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASSWORD
+  },
+  tls: {
+    rejectUnauthorized: false
+  },
+  connectionTimeout: 20000,
+  greetingTimeout: 10000,
+  socketTimeout: 20000,
+  pool: false
+};
+
+console.log('📧 Transporter Configuration:');
+console.log('Host:', transporterConfig.host);
+console.log('Port:', transporterConfig.port);
+console.log('Secure:', transporterConfig.secure);
+console.log('Auth User:', transporterConfig.auth.user);
+console.log('Auth Pass:', transporterConfig.auth.pass ? '[HIDDEN]' : 'undefined');
+
+let transporter = nodemailer.createTransport(transporterConfig);
 
 // Verify transporter configuration on startup with retry
 const verifyEmailService = async () => {
@@ -42,22 +71,38 @@ const verifyEmailService = async () => {
     return false;
   }
 
+  // Try primary configuration first
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
-      console.log(`🔍 Verifying email service connection (attempt ${attempt}/2)...`);
+      console.log(`🔍 Verifying email service connection (attempt ${attempt}/2) with primary config...`);
       await transporter.verify();
       console.log('✅ Email service is ready to send emails');
       return true;
     } catch (error) {
       console.error(`❌ Email transporter verification failed (attempt ${attempt}/2):`, error.message);
+      console.error('Error code:', error.code);
+      console.error('Error command:', error.command);
       
       if (attempt === 2) {
-        console.error('❌ Email service verification failed after 2 attempts. Emails may not work.');
-        return false;
+        console.log('🔄 Trying alternative configuration...');
+        try {
+          transporter = nodemailer.createTransport(alternativeConfig);
+          await transporter.verify();
+          console.log('✅ Email service is ready to send emails (using alternative config)');
+          return true;
+        } catch (altError) {
+          console.error('❌ Alternative configuration also failed:', altError.message);
+          console.error('🔧 Troubleshooting tips:');
+          console.error('1. Check if EMAIL_USER and EMAIL_PASSWORD are set correctly in Render environment variables');
+          console.error('2. Ensure EMAIL_PASSWORD is a Gmail App Password (not regular password)');
+          console.error('3. Verify Gmail account has 2FA enabled');
+          console.error('4. Check if Gmail account is not locked or suspended');
+          console.error('5. Try using a different Gmail account');
+          return false;
+        }
       }
       
-      // Wait before retry
-      const delay = 2000; // 2s
+      const delay = 2000;
       console.log(`⏳ Retrying verification in ${delay}ms...`);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
@@ -152,8 +197,38 @@ const checkEmailServiceHealth = async () => {
   }
 };
 
+// Test email function for debugging
+const testEmail = async (testEmailAddress) => {
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+    return { success: false, error: 'Email credentials not configured' };
+  }
+
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: testEmailAddress,
+    subject: 'Test Email - Truviews',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #ff6b35;">Test Email</h2>
+        <p>This is a test email from Truviews.</p>
+        <p>If you receive this, the email service is working correctly.</p>
+        <p>Timestamp: ${new Date().toISOString()}</p>
+        <p>Best regards,<br>The Truviews Team</p>
+      </div>
+    `
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    return { success: false, error: error.message, code: error.code };
+  }
+};
+
 module.exports = {
   sendVerificationOTP,
   sendPasswordResetOTP,
-  checkEmailServiceHealth
+  checkEmailServiceHealth,
+  testEmail
 }; 
