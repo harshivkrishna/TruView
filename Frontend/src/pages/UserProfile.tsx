@@ -48,7 +48,7 @@ interface UserProfileData {
 const UserProfile = () => {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
-  const { currentUser, logout } = useAuth();
+  const { currentUser, logout, updateCurrentUser } = useAuth();
   
   // Helper function to format dates
   const formatDate = (dateString: string | undefined) => {
@@ -236,6 +236,13 @@ const UserProfile = () => {
       // Update local profile state
       setProfile(prev => prev ? { ...prev, ...profileData } : null);
       
+      // Update AuthContext with new user data
+      updateCurrentUser({
+        firstName: editForm.firstName,
+        lastName: editForm.lastName,
+        phoneNumber: editForm.phoneNumber
+      });
+      
       // Refresh profile data from backend to ensure consistency (including avatar)
       try {
         const refreshedProfile = await getUserProfile(userId || '');
@@ -294,6 +301,10 @@ const UserProfile = () => {
       if (newPhotoUrl && profile) {
         // Update the profile state with the new photo URL immediately
         setProfile(prev => prev ? { ...prev, avatar: newPhotoUrl } : null);
+        
+        // Update AuthContext with new avatar (note: User interface doesn't have avatar field, 
+        // but we can store it in localStorage user object for consistency)
+        updateCurrentUser({} as any); // This will trigger a re-read from localStorage
         
         // Also refresh the profile data from backend to ensure consistency
         try {
@@ -423,8 +434,15 @@ const UserProfile = () => {
           <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-4 sm:space-y-0 sm:space-x-6">
             <div className="relative">
               <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
-                {/* Show uploaded avatar if available */}
-                {profile.avatar ? (
+                {/* Show photo preview first if available (when user selects a new photo) */}
+                {photoPreview ? (
+                  <img 
+                    src={photoPreview} 
+                    alt="Preview" 
+                    className="w-full h-full object-cover"
+                  />
+                ) : profile.avatar ? (
+                  /* Show uploaded avatar if available and no preview */
                   <img 
                     key={profile.avatar} // Force re-render when avatar changes
                     src={profile.avatar} 
@@ -437,19 +455,8 @@ const UserProfile = () => {
                       target.nextElementSibling?.classList.remove('hidden');
                     }}
                   />
-                ) : null}
-                
-                {/* Show photo preview if no avatar and preview exists */}
-                {photoPreview && !profile.avatar ? (
-                  <img 
-                    src={photoPreview} 
-                    alt="Preview" 
-                    className="w-full h-full object-cover"
-                  />
-                ) : null}
-                
-                {/* Show default user icon if no avatar and no preview */}
-                {!profile.avatar && !photoPreview && (
+                ) : (
+                  /* Show default user icon if no avatar and no preview */
                   <User className="w-8 h-8 sm:w-12 sm:h-12 text-gray-400" />
                 )}
               </div>

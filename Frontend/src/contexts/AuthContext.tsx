@@ -182,6 +182,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     logout(); // This will handle the redirect to root route
   };
 
+  const updateCurrentUser = (userData: Partial<User>) => {
+    if (currentUser) {
+      const updatedUser = { ...currentUser, ...userData };
+      setCurrentUser(updatedUser);
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+    }
+  };
+
   const value = {
     currentUser,
     loading,
@@ -191,7 +199,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     handleTokenExpiration,
     resetPassword,
     verifyEmail,
-    resendVerification
+    resendVerification,
+    updateCurrentUser
   };
 
   return (
