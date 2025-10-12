@@ -456,9 +456,12 @@ export const loginUser = async (credentials: {
   password: string;
 }) => {
   try {
+    console.log('🌐 API: Sending login request to backend...', credentials);
     const response = await api.post('/auth/login', credentials);
+    console.log('🌐 API: Login response received:', response.data);
     return response.data;
   } catch (error) {
+    console.error('🌐 API: Login request failed:', error);
     throw error;
   }
 };

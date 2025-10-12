@@ -73,6 +73,7 @@ const UserProfile = () => {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [forceUpdate, setForceUpdate] = useState(0);
   
   const [editForm, setEditForm] = useState({
     firstName: '',
@@ -197,10 +198,6 @@ const UserProfile = () => {
     };
   }, [userId]);
 
-  // Debug: Log profile changes
-  useEffect(() => {
-    // Profile state updated
-  }, [profile]);
 
   const handleEditToggle = () => {
     setIsEditing(!isEditing);
@@ -211,7 +208,7 @@ const UserProfile = () => {
     setEditForm(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     try {
       setIsEditing(false);
       
@@ -231,10 +228,17 @@ const UserProfile = () => {
       };
       
       // Update profile in backend
-      await updateUserProfile(profileData);
+      const updatedUser = await updateUserProfile(profileData);
       
-      // Update local profile state
-      setProfile(prev => prev ? { ...prev, ...profileData } : null);
+      // Update local profile state with the backend response (most accurate)
+      if (updatedUser) {
+        setProfile(updatedUser);
+      }
+      
+      // Clear cache to prevent stale data
+      if (userId) {
+        reviewCache.delete(`user-profile-${userId}`);
+      }
       
       // Update AuthContext with new user data
       updateCurrentUser({
@@ -243,22 +247,14 @@ const UserProfile = () => {
         phoneNumber: editForm.phoneNumber
       });
       
-      // Refresh profile data from backend to ensure consistency (including avatar)
-      try {
-        const refreshedProfile = await getUserProfile(userId || '');
-        if (refreshedProfile) {
-          setProfile(refreshedProfile);
-        }
-      } catch (refreshError) {
-        // Handle error silently
-      }
+      // Force a re-render by updating a dummy state
+      setForceUpdate(prev => prev + 1);
       
     } catch (error) {
       // Revert to editing mode on error
       setIsEditing(true);
-      // You can show an error message here
     }
-  };
+  }, [editForm, userId, updateCurrentUser]);
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

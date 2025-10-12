@@ -51,23 +51,25 @@ const LoginModal: React.FC<LoginModalProps> = ({
     setErrorMessage('');
     
     try {
-      const response = await api.post('/auth/login', {
-        email: formData.email,
-        password: formData.password
-      });
+      console.log('🔐 LoginModal: Calling login from AuthContext...');
+      const response = await login(formData.email, formData.password);
+      
+      console.log('🔐 LoginModal: Login response:', response);
 
       // Check if email verification is required
-      if (response.data.requiresVerification) {
+      if (response?.requiresVerification) {
+        console.log('🔐 LoginModal: Email verification required');
         setOtpData({ email: formData.email, otp: '' });
         setShowOTPVerification(true);
         setIsLoading(false);
         return;
       }
 
-      // Normal login flow
-      await login(formData.email, formData.password);
+      // Normal login flow - if token exists, login was successful
+      console.log('🔐 LoginModal: Login successful, closing modal');
       handleClose();
     } catch (error: any) {
+      console.error('🔐 LoginModal: Login error:', error);
       // Handle specific authentication errors
       if (error.response?.status === 429) {
         // Rate limit error

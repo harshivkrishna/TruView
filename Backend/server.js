@@ -67,32 +67,21 @@ const productionOrigins = [
 
 const finalAllowedOrigins = [...new Set([...allowedOrigins, ...productionOrigins])];
 
-console.log('Allowed CORS origins:', finalAllowedOrigins);
-console.log('Environment FRONTEND_URL:', process.env.FRONTEND_URL);
 
 const corsOptions = {
   origin: function (origin, callback) {
     if (!origin) {
-      console.log('CORS: Allowing request with no origin');
       return callback(null, true);
     }
     
-    console.log('CORS: Checking origin:', origin);
-    
     if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
-      console.log('CORS: Localhost origin allowed:', origin);
       return callback(null, true);
     }
     
     if (finalAllowedOrigins.indexOf(origin) !== -1) {
-      console.log('CORS: Origin allowed:', origin);
       callback(null, true);
     } else {
-      console.log('CORS blocked origin:', origin);
-      console.log('Allowed origins:', finalAllowedOrigins);
-      
       if (process.env.NODE_ENV === 'development') {
-        console.log('CORS: Development mode - allowing blocked origin:', origin);
         callback(null, true);
       } else {
         callback(new Error(`Origin ${origin} not allowed by CORS policy`));
@@ -226,21 +215,7 @@ app.get('/api/cors-test', (req, res) => {
   });
 });
 
-app.post('/api/test-email', async (req, res) => {
-  try {
-    const { email } = req.body;
-    if (!email) {
-      return res.status(400).json({ error: 'Email address is required' });
-    }
-
-    const emailService = require('./services/emailService');
-    const result = await emailService.testEmail(email);
-    
-    res.json(result);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+// Email test endpoint removed - using EmailJS on frontend
 
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/reviews', require('./routes/reviews'));

@@ -2,7 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const { sendVerificationOTP, sendPasswordResetOTP } = require('../services/emailService');
+// Email service removed - using EmailJS on frontend
 const router = express.Router();
 
 // Register user
@@ -70,17 +70,15 @@ router.post('/register', async (req, res) => {
     await user.save();
     console.log(`⏱️ User creation (including bcrypt) took ${Date.now() - userCreateStart}ms`);
 
-    // Send verification email asynchronously (don't wait)
-    sendVerificationOTP(email, otp, firstName).catch(err => {
-      console.error('Failed to send verification email (async):', err.message);
-    });
-
     const totalTime = Date.now() - startTime;
     console.log(`✅ Registration completed in ${totalTime}ms`);
 
     res.status(201).json({ 
       message: 'Registration successful. Please check your email for verification OTP.',
-      userId: user._id 
+      userId: user._id,
+      otp: otp, // Return OTP to frontend for EmailJS
+      email: email,
+      firstName: firstName
     });
   } catch (error) {
     console.error('Registration error:', error.message);
@@ -187,13 +185,12 @@ router.post('/resend-verification', async (req, res) => {
 
     await user.save();
 
-    // Send verification email
-    const emailSent = await sendVerificationOTP(email, otp, user.firstName);
-    if (!emailSent) {
-      return res.status(500).json({ message: 'Failed to send verification email' });
-    }
-
-    res.json({ message: 'Verification OTP sent successfully' });
+    res.json({ 
+      message: 'Verification OTP sent successfully',
+      otp: otp, // Return OTP to frontend for EmailJS
+      email: email,
+      firstName: user.firstName
+    });
   } catch (error) {
     // console.error('Resend verification error:', error);
     res.status(500).json({ message: 'Failed to resend verification OTP' });
@@ -245,18 +242,13 @@ router.post('/login', async (req, res) => {
       
       await user.save();
       
-      // Send verification OTP
-      const emailSent = await sendVerificationOTP(user.email, otp, user.firstName);
-      if (!emailSent) {
-        console.error(`❌ Failed to send verification OTP to: ${user.email}`);
-        return res.status(500).json({ message: 'Failed to send verification OTP' });
-      }
-      
-      console.log(`✅ Verification OTP sent to: ${user.email}`);
+      console.log(`✅ Verification OTP generated for: ${user.email}`);
       return res.status(200).json({ 
         message: 'Email verification required. OTP sent to your email.',
         requiresVerification: true,
-        email: user.email
+        email: user.email,
+        otp: otp, // Return OTP to frontend for EmailJS
+        firstName: user.firstName
       });
     }
 
@@ -334,17 +326,13 @@ router.post('/forgot-password', async (req, res) => {
     await user.save();
     console.log(`💾 OTP saved to database for user: ${user.email}`);
 
-    // Send password reset email
-    console.log(`📨 Attempting to send password reset OTP to: ${email}`);
-    const emailSent = await sendPasswordResetOTP(email, otp, user.firstName);
-    
-    if (!emailSent) {
-      console.error(`❌ Failed to send password reset OTP to: ${email}`);
-      return res.status(500).json({ message: 'Failed to send password reset email' });
-    }
-
-    console.log(`✅ Password reset OTP sent successfully to: ${email}`);
-    res.json({ message: 'Password reset OTP sent successfully' });
+    console.log(`✅ Password reset OTP generated for: ${email}`);
+    res.json({ 
+      message: 'Password reset OTP sent successfully',
+      otp: otp, // Return OTP to frontend for EmailJS
+      email: email,
+      firstName: user.firstName
+    });
   } catch (error) {
     console.error('❌ Forgot password error:', error);
     console.error('Error details:', {

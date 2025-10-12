@@ -191,7 +191,7 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
       >
         <div className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden h-full flex flex-col relative">
           {/* Trust Score Badge - Always Visible */}
-          <div className="absolute top-4 right-4 z-50">
+          <div className="absolute top-4 right-4 z-10">
             <div className={`px-3 py-1.5 rounded-full text-sm font-bold bg-white shadow-xl border-2 ${trustLevel.color.includes('bg-') ? `border-${trustLevel.color.split('-')[1]}-500` : 'border-gray-500'}`}>
               <div className="flex items-center gap-1.5">
                 <Award className={`w-4 h-4 ${trustLevel.color.includes('text-') ? trustLevel.color.split(' ')[1] : 'text-gray-600'}`} />
