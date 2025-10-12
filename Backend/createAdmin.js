@@ -6,7 +6,7 @@ require('dotenv').config();
 async function createAdminUser() {
   try {
     // Connect to MongoDB
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/trustpilot-clone');
+    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/truviews');
     // console.log('Connected to MongoDB');
 
     // Check if admin user already exists

@@ -47,8 +47,6 @@ app.use(hpp());
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
-  'https://truview-steel.vercel.app',
-  'https://truview.vercel.app',
   'https://www.truviews.in',
   'https://truviews.in',
   'https://truview-xc01.onrender.com'
@@ -59,8 +57,6 @@ if (process.env.FRONTEND_URL) {
 }
 
 const productionOrigins = [
-  'https://truview-steel.vercel.app',
-  'https://truview.vercel.app',
   'https://www.truviews.in',
   'https://truviews.in'
 ];
@@ -284,7 +280,7 @@ const connectToMongoDB = async () => {
     console.log('🔄 Attempting to connect to MongoDB...');
     console.log('MongoDB URI:', process.env.MONGODB_URI ? 'Using environment variable' : 'Using default localhost');
     
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/trustpilot-clone', mongoOptions);
+    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/truviews', mongoOptions);
     
     console.log('✅ MongoDB connected successfully with optimized settings');
     
@@ -325,7 +321,7 @@ const connectToMongoDB = async () => {
   } catch (err) {
     console.error('❌ Failed to connect to MongoDB:', err.message);
     console.error('Error type:', err.name);
-    console.error('MongoDB URI:', process.env.MONGODB_URI || 'mongodb://localhost:27017/trustpilot-clone');
+    console.error('MongoDB URI:', process.env.MONGODB_URI || 'mongodb://localhost:27017/truviews');
     
     console.log('🔄 Will attempt to reconnect in 5 seconds...');
     setTimeout(() => {
