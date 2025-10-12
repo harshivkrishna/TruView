@@ -10,12 +10,21 @@ const router = express.Router();
 // Check if AWS is configured
 const isAWSConfigured = process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY && process.env.AWS_S3_BUCKET;
 
+// Import only s3Client for basic S3 upload
+let s3Client;
+if (isAWSConfigured) {
+  const { s3Client: s3 } = require('../config/aws');
+  s3Client = s3;
+  console.log('AWS S3 client loaded successfully - using basic S3 URLs');
+} else {
+  console.log('AWS not configured - using local storage');
+}
+
 let profilePhotoUpload;
 
 if (isAWSConfigured) {
   // AWS S3 storage configuration
   const multerS3 = require('multer-s3');
-  const { s3Client, convertToCloudFrontUrl, generateCloudFrontUrl } = require('../config/aws');
   
   profilePhotoUpload = multer({
     storage: multerS3({
@@ -81,10 +90,7 @@ router.get('/me', authenticateToken, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
     
-    // Convert S3 avatar URL to CloudFront URL if needed
-    if (user.avatar && user.avatar.includes('s3.amazonaws.com') && isAWSConfigured) {
-      user.avatar = convertToCloudFrontUrl(user.avatar);
-    }
+    // Avatar URL should already be CloudFront URL from upload
     
     res.json(user);
   } catch (error) {
@@ -123,10 +129,7 @@ router.put('/profile', authenticateToken, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Convert S3 avatar URL to CloudFront URL if needed
-    if (user.avatar && user.avatar.includes('s3.amazonaws.com') && isAWSConfigured) {
-      user.avatar = convertToCloudFrontUrl(user.avatar);
-    }
+    // Avatar URL should already be CloudFront URL from upload
 
     res.json(user);
   } catch (error) {
@@ -135,40 +138,81 @@ router.put('/profile', authenticateToken, async (req, res) => {
 });
 
 // Upload profile photo
-router.post('/profile/photo', authenticateToken, profilePhotoUpload.single('profilePhoto'), async (req, res) => {
+router.post('/profile/photo', authenticateToken, (req, res, next) => {
+  console.log('=== Profile Photo Upload Request ===');
+  console.log('User authenticated:', req.user ? 'Yes' : 'No');
+  console.log('User ID:', req.user?.userId);
+  console.log('User email:', req.userProfile?.email);
+  next();
+}, profilePhotoUpload.single('profilePhoto'), async (req, res) => {
   try {
+    console.log('=== After Multer Middleware ===');
+    console.log('File received:', req.file ? 'Yes' : 'No');
+    
     if (!req.file) {
+      console.error('No file in request');
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
-    // console.log('File uploaded successfully:', req.file);
+    console.log('File details:', {
+      filename: req.file.filename || req.file.key,
+      size: req.file.size,
+      mimetype: req.file.mimetype
+    });
+    console.log('User ID from token:', req.user?.userId);
 
     let avatarUrl;
     if (isAWSConfigured) {
-      // Generate CloudFront URL directly from S3 key
-      const cloudFrontUrl = generateCloudFrontUrl(req.file.key);
-      avatarUrl = cloudFrontUrl || convertToCloudFrontUrl(req.file.location);
+      console.log('Using AWS S3 storage');
+      console.log('File key:', req.file.key);
+      console.log('File location:', req.file.location);
+      
+      // Create CloudFront URL directly using string construction
+      const cloudFrontDomain = process.env.AWS_CLOUDFRONT_DOMAIN;
+      if (cloudFrontDomain && req.file.key) {
+        avatarUrl = `https://${cloudFrontDomain}/${req.file.key}`;
+        console.log('Generated CloudFront URL:', avatarUrl);
+      } else {
+        // Fallback to S3 URL if CloudFront domain not configured
+        avatarUrl = req.file.location;
+        console.log('Using S3 URL (CloudFront not configured):', avatarUrl);
+      }
     } else {
+      console.log('Using local storage');
       // Local storage response
       const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
       avatarUrl = `${baseUrl}/uploads/profile-photos/${req.file.filename}`;
+      console.log('Generated local avatar URL:', avatarUrl);
+    }
+
+    console.log('Generated avatar URL:', avatarUrl);
+    console.log('Attempting to update user with ID:', req.user.userId);
+
+    // First, check if user exists
+    const existingUser = await User.findById(req.user.userId);
+    console.log('User exists before update:', existingUser ? 'Yes' : 'No');
+    
+    if (!existingUser) {
+      console.error('User not found with ID:', req.user.userId);
+      return res.status(404).json({ message: 'Profile not found. Please try logging in again.' });
     }
 
     // Update user profile with new avatar URL
     const user = await User.findByIdAndUpdate(
       req.user.userId,
       { avatar: avatarUrl },
-      { new: true }
+      { new: true, runValidators: false }
     ).select('-password');
 
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      console.error('User update failed for ID:', req.user.userId);
+      return res.status(500).json({ message: 'Failed to update profile with new photo.' });
     }
 
-    // console.log('User updated with new avatar:', user.avatar);
-    res.json(user);
+    console.log('User updated successfully with new avatar:', user.avatar);
+    res.json({ avatar: user.avatar, photoUrl: user.avatar, user });
   } catch (error) {
-    // console.error('Profile photo upload error:', error);
+    console.error('Profile photo upload error:', error);
     res.status(500).json({ message: 'Failed to upload profile photo', error: error.message });
   }
 });
@@ -192,10 +236,7 @@ router.get('/:userId/profile', async (req, res) => {
     if (!profileData.trustScore) profileData.trustScore = 50;
     if (!profileData.isPublicProfile) profileData.isPublicProfile = true;
 
-    // Convert S3 avatar URL to CloudFront URL if needed
-    if (profileData.avatar && profileData.avatar.includes('s3.amazonaws.com') && isAWSConfigured) {
-      profileData.avatar = convertToCloudFrontUrl(profileData.avatar);
-    }
+    // Avatar URL should already be CloudFront URL from upload
 
     res.json(profileData);
   } catch (error) {

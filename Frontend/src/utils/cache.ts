@@ -137,12 +137,9 @@ export const getCachedData = async <T>(
   // Try to get from cache first
   const cached = cache.get(key);
   if (cached) {
-    console.log(`✅ Cache hit for key: ${key}`);
     return cached;
   }
 
-  console.log(`❌ Cache miss for key: ${key}, fetching...`);
-  
   // Fetch fresh data
   const data = await fetchFunction();
   
@@ -154,8 +151,6 @@ export const getCachedData = async <T>(
 
 // Cache warming functions
 export const warmCache = async () => {
-  console.log('🔥 Warming up cache...');
-  
   try {
     // Pre-load critical data
     const criticalData = [
@@ -168,28 +163,21 @@ export const warmCache = async () => {
         getCachedData(cache, key, fetch)
       )
     );
-
-    console.log('✅ Cache warmed up successfully');
   } catch (error) {
-    console.error('❌ Cache warming failed:', error);
+    // Cache warming failed
   }
 };
 
 // Cache cleanup
 export const cleanupCache = () => {
-  console.log('🧹 Cleaning up cache...');
-  
   const caches = [reviewCache, userCache, categoryCache, leaderboardCache];
   
   caches.forEach(cache => {
     const stats = cache.getStats();
-    console.log(`Cache stats:`, stats);
     
     // Clear expired items (handled automatically by TTL)
     // This is just for logging
   });
-  
-  console.log('✅ Cache cleanup completed');
 };
 
 // Performance monitoring

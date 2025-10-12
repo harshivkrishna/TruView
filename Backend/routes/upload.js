@@ -7,16 +7,7 @@ const router = express.Router();
 // Check if AWS is configured
 const isAWSConfigured = process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY && process.env.AWS_S3_BUCKET;
 
-// Import CloudFront functions at top level
-let convertToCloudFrontUrl, generateCloudFrontUrl;
-if (isAWSConfigured) {
-  const { convertToCloudFrontUrl: converter, generateCloudFrontUrl: generator } = require('../config/aws');
-  convertToCloudFrontUrl = converter;
-  generateCloudFrontUrl = generator;
-} else {
-  convertToCloudFrontUrl = (url) => url;
-  generateCloudFrontUrl = (key) => null;
-}
+// No CloudFront functions needed - multer-s3 will handle URLs directly
 
 let storage;
 let upload;
@@ -100,17 +91,26 @@ router.post('/', upload.array('media', 5), (err, req, res, next) => {
 
     const uploadedFiles = req.files.map(file => {
       if (isAWSConfigured) {
-        // Generate CloudFront URL directly from S3 key
-        const cloudFrontUrl = generateCloudFrontUrl(file.key) || convertToCloudFrontUrl(file.location);
-        const urlWithCacheBust = cloudFrontUrl.includes('?') ? `${cloudFrontUrl}&t=${Date.now()}` : `${cloudFrontUrl}?t=${Date.now()}`;
+        // Create CloudFront URL directly using string construction
+        const cloudFrontDomain = process.env.AWS_CLOUDFRONT_DOMAIN;
+        let finalUrl;
+        
+        if (cloudFrontDomain && file.key) {
+          finalUrl = `https://${cloudFrontDomain}/${file.key}`;
+        } else {
+          // Fallback to S3 URL if CloudFront domain not configured
+          finalUrl = file.location;
+        }
+        
+        const urlWithCacheBust = finalUrl.includes('?') ? `${finalUrl}&t=${Date.now()}` : `${finalUrl}?t=${Date.now()}`;
         
         return {
           type: file.mimetype.startsWith('video') ? 'video' : 'image',
           url: urlWithCacheBust, // CloudFront URL with cache busting
           filename: file.key,  // S3 key
           bucket: file.bucket,
-          originalUrl: file.location, // Keep original S3 URL for fallback
-          cloudFrontUrl: cloudFrontUrl // CloudFront URL without cache busting
+          originalUrl: finalUrl, // CloudFront URL
+          cloudFrontUrl: finalUrl // CloudFront URL without cache busting
         };
       } else {
         // Local storage response

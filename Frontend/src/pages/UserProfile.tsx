@@ -274,6 +274,7 @@ const UserProfile = () => {
     
     try {
       setUploadingPhoto(true);
+      setError(null); // Clear any previous errors
       
       const formData = new FormData();
       formData.append('profilePhoto', photoFile);
@@ -290,6 +291,8 @@ const UserProfile = () => {
         newPhotoUrl = response.url;
       } else if (response.imageUrl) {
         newPhotoUrl = response.imageUrl;
+      } else if (response.user?.avatar) {
+        newPhotoUrl = response.user.avatar;
       } else if (typeof response === 'string') {
         newPhotoUrl = response;
       }
@@ -311,17 +314,22 @@ const UserProfile = () => {
         } catch (refreshError) {
           // Handle error silently
         }
-      } else {
-        // Handle invalid response silently
       }
       
       // Clear file and preview only after successful update
       setPhotoFile(null);
       setPhotoPreview(null);
       
-    } catch (error) {
-      // Show error message to user
-      setError('Failed to upload photo. Please try again.');
+    } catch (error: any) {
+      // Show detailed error message to user
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to upload photo. Please try again.';
+      setError(errorMessage);
+      
+      // If it's an authentication error, suggest re-login
+      if (error.response?.status === 404 || error.response?.status === 401) {
+        setError('Session expired. Please log out and log in again to upload a photo.');
+      }
+      
       // Keep the file for retry
     } finally {
       setUploadingPhoto(false);

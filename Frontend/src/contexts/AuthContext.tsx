@@ -92,38 +92,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem('pendingUserId', response.userId);
         
         // Send verification email using EmailJS
-        console.log('📧 Checking email sending conditions:', {
-          hasOtp: !!response.otp,
-          hasEmail: !!response.email,
-          hasFirstName: !!response.firstName,
-          otp: response.otp,
-          email: response.email,
-          firstName: response.firstName
-        });
-        
         if (response.otp && response.email && response.firstName) {
           try {
-            console.log('📧 Calling emailService.sendVerificationOTP...');
             const emailResult = await emailService.sendVerificationOTP(
               response.email,
               response.otp,
               response.firstName
             );
             
-            console.log('📧 Email result:', emailResult);
-            
             if (!emailResult.success) {
-              console.error('Failed to send verification email:', emailResult.error);
               // Don't throw error - user can still verify manually
-            } else {
-              console.log('✅ Verification email sent successfully!');
             }
           } catch (emailError) {
-            console.error('EmailJS error:', emailError);
             // Don't throw error - user can still verify manually
           }
-        } else {
-          console.error('❌ Missing required fields for email sending');
         }
         
         return response;
@@ -136,22 +118,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const login = async (email: string, password: string) => {
-    console.log('🔐 AuthContext: login function called with:', { email });
     setLoading(true);
     try {
       const response = await api.loginUser({ email, password });
       
       // Check if email verification is required
-      console.log('🔐 Login response:', response);
-      console.log('🔐 Verification check:', {
-        requiresVerification: response.requiresVerification,
-        hasOtp: !!response.otp,
-        hasEmail: !!response.email,
-        hasFirstName: !!response.firstName
-      });
-      
       if (response.requiresVerification && response.otp && response.email && response.firstName) {
-        console.log('📧 Login: Sending verification email...');
         // Send verification email using EmailJS
         try {
           const emailResult = await emailService.sendVerificationOTP(
@@ -160,16 +132,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             response.firstName
           );
           
-          console.log('📧 Login: Email result:', emailResult);
-          
           if (!emailResult.success) {
-            console.error('Failed to send verification email:', emailResult.error);
             // Don't throw error - user can still verify manually
-          } else {
-            console.log('✅ Login: Verification email sent successfully!');
           }
         } catch (emailError) {
-          console.error('EmailJS error:', emailError);
           // Don't throw error - user can still verify manually
         }
         
@@ -220,11 +186,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           );
           
           if (!emailResult.success) {
-            console.error('Failed to send password reset email:', emailResult.error);
             // Don't throw error - user can still reset manually
           }
         } catch (emailError) {
-          console.error('EmailJS error:', emailError);
           // Don't throw error - user can still reset manually
         }
       }
@@ -274,11 +238,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           );
           
           if (!emailResult.success) {
-            console.error('Failed to send verification email:', emailResult.error);
             // Don't throw error - user can still verify manually
           }
         } catch (emailError) {
-          console.error('EmailJS error:', emailError);
           // Don't throw error - user can still verify manually
         }
       }

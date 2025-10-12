@@ -26,15 +26,7 @@ const convertToCloudFrontUrl = (s3Url) => {
   return cloudFrontUrl;
 };
 
-// Generate CloudFront URL directly from key
-const generateCloudFrontUrl = (key) => {
-  if (!process.env.AWS_CLOUDFRONT_DOMAIN) {
-    console.warn('AWS_CLOUDFRONT_DOMAIN not configured. Cannot generate CloudFront URL for key:', key);
-    return null;
-  }
-  
-  return `https://${process.env.AWS_CLOUDFRONT_DOMAIN}/${key}`;
-};
+// Removed generateCloudFrontUrl - using direct CloudFront URLs in multer-s3 configuration
 
 // Upload file to S3
 const uploadToS3 = async (buffer, fileName, contentType) => {
@@ -62,4 +54,4 @@ const uploadToS3 = async (buffer, fileName, contentType) => {
   }
 };
 
-module.exports = { s3Client, uploadToS3, convertToCloudFrontUrl, generateCloudFrontUrl };
+module.exports = { s3Client, uploadToS3, convertToCloudFrontUrl };

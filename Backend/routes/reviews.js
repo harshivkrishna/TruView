@@ -8,38 +8,7 @@ const router = express.Router();
 // Check if AWS is configured
 const isAWSConfigured = process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY && process.env.AWS_S3_BUCKET;
 
-// Import CloudFront URL converter
-let convertToCloudFrontUrl;
-if (isAWSConfigured) {
-  const { convertToCloudFrontUrl: converter } = require('../config/aws');
-  convertToCloudFrontUrl = converter;
-} else {
-  convertToCloudFrontUrl = (url) => url; // Return original URL if AWS not configured
-}
-
-// Helper function to convert S3 URLs to CloudFront URLs in review data
-const convertReviewUrls = (review) => {
-  if (!review) return review;
-  
-  const reviewObj = review.toObject ? review.toObject() : review;
-  
-  // Convert author avatar URL
-  if (reviewObj.author && reviewObj.author.avatar && reviewObj.author.avatar.includes('s3.amazonaws.com')) {
-    reviewObj.author.avatar = convertToCloudFrontUrl(reviewObj.author.avatar);
-  }
-  
-  // Convert media URLs
-  if (reviewObj.media && Array.isArray(reviewObj.media)) {
-    reviewObj.media = reviewObj.media.map(media => {
-      if (media.url && media.url.includes('s3.amazonaws.com')) {
-        return { ...media, url: convertToCloudFrontUrl(media.url) };
-      }
-      return media;
-    });
-  }
-  
-  return reviewObj;
-};
+// No URL conversion needed - URLs should already be CloudFront URLs from upload
 
 // Get all reviews
 router.get('/', async (req, res) => {
@@ -107,8 +76,8 @@ router.get('/', async (req, res) => {
         };
       }
       
-      // Convert S3 URLs to CloudFront URLs
-      return convertReviewUrls(reviewObj);
+      // URLs should already be CloudFront URLs from upload
+      return reviewObj;
     });
     
     console.log(`Fetched ${formattedReviews.length} reviews out of ${totalCount} total`);
@@ -352,10 +321,8 @@ router.get('/:id', async (req, res) => {
     const totalTime = Date.now() - startTime;
     console.log(`✅ Review ${reviewId} fetched in ${totalTime}ms`);
     
-    // Convert S3 URLs to CloudFront URLs
-    const convertedReview = convertReviewUrls(reviewObj);
-    
-    res.json(convertedReview);
+    // URLs should already be CloudFront URLs from upload
+    res.json(reviewObj);
   } catch (error) {
     console.error('Error fetching review:', error.message);
     console.error('Error stack:', error.stack);
@@ -409,10 +376,8 @@ router.post('/', authenticateToken, async (req, res) => {
       reviewObj.author.userId = reviewObj.author.userId._id;
     }
     
-    // Convert S3 URLs to CloudFront URLs
-    const convertedReview = convertReviewUrls(reviewObj);
-    
-    res.status(201).json(convertedReview);
+    // URLs should already be CloudFront URLs from upload
+    res.status(201).json(reviewObj);
   } catch (error) {
     res.status(400).json({ message: error.message });
   }

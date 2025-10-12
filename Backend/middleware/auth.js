@@ -6,28 +6,32 @@ const authenticateToken = async (req, res, next) => {
     const authHeader = req.headers.authorization;
     const token = authHeader && authHeader.split(' ')[1];
 
-    // console.log('Auth header:', authHeader);
-    // console.log('Token:', token);
+    console.log('Auth header:', authHeader ? 'Present' : 'Missing');
+    console.log('Token:', token ? 'Present' : 'Missing');
 
     if (!token) {
       return res.status(401).json({ message: 'Access token required' });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-    // console.log('Decoded token:', decoded);
+    console.log('Decoded token userId:', decoded.userId);
     
     const user = await User.findById(decoded.userId);
-    // console.log('Found user:', user);
+    console.log('Found user:', user ? `Yes (${user.email})` : 'No');
     
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      console.error('User not found in database with ID:', decoded.userId);
+      return res.status(404).json({ message: 'User not found. Please log in again.' });
     }
     
     req.user = decoded; // Store decoded token info
     req.userProfile = user; // Store full user profile
     return next();
   } catch (error) {
-    // console.error('Auth error:', error);
+    console.error('Auth error:', error.message);
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ message: 'Token expired. Please log in again.' });
+    }
     return res.status(403).json({ message: 'Invalid token' });
   }
 };

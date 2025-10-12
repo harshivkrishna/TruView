@@ -1,4 +1,4 @@
-const { convertToCloudFrontUrl, generateCloudFrontUrl } = require('../config/aws');
+// No function imports - using direct string construction for CloudFront URLs
 
 // Check CloudFront configuration
 const checkCloudFrontConfig = () => {
@@ -18,14 +18,13 @@ const checkCloudFrontConfig = () => {
   } else if (isAWSConfigured && isCloudFrontConfigured) {
     console.log('✅ CloudFront is properly configured');
     
-    // Test URL conversion
-    const testS3Url = `https://${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION || 'us-east-1'}.amazonaws.com/test-image.jpg`;
+    // Test URL construction
     const testKey = 'test-image.jpg';
+    const cloudFrontUrl = `https://${process.env.AWS_CLOUDFRONT_DOMAIN}/${testKey}`;
     
-    console.log('Testing URL conversion:');
-    console.log('S3 URL:', testS3Url);
-    console.log('Converted CloudFront URL:', convertToCloudFrontUrl(testS3Url));
-    console.log('Generated CloudFront URL:', generateCloudFrontUrl(testKey));
+    console.log('Testing CloudFront URL construction:');
+    console.log('Test Key:', testKey);
+    console.log('CloudFront URL:', cloudFrontUrl);
   } else if (!isAWSConfigured) {
     console.log('ℹ️  AWS not configured - using local storage');
   }

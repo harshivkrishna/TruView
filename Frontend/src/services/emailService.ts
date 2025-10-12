@@ -10,14 +10,6 @@ const EMAILJS_TEMPLATES = {
   PASSWORD_RESET: import.meta.env.VITE_EMAILJS_PASSWORD_RESET_TEMPLATE_ID || 'password_reset_otp'
 };
 
-// Debug: Log all environment variables
-console.log('🔍 Environment Variables Debug:');
-console.log('import.meta.env:', import.meta.env);
-console.log('VITE_EMAILJS_SERVICE_ID:', import.meta.env.VITE_EMAILJS_SERVICE_ID);
-console.log('VITE_EMAILJS_PUBLIC_KEY:', import.meta.env.VITE_EMAILJS_PUBLIC_KEY);
-console.log('VITE_EMAILJS_VERIFICATION_TEMPLATE_ID:', import.meta.env.VITE_EMAILJS_VERIFICATION_TEMPLATE_ID);
-console.log('VITE_EMAILJS_PASSWORD_RESET_TEMPLATE_ID:', import.meta.env.VITE_EMAILJS_PASSWORD_RESET_TEMPLATE_ID);
-
 // Initialize EmailJS
 emailjs.init(EMAILJS_PUBLIC_KEY);
 
@@ -49,14 +41,7 @@ class EmailService {
   }
 
   private async sendEmail(templateParams: EmailTemplateParams, templateId?: string): Promise<EmailResult> {
-    console.log('🔍 EmailJS Configuration Check:');
-    console.log('Service ID:', EMAILJS_SERVICE_ID);
-    console.log('Public Key:', EMAILJS_PUBLIC_KEY);
-    console.log('Template ID:', templateId || EMAILJS_TEMPLATES.VERIFICATION_OTP);
-    console.log('Template Params:', JSON.stringify(templateParams, null, 2));
-    
     if (!this.isConfigured()) {
-      console.error('❌ EmailJS not configured properly');
       return {
         success: false,
         message: 'EmailJS not configured',
@@ -65,7 +50,6 @@ class EmailService {
     }
 
     try {
-      console.log('📤 Attempting to send email via EmailJS...');
       const result = await emailjs.send(
         EMAILJS_SERVICE_ID,
         templateId || EMAILJS_TEMPLATES.VERIFICATION_OTP,
@@ -73,19 +57,11 @@ class EmailService {
         EMAILJS_PUBLIC_KEY
       );
 
-      console.log('✅ Email sent successfully:', result);
       return {
         success: true,
         message: 'Email sent successfully'
       };
     } catch (error: any) {
-      console.error('❌ Email sending failed:', error);
-      console.error('Error details:', {
-        message: error.message,
-        status: error.status,
-        text: error.text,
-        response: error.response
-      });
       return {
         success: false,
         message: 'Failed to send email',
@@ -109,7 +85,6 @@ class EmailService {
       from_email: 'truviews.responder@gmail.com'
     };
 
-    console.log('📧 Sending verification OTP with params:', templateParams);
     return this.sendEmail(templateParams, EMAILJS_TEMPLATES.VERIFICATION_OTP);
   }
 

@@ -4,9 +4,6 @@ import { getAnonymousId } from '../utils/anonymousId';
 // Use environment variable or fallback to localhost for development
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-console.log('API Base URL:', API_BASE_URL);
-console.log('Environment VITE_API_URL:', import.meta.env.VITE_API_URL);
-
 const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000, // Increased from 10s to 30s
@@ -456,12 +453,9 @@ export const loginUser = async (credentials: {
   password: string;
 }) => {
   try {
-    console.log('🌐 API: Sending login request to backend...', credentials);
     const response = await api.post('/auth/login', credentials);
-    console.log('🌐 API: Login response received:', response.data);
     return response.data;
   } catch (error) {
-    console.error('🌐 API: Login request failed:', error);
     throw error;
   }
 };
