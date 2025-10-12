@@ -50,13 +50,25 @@ interface PaginationData {
   hasPrevPage: boolean;
 }
 
+interface AdvancedFilters {
+  query?: string;
+  category?: string;
+  subcategory?: string;
+  rating?: string;
+  dateRange?: string;
+  tags?: string[];
+  location?: string;
+  companyName?: string;
+  sortBy?: string;
+}
+
 const CategoryBrowser: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedSubcategory, setSelectedSubcategory] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
-  const [appliedFilters, setAppliedFilters] = useState({});
+  const [appliedFilters, setAppliedFilters] = useState<AdvancedFilters>({});
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -102,9 +114,21 @@ const CategoryBrowser: React.FC = () => {
       setLoadingMore(true);
       
       const queryParams: any = { page, limit: 15 };
+      
+      // Apply basic filters
       if (selectedCategory) queryParams.category = selectedCategory;
       if (selectedSubcategory) queryParams.subcategory = selectedSubcategory;
       if (searchQuery) queryParams.query = searchQuery;
+      
+      // Apply advanced filters
+      if (appliedFilters && Object.keys(appliedFilters).length > 0) {
+        if (appliedFilters.rating) queryParams.rating = appliedFilters.rating;
+        if (appliedFilters.dateRange) queryParams.dateRange = appliedFilters.dateRange;
+        if (appliedFilters.tags && appliedFilters.tags.length > 0) queryParams.tags = appliedFilters.tags.join(',');
+        if (appliedFilters.location) queryParams.location = appliedFilters.location;
+        if (appliedFilters.companyName) queryParams.companyName = appliedFilters.companyName;
+        if (appliedFilters.sortBy) queryParams.sortBy = appliedFilters.sortBy;
+      }
       
       // Create cache key based on query parameters
       const cacheKey = `reviews-${JSON.stringify(queryParams)}`;
@@ -139,7 +163,7 @@ const CategoryBrowser: React.FC = () => {
     } finally {
       setLoadingMore(false);
     }
-  }, [selectedCategory, selectedSubcategory, searchQuery]);
+  }, [selectedCategory, selectedSubcategory, searchQuery, appliedFilters]);
 
   // Read category and subcategory from URL query parameters on component mount
   useEffect(() => {
@@ -212,7 +236,7 @@ const CategoryBrowser: React.FC = () => {
     if (!loading) {
       fetchReviews(1, true);
     }
-  }, [selectedCategory, selectedSubcategory, searchQuery, fetchReviews, loading]);
+  }, [selectedCategory, selectedSubcategory, searchQuery, appliedFilters, fetchReviews, loading]);
 
   // Intersection Observer for infinite scroll
   useEffect(() => {
@@ -254,24 +278,44 @@ const CategoryBrowser: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleAdvancedSearch = (filters: any) => {
+  const handleAdvancedSearch = (filters: AdvancedFilters) => {
     setAppliedFilters(filters);
+    
+    // Update basic filter states
     if (filters.category) {
       setSelectedCategory(filters.category);
-      setSearchParams({ category: filters.category, ...(filters.subcategory && { subcategory: filters.subcategory }) });
     } else {
       setSelectedCategory('');
-      setSelectedSubcategory('');
-      setSearchParams({});
     }
+    
+    if (filters.subcategory) {
+      setSelectedSubcategory(filters.subcategory);
+    } else {
+      setSelectedSubcategory('');
+    }
+    
     if (filters.query) {
       setSearchQuery(filters.query);
+    } else {
+      setSearchQuery('');
+    }
+    
+    // Update URL params for category and subcategory
+    if (filters.category) {
+      setSearchParams({ 
+        category: filters.category, 
+        ...(filters.subcategory && { subcategory: filters.subcategory }) 
+      });
+    } else {
+      setSearchParams({});
     }
   };
 
   const handleCategoryChange = (category: string) => {
     setSelectedCategory(category);
     setSelectedSubcategory('');
+    // Clear advanced filters when changing basic filters
+    setAppliedFilters({ category });
     if (category) {
       setSearchParams({ category });
     } else {
@@ -281,6 +325,8 @@ const CategoryBrowser: React.FC = () => {
 
   const handleSubcategoryChange = (subcategory: string) => {
     setSelectedSubcategory(subcategory);
+    // Update advanced filters when changing subcategory
+    setAppliedFilters({ category: selectedCategory, subcategory });
     if (subcategory) {
       setSearchParams({ category: selectedCategory, subcategory });
     } else {

@@ -7,6 +7,7 @@ import { toast } from 'react-hot-toast';
 import { ThumbsUp, Eye, Share2, Flag, User, Calendar, ArrowLeft, Award } from 'lucide-react';
 import MediaCarousel from '../components/MediaCarousel';
 import SocialShareModal from '../components/SocialShareModal';
+import LoginModal from '../components/auth/LoginModal';
 import { calculateTrustScore, getTrustLevel } from '../utils/trustPrediction';
 import { updateMetaTags, generateReviewStructuredData, addStructuredData } from '../utils/seo';
 import { getCachedData, reviewCache } from '../utils/cache';
@@ -24,6 +25,7 @@ const ReviewDetail = () => {
   const [hasUpvoted, setHasUpvoted] = useState(false);
   const [viewIncremented, setViewIncremented] = useState(false);
   const [isUpvoting, setIsUpvoting] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   // Mobile-first responsive styles for media carousel
   const customStyles = `
@@ -402,7 +404,7 @@ const ReviewDetail = () => {
   const handleUpvote = useCallback(async () => {
     // Check if user is logged in
     if (!currentUser) {
-      toast.error('Please log in to like reviews');
+      setShowLoginModal(true);
       return;
     }
 
@@ -412,12 +414,13 @@ const ReviewDetail = () => {
     }
 
     setIsUpvoting(true);
+    
+    // Store previous values for potential rollback
+    const previousUpvotes = review?.upvotes || 0;
+    const previousHasUpvoted = hasUpvoted;
+    
     try {
       if (!id) return;
-      
-      // Optimistic update for better UX
-      const previousUpvotes = review?.upvotes || 0;
-      const previousHasUpvoted = hasUpvoted;
       
       // Update UI immediately
       setReview(prev => prev ? {
@@ -466,7 +469,9 @@ const ReviewDetail = () => {
       setHasUpvoted(previousHasUpvoted);
       
       if (error.response?.status === 401) {
-        toast.error('Please log in to like reviews');
+        setShowLoginModal(true);
+      } else if (error.response?.status === 403) {
+        toast.error(error.response?.data?.message || 'You cannot upvote this review');
       } else {
         toast.error('Failed to like review');
       }
@@ -746,6 +751,22 @@ const ReviewDetail = () => {
         <ReportModal
           onSubmit={handleReport}
           onClose={() => setShowReportModal(false)}
+        />
+      )}
+
+      {/* Login Modal */}
+      {showLoginModal && (
+        <LoginModal
+          isOpen={showLoginModal}
+          onClose={() => setShowLoginModal(false)}
+          onSwitchToRegister={() => {
+            setShowLoginModal(false);
+            // Could add register modal here if needed
+          }}
+          onSwitchToForgotPassword={() => {
+            setShowLoginModal(false);
+            // Could add forgot password modal here if needed
+          }}
         />
       )}
     </div>

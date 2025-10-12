@@ -23,14 +23,136 @@ router.get('/', async (req, res) => {
       });
     }
 
-    const { category, subcategory, tag, sort = 'createdAt', page = 1, limit = 15 } = req.query;
+    const { 
+      category, 
+      subcategory, 
+      tag, 
+      tags, 
+      rating, 
+      dateRange, 
+      location, 
+      companyName, 
+      query: searchQuery,
+      sort = 'createdAt', 
+      sortBy,
+      page = 1, 
+      limit = 15 
+    } = req.query;
+    
     let query = {};
     
+    // Basic filters
     if (category) query.category = category;
     if (subcategory) query.subcategory = subcategory;
     if (tag) query.tags = { $in: [tag] };
     
+    // Advanced filters
+    if (tags) {
+      const tagArray = tags.split(',').map(t => t.trim());
+      query.tags = { $in: tagArray };
+    }
+    
+    if (rating) {
+      const ratingValue = parseInt(rating);
+      if (ratingValue >= 1 && ratingValue <= 5) {
+        query.rating = { $gte: ratingValue };
+      }
+    }
+    
+    if (dateRange) {
+      const now = new Date();
+      let startDate;
+      
+      switch (dateRange) {
+        case 'week':
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case 'month':
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          break;
+        case 'year':
+          startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+          break;
+      }
+      if (startDate) {
+        query.createdAt = { $gte: startDate };
+      }
+    }
+    
+    if (companyName) {
+      query.companyName = { $regex: companyName, $options: 'i' };
+    }
+    
+    // Handle text search and location with proper $and/$or logic
+    const orConditions = [];
+    
+    if (searchQuery) {
+      orConditions.push(
+        { title: { $regex: searchQuery, $options: 'i' } },
+        { description: { $regex: searchQuery, $options: 'i' } },
+        { companyName: { $regex: searchQuery, $options: 'i' } }
+      );
+    }
+    
+    if (location) {
+      orConditions.push(
+        { 'author.location': { $regex: location, $options: 'i' } },
+        { location: { $regex: location, $options: 'i' } }
+      );
+    }
+    
+    if (orConditions.length > 0) {
+      if (searchQuery && location) {
+        // Both search and location: use $and with separate $or for each
+        query.$and = [
+          { $or: [
+            { title: { $regex: searchQuery, $options: 'i' } },
+            { description: { $regex: searchQuery, $options: 'i' } },
+            { companyName: { $regex: searchQuery, $options: 'i' } }
+          ]},
+          { $or: [
+            { 'author.location': { $regex: location, $options: 'i' } },
+            { location: { $regex: location, $options: 'i' } }
+          ]}
+        ];
+      } else {
+        // Only one of them: use simple $or
+        query.$or = orConditions.flat();
+      }
+    }
+    
+    // Determine sort field
+    const sortField = sortBy || sort;
+    let sortObject = {};
+    
+    switch (sortField) {
+      case 'rating':
+        sortObject = { rating: -1, createdAt: -1 };
+        break;
+      case 'upvotes':
+        sortObject = { upvotes: -1, createdAt: -1 };
+        break;
+      case 'views':
+        sortObject = { views: -1, createdAt: -1 };
+        break;
+      case 'trustScore':
+        sortObject = { trustScore: -1, createdAt: -1 };
+        break;
+      case 'oldest':
+        sortObject = { createdAt: 1 };
+        break;
+      case 'newest':
+      case 'createdAt':
+      default:
+        sortObject = { createdAt: -1 };
+        break;
+    }
+    
     const skip = (parseInt(page) - 1) * parseInt(limit);
+    
+    // Log the constructed query for debugging
+    console.log('Reviews query:', JSON.stringify(query, null, 2));
+    console.log('Sort object:', sortObject);
     
     const [reviews, totalCount] = await Promise.all([
       Review.find(query)
@@ -40,7 +162,7 @@ router.get('/', async (req, res) => {
           options: { strictPopulate: false }
         })
         .select('title description rating category subcategory tags author upvotes views trustScore createdAt updatedAt media')
-        .sort({ [sort]: -1 })
+        .sort(sortObject)
         .skip(skip)
         .limit(parseInt(limit))
         .lean()
@@ -399,6 +521,14 @@ router.patch('/:id/upvote', authenticateToken, async (req, res) => {
     const reviewId = req.params.id;
     const userId = req.user.userId;
 
+    // Check if this is an admin user (can't be tracked in upvotedBy due to ObjectId requirement)
+    if (userId === 'admin') {
+      return res.status(403).json({ 
+        message: 'Admin users cannot upvote reviews',
+        reason: 'Admin accounts are for moderation purposes only'
+      });
+    }
+
     // Use atomic update for better performance
     const review = await Review.findById(reviewId)
       .select('upvotedBy upvotes')
@@ -496,22 +626,33 @@ router.patch('/:id/view', async (req, res, next) => {
     
     // Get user identifier (either from auth token or from request body)
     let userId = null;
+    let shouldTrackView = true;
+    
     if (req.user?.userId) {
       // Authenticated user
       userId = req.user.userId;
+      console.log('View request from authenticated user:', userId);
+      
+      // Skip view tracking for admin users (admin userId is not a valid ObjectId)
+      if (userId === 'admin') {
+        shouldTrackView = false;
+        console.log('Admin user detected - skipping individual view tracking');
+      }
     } else if (req.body.anonymousId) {
       // Anonymous user with persistent ID
       userId = `anon_${req.body.anonymousId}`;
+      shouldTrackView = false; // Anonymous users also can't be tracked in viewedBy (ObjectId required)
+      console.log('Anonymous user detected:', userId);
     }
     
-    if (userId) {
+    if (userId && shouldTrackView) {
       // Check if user has already viewed this review
       const hasViewed = review.viewedBy.some(view => 
         view.userId.toString() === userId.toString()
       );
       
       if (!hasViewed) {
-        // Add new view
+        // Add new view (only for regular users with valid ObjectId)
         review.viewedBy.push({ 
           userId: userId, 
           viewedAt: new Date() 
@@ -532,6 +673,17 @@ router.patch('/:id/view', async (req, res, next) => {
           newView: false 
         });
       }
+    } else if (userId && !shouldTrackView) {
+      // Admin users or anonymous users - increment view count but don't track individually
+      review.views = (review.views || 0) + 1;
+      await review.save();
+      
+      res.json({ 
+        success: true, 
+        views: review.views,
+        newView: true,
+        tracked: false // Indicate that this view wasn't individually tracked
+      });
     } else {
       // No user identifier, just return current count
       res.json({ 

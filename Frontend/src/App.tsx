@@ -49,11 +49,7 @@ const App: React.FC = () => {
                     <UserProfile />
                   </ProtectedRoute>
                 } />
-                <Route path="/admin" element={
-                  <ProtectedRoute adminOnly={true}>
-                    <AdminDashboard />
-                  </ProtectedRoute>
-                } />
+                <Route path="/admin" element={<AdminDashboard />} />
               </Routes>
             </Suspense>
             <Toaster position="top-right" />

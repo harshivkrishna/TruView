@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import * as api from '../services/api';
 import { clearAnonymousId } from '../utils/anonymousId';
 import { emailService } from '../services/emailService';
@@ -13,14 +13,24 @@ interface User {
   emailVerified: boolean;
 }
 
+interface LoginResponse {
+  message: string;
+  token?: string;
+  user?: User;
+  requiresVerification?: boolean;
+  email?: string;
+  otp?: string;
+  firstName?: string;
+}
+
 interface AuthContextType {
   currentUser: User | null;
   loading: boolean;
-  signup: (email: string, password: string, userData: any) => Promise<void>;
-  login: (email: string, password: string) => Promise<void>;
+  signup: (email: string, password: string, userData: any) => Promise<any>;
+  login: (email: string, password: string) => Promise<LoginResponse>;
   logout: () => void;
   handleTokenExpiration: () => void;
-  resetPassword: (email: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<any>;
   verifyEmail: (email: string, otp: string) => Promise<{ token: string; user: User }>;
   resendVerification: (email: string) => Promise<any>;
   updateCurrentUser: (userData: Partial<User>) => void;
@@ -117,7 +127,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<LoginResponse> => {
     setLoading(true);
     try {
       const response = await api.loginUser({ email, password });
@@ -165,10 +175,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('token');
     localStorage.removeItem('pendingUserId');
     
-    // Redirect to root route if not already there
-    if (window.location.pathname !== '/') {
-      window.location.href = '/';
-    }
+    // Clear any cached data that might contain user info
+    sessionStorage.clear();
+    
+    // Force a page reload to ensure all state is cleared
+    window.location.href = '/';
   };
 
   const resetPassword = async (email: string) => {

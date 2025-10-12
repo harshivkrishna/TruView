@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Users, FileText, Flag, TrendingUp, Search, Filter, Check, X, Eye, Key, BarChart3, PieChart, Calendar, Activity, LogOut } from 'lucide-react';
+import { Users, FileText, Flag, TrendingUp, Search, Filter, Check, X, Eye, BarChart3, PieChart, Calendar, Activity, LogOut, Shield, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { getPassKey, updatePassKey, getAdminReviews, getAdminUsers, getAdminReports, handleReportAction } from '../services/api';
+import { getAdminReviews, getAdminUsers, getAdminReports, handleReportAction, adminLogin } from '../services/api';
 import toast from 'react-hot-toast';
 import {
   AreaChart,
@@ -34,7 +34,7 @@ const FilterIcon = Filter as React.ComponentType<any>;
 const CheckIcon = Check as React.ComponentType<any>;
 const XIcon = X as React.ComponentType<any>;
 const EyeIcon = Eye as React.ComponentType<any>;
-const KeyIcon = Key as React.ComponentType<any>;
+// KeyIcon removed - Admin Management tab removed
 const BarChart3Icon = BarChart3 as React.ComponentType<any>;
 const PieChartIcon = PieChart as React.ComponentType<any>;
 const CalendarIcon = Calendar as React.ComponentType<any>;
@@ -53,8 +53,14 @@ const LegendComponent = Legend as any;
 const LineChartComponent = LineChart as React.ComponentType<any>;
 
 const AdminDashboard = () => {
-  const { currentUser, logout } = useAuth();
+  const { currentUser, logout, updateCurrentUser } = useAuth();
   const navigate = useNavigate();
+  
+  // Admin login states (showAdminLogin not needed since we show form based on isAdmin)
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [reviews, setReviews] = useState([]);
   const [users, setUsers] = useState([]);
@@ -86,10 +92,55 @@ const AdminDashboard = () => {
   // Time period state
   const [timePeriod, setTimePeriod] = useState('30'); // days
   
-  // PassKey management
-  const [passKey, setPassKey] = useState('');
-  const [newPassKey, setNewPassKey] = useState('');
-  const [showPassKeyForm, setShowPassKeyForm] = useState(false);
+  // PassKey management removed - Admin Management tab removed
+
+  // Check if user is admin
+  const isAdmin = currentUser?.role === 'admin' || (currentUser as any)?.isAdmin;
+
+  // Admin login handler
+  const handleAdminLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoggingIn(true);
+
+    try {
+      console.log('Attempting admin login with:', { email: adminEmail, password: '***' });
+      const response = await adminLogin({ email: adminEmail, password: adminPassword });
+      
+      console.log('Admin login response:', response);
+      
+      // Store token and user data
+      localStorage.setItem('token', response.token);
+      localStorage.setItem('user', JSON.stringify(response.user));
+      
+      // Update auth context with the admin user data
+      updateCurrentUser(response.user);
+      
+      toast.success('Admin login successful!');
+      
+      // Force a small delay to ensure state updates, then reload to show dashboard
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
+    } catch (error: any) {
+      console.error('Admin login error:', error);
+      console.error('Error response:', error.response);
+      
+      let errorMessage = 'Login failed. Please try again.';
+      
+      if (error.response?.status === 500) {
+        errorMessage = 'Server error. Please check the backend logs.';
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      toast.error(errorMessage);
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
 
   const fetchAdminData = useCallback(async () => {
     try {
@@ -159,14 +210,7 @@ const AdminDashboard = () => {
     }
   }, []);
 
-  const fetchPassKey = async () => {
-    try {
-      const response = await getPassKey();
-      setPassKey(response.passKey || '');
-    } catch (error) {
-      // Handle error silently
-    }
-  };
+  // fetchPassKey removed - Admin Management tab removed
 
   useEffect(() => {
     if (currentUser) {
@@ -179,7 +223,6 @@ const AdminDashboard = () => {
       });
 
       fetchAdminData();
-      fetchPassKey();
     }
   }, [currentUser, fetchAdminData]);
 
@@ -425,17 +468,7 @@ const AdminDashboard = () => {
     return data;
   };
 
-  const handleUpdatePassKey = async () => {
-    try {
-      await updatePassKey(newPassKey);
-      setPassKey(newPassKey);
-      setNewPassKey('');
-      setShowPassKeyForm(false);
-      toast.success('Registration PassKey updated successfully');
-    } catch (error) {
-      toast.error('Failed to update PassKey');
-    }
-  };
+  // handleUpdatePassKey removed - Admin Management tab removed
 
   const handleReportActionLocal = async (reportId: string, action: 'accept' | 'reject') => {
     try {
@@ -455,44 +488,99 @@ const AdminDashboard = () => {
     return currentUser !== null && currentUser.role === 'admin';
   };
 
-  if (!currentUser) {
+  // Show admin login form if not authenticated as admin
+  if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Authentication Required</h2>
-          <p className="text-gray-600">Please log in to access the admin dashboard.</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!hasAdminAccess()) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h2>
-          <p className="text-gray-600 mb-4">You don't have permission to access this page.</p>
-          <div className="bg-white p-4 rounded-lg shadow-sm border max-w-md mx-auto">
-            <p className="text-sm text-gray-600 mb-2">Current user info:</p>
-            <p className="text-sm"><strong>Email:</strong> {currentUser.email}</p>
-            <p className="text-sm"><strong>Role:</strong> {currentUser.role || 'undefined'}</p>
-            <p className="text-sm"><strong>Name:</strong> {currentUser.firstName} {currentUser.lastName}</p>
-            <p className="text-xs text-gray-500 mt-2 mb-4">
-              Please ensure you registered with a valid admin PassKey.
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-red-50 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-8">
+          <div className="text-center">
+            <div className="mx-auto h-16 w-16 bg-orange-500 rounded-full flex items-center justify-center">
+              <Shield className="h-8 w-8 text-white" />
+            </div>
+            <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
+              Admin Access
+            </h2>
+            <p className="mt-2 text-sm text-gray-600">
+              TruView Admin Dashboard
             </p>
-            <div className="border-t pt-4">
-              <p className="text-sm text-gray-600 mb-3">Need admin access?</p>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-md p-8">
+            <form className="space-y-6" onSubmit={handleAdminLogin}>
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                  Email Address
+                </label>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  required
+                  value={adminEmail}
+                  onChange={(e) => setAdminEmail(e.target.value)}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-orange-500 focus:border-orange-500"
+                  placeholder="connect.truview@gmail.com"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                  Password
+                </label>
+                <div className="mt-1 relative">
+                  <input
+                    id="password"
+                    name="password"
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    value={adminPassword}
+                    onChange={(e) => setAdminPassword(e.target.value)}
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-orange-500 focus:border-orange-500 pr-10"
+                    placeholder="Admin@1009"
+                  />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4 text-gray-400" />
+                    ) : (
+                      <Eye className="h-4 w-4 text-gray-400" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+
+              <div>
+                <button
+                  type="submit"
+                  disabled={isLoggingIn}
+                  className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isLoggingIn ? (
+                    <div className="flex items-center">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Signing in...
+                    </div>
+                  ) : (
+                    'Sign in as Admin'
+                  )}
+                </button>
+              </div>
+            </form>
+
+            <div className="mt-6 text-center">
               <button
                 onClick={() => navigate('/')}
-                className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors text-sm"
+                className="text-sm text-gray-600 hover:text-gray-500"
               >
-                Go to Home & Register as Admin
+                ← Back to Home
               </button>
-              <p className="text-xs text-gray-500 mt-2">
-                Use the Sign Up button and enter passkey: <code className="bg-gray-100 px-1 rounded">truviews</code>
-              </p>
             </div>
           </div>
+
         </div>
       </div>
     );
@@ -502,8 +590,7 @@ const AdminDashboard = () => {
     { id: 'overview', label: 'Overview', icon: TrendingUpIcon },
     { id: 'reviews', label: 'Reviews', icon: FileTextIcon },
     { id: 'users', label: 'Users', icon: UsersIcon },
-    { id: 'reports', label: 'Reports', icon: FlagIcon },
-    { id: 'admin', label: 'Admin Management', icon: KeyIcon }
+    { id: 'reports', label: 'Reports', icon: FlagIcon }
   ];
 
   return (
@@ -607,16 +694,6 @@ const AdminDashboard = () => {
               {activeTab === 'reviews' && <ReviewsTab reviews={reviews} />}
               {activeTab === 'users' && <UsersTab users={users} currentUser={currentUser} />}
               {activeTab === 'reports' && <ReportsTab reports={reports} onAction={handleReportActionLocal} />}
-              {activeTab === 'admin' && (
-                <AdminManagementTab 
-                  passKey={passKey}
-                  newPassKey={newPassKey}
-                  setNewPassKey={setNewPassKey}
-                  showPassKeyForm={showPassKeyForm}
-                  setShowPassKeyForm={setShowPassKeyForm}
-                  onUpdatePassKey={handleUpdatePassKey}
-                />
-              )}
             </>
           )}
         </div>
@@ -1574,98 +1651,6 @@ const ReportsTab = ({ reports, onAction }: any) => {
 );
 };
 
-const AdminManagementTab = ({ 
-  passKey, 
-  newPassKey, 
-  setNewPassKey, 
-  showPassKeyForm, 
-  setShowPassKeyForm, 
-  onUpdatePassKey
-}: any) => (
-  <div className="p-6">
-    <h3 className="text-lg font-semibold text-gray-900 mb-6">Admin Management</h3>
-    
-    <div className="max-w-2xl mx-auto">
-      {/* Registration PassKey Management */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-            <KeyIcon className="w-5 h-5 text-blue-600" />
-          </div>
-          <div>
-            <h4 className="text-lg font-semibold text-gray-900">Registration PassKey</h4>
-            <p className="text-sm text-gray-600">Manage the PassKey required for admin registration</p>
-          </div>
-        </div>
-        
-        <div className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">Current PassKey</label>
-            <div className="flex items-center gap-3">
-              <input
-                type="password"
-                value={passKey}
-                readOnly
-                className="flex-1 px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-700 font-mono"
-                placeholder="••••••••"
-              />
-              <button
-                onClick={() => setShowPassKeyForm(!showPassKeyForm)}
-                className={`px-4 py-3 text-white rounded-lg transition-colors ${
-                  showPassKeyForm 
-                    ? 'bg-gray-500 hover:bg-gray-600' 
-                    : 'bg-blue-500 hover:bg-blue-600'
-                }`}
-              >
-                {showPassKeyForm ? 'Cancel' : 'Change'}
-              </button>
-            </div>
-            <p className="text-xs text-gray-500 mt-2">
-              This PassKey is required when users register for admin accounts on the /admin route
-            </p>
-          </div>
-          
-          {showPassKeyForm && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">New PassKey</label>
-                  <input
-                    type="text"
-                    value={newPassKey}
-                    onChange={(e) => setNewPassKey(e.target.value)}
-                    placeholder="Enter new PassKey"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Choose a secure PassKey that will be required for future admin registrations
-                  </p>
-                </div>
-                <div className="flex gap-3">
-                  <button
-                    onClick={onUpdatePassKey}
-                    disabled={!newPassKey.trim()}
-                    className="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Update PassKey
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowPassKeyForm(false);
-                      setNewPassKey('');
-                    }}
-                    className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  </div>
-);
+// AdminManagementTab component removed
 
 export default AdminDashboard;

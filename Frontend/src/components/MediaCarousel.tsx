@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { X, Play, Image } from 'lucide-react';
 
 interface MediaFile {
@@ -149,13 +149,13 @@ const MediaCarousel: React.FC<MediaCarouselProps> = ({
                   <img
                     src={file.url}
                     alt={`Media ${index + 1}`}
-                    className="w-full h-full object-cover object-center"
+                    className="w-full h-full object-contain object-center"
                     style={{
                       width: '100%',
                       height: '100%',
                       maxWidth: '100vw',
                       maxHeight: '100%',
-                      objectFit: 'cover',
+                      objectFit: 'contain',
                       objectPosition: 'center center',
                     }}
                     loading="lazy"
@@ -208,7 +208,7 @@ const MediaCarousel: React.FC<MediaCarouselProps> = ({
                   <img
                     src={file.url}
                     alt={`Thumbnail ${index + 1}`}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain"
                     onError={() => handleImageError(index)}
                   />
                 )}

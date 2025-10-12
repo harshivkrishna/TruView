@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, Search, Star, User, LogOut, Settings, Mail } from 'lucide-react';
+import { Menu, X, User, Settings } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import LoginModal from './auth/LoginModal';
 import RegisterModal from './auth/RegisterModal';
 import ForgotPasswordModal from './auth/ForgotPasswordModal';
 
 const Navbar = () => {
-  const { currentUser, logout, resendVerification } = useAuth();
+  const { currentUser } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);

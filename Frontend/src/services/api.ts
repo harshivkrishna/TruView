@@ -460,6 +460,19 @@ export const loginUser = async (credentials: {
   }
 };
 
+// Admin Login API (Hardcoded credentials)
+export const adminLogin = async (credentials: {
+  email: string;
+  password: string;
+}) => {
+  try {
+    const response = await api.post('/auth/admin/login', credentials);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
 // Forgot Password API - Updated for better compatibility
 export const forgotPassword = async (email: string) => {
   try {

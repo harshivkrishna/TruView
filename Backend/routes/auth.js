@@ -197,6 +197,65 @@ router.post('/resend-verification', async (req, res) => {
   }
 });
 
+// Admin Login (Hardcoded)
+router.post('/admin/login', async (req, res) => {
+  try {
+    console.log('🔐 Admin login attempt received');
+    console.log('Request body:', req.body);
+    
+    const { email, password } = req.body;
+    
+    if (!email || !password) {
+      console.log('❌ Missing email or password');
+      return res.status(400).json({ message: 'Email and password are required' });
+    }
+    
+    // Hardcoded admin credentials
+    const ADMIN_EMAIL = 'connect.truview@gmail.com';
+    const ADMIN_PASSWORD = 'Admin@1009';
+    
+    // Validate admin credentials
+    if (email !== ADMIN_EMAIL) {
+      return res.status(404).json({ message: 'Admin email not recognized' });
+    }
+    
+    if (password !== ADMIN_PASSWORD) {
+      return res.status(401).json({ message: 'Incorrect admin password' });
+    }
+    
+    // Create admin JWT token
+    const jwtSecret = process.env.JWT_SECRET || 'your-secret-key';
+    const token = jwt.sign(
+      { 
+        userId: 'admin', 
+        email: ADMIN_EMAIL, 
+        role: 'admin',
+        isAdmin: true 
+      },
+      jwtSecret,
+      { expiresIn: '24h' }
+    );
+    
+    console.log('✅ Admin login successful');
+    
+    res.json({
+      message: 'Admin login successful',
+      token,
+      user: {
+        id: 'admin',
+        email: ADMIN_EMAIL,
+        firstName: 'Admin',
+        lastName: 'User',
+        role: 'admin',
+        isAdmin: true
+      }
+    });
+  } catch (error) {
+    console.error('❌ Admin login error:', error);
+    res.status(500).json({ message: 'Server error during admin login' });
+  }
+});
+
 // Login
 router.post('/login', async (req, res) => {
   const startTime = Date.now();
@@ -219,7 +278,7 @@ router.post('/login', async (req, res) => {
     console.log(`⏱️ User lookup took ${Date.now() - dbQueryStart}ms`);
 
     if (!user) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+      return res.status(404).json({ message: 'Email not registered. Please sign up first.' });
     }
 
     const passwordCheckStart = Date.now();
@@ -227,7 +286,7 @@ router.post('/login', async (req, res) => {
     console.log(`⏱️ Password verification took ${Date.now() - passwordCheckStart}ms`);
 
     if (!isPasswordValid) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+      return res.status(401).json({ message: 'Incorrect password. Please try again.' });
     }
 
     if (!user.emailVerified) {

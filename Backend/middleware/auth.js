@@ -16,6 +16,21 @@ const authenticateToken = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
     console.log('Decoded token userId:', decoded.userId);
     
+    // Handle hardcoded admin case
+    if (decoded.userId === 'admin' && decoded.isAdmin) {
+      console.log('Hardcoded admin access granted');
+      req.user = decoded;
+      req.userProfile = {
+        _id: 'admin',
+        email: 'connect.truview@gmail.com',
+        firstName: 'Admin',
+        lastName: 'User',
+        role: 'admin'
+      };
+      return next();
+    }
+    
+    // Regular user authentication
     const user = await User.findById(decoded.userId);
     console.log('Found user:', user ? `Yes (${user.email})` : 'No');
     
