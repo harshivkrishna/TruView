@@ -63,13 +63,6 @@ const MediaCarousel: React.FC<MediaCarouselProps> = ({
 
   const scrollToIndex = (index: number) => {
     setCurrentIndex(index);
-    if (carouselRef.current) {
-      const scrollLeft = index * carouselRef.current.offsetWidth;
-      carouselRef.current.scrollTo({
-        left: scrollLeft,
-        behavior: 'smooth'
-      });
-    }
   };
 
   const handleImageError = (index: number) => {
@@ -84,12 +77,6 @@ const MediaCarousel: React.FC<MediaCarouselProps> = ({
     });
   };
 
-  useEffect(() => {
-    // Only run scroll effect if we have files and a valid index
-    if (files.length > 0 && currentIndex < files.length) {
-      scrollToIndex(currentIndex);
-    }
-  }, [currentIndex, files.length]);
 
   // Early return check must come AFTER hooks
   if (files.length === 0) {
@@ -113,7 +100,7 @@ const MediaCarousel: React.FC<MediaCarouselProps> = ({
         {files.map((file, index) => (
           <div
             key={index}
-            className={`absolute inset-0 transition-transform duration-500 ease-in-out`}
+            className={`absolute inset-0 transition-transform duration-300 ease-out`}
             style={{
               transform: `translateX(${(index - currentIndex) * 100}%)`,
             }}
@@ -162,7 +149,7 @@ const MediaCarousel: React.FC<MediaCarouselProps> = ({
                   <img
                     src={file.url}
                     alt={`Media ${index + 1}`}
-                    className="w-full h-full object-cover object-center transition-transform duration-300 hover:scale-105"
+                    className="w-full h-full object-cover object-center"
                     style={{
                       width: '100%',
                       height: '100%',
