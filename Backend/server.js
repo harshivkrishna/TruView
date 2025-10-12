@@ -206,14 +206,6 @@ app.use((req, res, next) => {
 });
 
 
-app.get('/api/cors-test', (req, res) => {
-  res.json({ 
-    message: 'CORS test successful',
-    allowedOrigins: finalAllowedOrigins,
-    environment: process.env.NODE_ENV || 'development',
-    frontendUrl: process.env.FRONTEND_URL || 'not set'
-  });
-});
 
 // Email test endpoint removed - using EmailJS on frontend
 
@@ -369,7 +361,6 @@ const server = app.listen(PORT, () => {
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`📊 Optimized for 10k+ concurrent users`);
   console.log(`🔗 MongoDB URI: ${process.env.MONGODB_URI ? 'Set' : 'Not set'}`);
-  console.log(`🌐 Allowed CORS origins: ${finalAllowedOrigins.join(', ')}`);
   console.log(`⚡ Rate limiting: DISABLED for high-scale usage`);
 }).on('error', (err) => {
   console.error('❌ Server startup error:', err);
