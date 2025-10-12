@@ -260,12 +260,7 @@ const UserProfile = () => {
     const file = e.target.files?.[0];
     if (file) {
       setPhotoFile(file);
-      // Create preview URL
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setPhotoPreview(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
+      // Don't create preview immediately - only after successful upload
     }
   };
 
