@@ -44,6 +44,7 @@ const Footer: React.FC = () => {
 
   // Get top 6 categories for footer display
   const topCategories = categories.slice(0, 6);
+  const date = new Date(); 
 
   return (
     <>
@@ -145,7 +146,7 @@ const Footer: React.FC = () => {
           <div className="border-t border-gray-800 mt-8 pt-8">
             <div className="flex flex-col md:flex-row justify-between items-center">
               <div className="text-gray-400 text-sm mb-4 md:mb-0">
-                © 2025 Truviews. All rights reserved.
+                &copy; {date.getFullYear()} Truviews. All rights reserved.
               </div>
               <div className="flex space-x-6 text-sm">
                 <Link to="/privacy" className="text-gray-400 hover:text-white transition-colors">
