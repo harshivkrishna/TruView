@@ -130,9 +130,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string): Promise<LoginResponse> => {
     setLoading(true);
     try {
-      const response = await api.loginUser({ email, password });
+      // Check if this is an admin login attempt
+      const ADMIN_EMAIL = 'connect.truview@gmail.com';
+      let response;
       
-      // Check if email verification is required
+      if (email === ADMIN_EMAIL) {
+        // Use admin login endpoint for admin email
+        response = await api.adminLogin({ email, password });
+      } else {
+        // Use regular login endpoint for regular users
+        response = await api.loginUser({ email, password });
+      }
+      
+      // Check if email verification is required (only for regular users)
       if (response.requiresVerification && response.otp && response.email && response.firstName) {
         // Send verification email using EmailJS
         try {
