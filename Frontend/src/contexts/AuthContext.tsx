@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import * as api from '../services/api';
 import { clearAnonymousId } from '../utils/anonymousId';
-import { emailService } from '../services/emailService';
 
 interface User {
   id: string;
@@ -19,7 +18,6 @@ interface LoginResponse {
   user?: User;
   requiresVerification?: boolean;
   email?: string;
-  otp?: string;
   firstName?: string;
 }
 
@@ -101,23 +99,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Store user ID for verification
         localStorage.setItem('pendingUserId', response.userId);
         
-        // Send verification email using EmailJS
-        if (response.otp && response.email && response.firstName) {
-          try {
-            const emailResult = await emailService.sendVerificationOTP(
-              response.email,
-              response.otp,
-              response.firstName
-            );
-            
-            if (!emailResult.success) {
-              // Don't throw error - user can still verify manually
-            }
-          } catch (emailError) {
-            // Don't throw error - user can still verify manually
-          }
-        }
-        
+        // Email is now sent by the backend via SES
         return response;
       }
     } catch (error) {
@@ -143,23 +125,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       // Check if email verification is required (only for regular users)
-      if (response.requiresVerification && response.otp && response.email && response.firstName) {
-        // Send verification email using EmailJS
-        try {
-          const emailResult = await emailService.sendVerificationOTP(
-            response.email,
-            response.otp,
-            response.firstName
-          );
-          
-          if (!emailResult.success) {
-            // Don't throw error - user can still verify manually
-          }
-        } catch (emailError) {
-          // Don't throw error - user can still verify manually
-        }
-        
-        // Return the verification response
+      if (response.requiresVerification) {
+        // Email is now sent by the backend via SES
         return response;
       }
       
@@ -197,23 +164,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const response = await api.forgotPassword(email);
       
-      // Send password reset email using EmailJS
-      if (response.otp && response.email && response.firstName) {
-        try {
-          const emailResult = await emailService.sendPasswordResetOTP(
-            response.email,
-            response.otp,
-            response.firstName
-          );
-          
-          if (!emailResult.success) {
-            // Don't throw error - user can still reset manually
-          }
-        } catch (emailError) {
-          // Don't throw error - user can still reset manually
-        }
-      }
-      
+      // Email is now sent by the backend via SES
       return response;
     } catch (error) {
       throw error;
@@ -249,23 +200,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const response: any = await api.resendVerification(email);
       
-      // Send verification email using EmailJS
-      if (response.otp && response.email && response.firstName) {
-        try {
-          const emailResult = await emailService.sendVerificationOTP(
-            response.email,
-            response.otp,
-            response.firstName
-          );
-          
-          if (!emailResult.success) {
-            // Don't throw error - user can still verify manually
-          }
-        } catch (emailError) {
-          // Don't throw error - user can still verify manually
-        }
-      }
-      
+      // Email is now sent by the backend via SES
       return response;
     } catch (error) {
       throw error;

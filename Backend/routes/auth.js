@@ -2,12 +2,17 @@ const express = require('express');
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-// Email service removed - using EmailJS on frontend
+const emailService = require('../services/emailService');
 const router = express.Router();
 
 // Register user
 router.post('/register', async (req, res) => {
   const startTime = Date.now();
+  
+  console.log('\n' + '='.repeat(70));
+  console.log('📝 REGISTRATION REQUEST RECEIVED');
+  console.log('='.repeat(70));
+  console.log('Request body:', JSON.stringify(req.body, null, 2));
   
   try {
     // Check MongoDB connection
@@ -17,6 +22,7 @@ router.post('/register', async (req, res) => {
     }
 
     const { email, password, firstName, lastName, phoneNumber } = req.body;
+    console.log(`📧 Email: ${email}`);
 
     // Validate required fields
     if (!email || !password || !firstName || !lastName || !phoneNumber) {
@@ -70,13 +76,39 @@ router.post('/register', async (req, res) => {
     await user.save();
     console.log(`⏱️ User creation (including bcrypt) took ${Date.now() - userCreateStart}ms`);
 
+    // Send verification email via SES
+    console.log('\n📧 ATTEMPTING TO SEND VERIFICATION EMAIL');
+    console.log('  To:', email);
+    console.log('  OTP:', otp);
+    console.log('  Name:', firstName);
+    
+    const emailStart = Date.now();
+    const emailResult = await emailService.sendVerificationOTP(email, otp, firstName);
+    console.log(`⏱️ Email sending took ${Date.now() - emailStart}ms`);
+    console.log('📬 Email Result:', JSON.stringify(emailResult, null, 2));
+
+    if (!emailResult.success) {
+      console.error('❌ Failed to send verification email:', emailResult.error);
+      console.error('Full error details:', emailResult);
+      // Still return success but mention email issue
+      return res.status(201).json({ 
+        message: 'Registration successful, but failed to send verification email. Please contact support.',
+        userId: user._id,
+        email: email,
+        firstName: firstName,
+        emailError: true
+      });
+    }
+    
+    console.log('✅ Verification email sent successfully!');
+    console.log('Message ID:', emailResult.messageId);
+
     const totalTime = Date.now() - startTime;
     console.log(`✅ Registration completed in ${totalTime}ms`);
 
     res.status(201).json({ 
       message: 'Registration successful. Please check your email for verification OTP.',
       userId: user._id,
-      otp: otp, // Return OTP to frontend for EmailJS
       email: email,
       firstName: firstName
     });
@@ -185,9 +217,29 @@ router.post('/resend-verification', async (req, res) => {
 
     await user.save();
 
+    // Send verification email via SES
+    console.log('\n📧 ATTEMPTING TO RESEND VERIFICATION EMAIL');
+    console.log('  To:', email);
+    console.log('  OTP:', otp);
+    console.log('  Name:', user.firstName);
+    
+    const emailResult = await emailService.sendVerificationOTP(email, otp, user.firstName);
+    console.log('📬 Email Result:', JSON.stringify(emailResult, null, 2));
+    
+    if (!emailResult.success) {
+      console.error('❌ Failed to send verification email:', emailResult.error);
+      console.error('Full error details:', emailResult);
+      return res.status(500).json({ 
+        message: 'Failed to send verification email. Please try again.',
+        error: emailResult.error
+      });
+    }
+
+    console.log('✅ Verification email resent successfully!');
+    console.log('Message ID:', emailResult.messageId);
+
     res.json({ 
       message: 'Verification OTP sent successfully',
-      otp: otp, // Return OTP to frontend for EmailJS
       email: email,
       firstName: user.firstName
     });
@@ -301,12 +353,30 @@ router.post('/login', async (req, res) => {
       
       await user.save();
       
-      console.log(`✅ Verification OTP generated for: ${user.email}`);
+      // Send verification email via SES
+      console.log('\n📧 ATTEMPTING TO SEND VERIFICATION EMAIL (LOGIN)');
+      console.log('  To:', user.email);
+      console.log('  OTP:', otp);
+      console.log('  Name:', user.firstName);
+      
+      const emailResult = await emailService.sendVerificationOTP(user.email, otp, user.firstName);
+      console.log('📬 Email Result:', JSON.stringify(emailResult, null, 2));
+      
+      if (!emailResult.success) {
+        console.error('❌ Failed to send verification email:', emailResult.error);
+        console.error('Full error details:', emailResult);
+        return res.status(500).json({ 
+          message: 'Failed to send verification email. Please try again.',
+          error: emailResult.error
+        });
+      }
+      
+      console.log(`✅ Verification OTP generated and sent for: ${user.email}`);
+      console.log('Message ID:', emailResult.messageId);
       return res.status(200).json({ 
         message: 'Email verification required. OTP sent to your email.',
         requiresVerification: true,
         email: user.email,
-        otp: otp, // Return OTP to frontend for EmailJS
         firstName: user.firstName
       });
     }
@@ -385,10 +455,28 @@ router.post('/forgot-password', async (req, res) => {
     await user.save();
     console.log(`💾 OTP saved to database for user: ${user.email}`);
 
-    console.log(`✅ Password reset OTP generated for: ${email}`);
+    // Send password reset email via SES
+    console.log('\n📧 ATTEMPTING TO SEND PASSWORD RESET EMAIL');
+    console.log('  To:', email);
+    console.log('  OTP:', otp);
+    console.log('  Name:', user.firstName);
+    
+    const emailResult = await emailService.sendPasswordResetOTP(email, otp, user.firstName);
+    console.log('📬 Email Result:', JSON.stringify(emailResult, null, 2));
+    
+    if (!emailResult.success) {
+      console.error('❌ Failed to send password reset email:', emailResult.error);
+      console.error('Full error details:', emailResult);
+      return res.status(500).json({ 
+        message: 'Failed to send password reset email. Please try again.',
+        error: emailResult.error
+      });
+    }
+
+    console.log(`✅ Password reset OTP generated and sent for: ${email}`);
+    console.log('Message ID:', emailResult.messageId);
     res.json({ 
       message: 'Password reset OTP sent successfully',
-      otp: otp, // Return OTP to frontend for EmailJS
       email: email,
       firstName: user.firstName
     });
@@ -490,34 +578,57 @@ router.post('/verify-login-otp', async (req, res) => {
 
 // Reset password with OTP
 router.post('/reset-password', async (req, res) => {
+  console.log('\n' + '='.repeat(70));
+  console.log('🔒 PASSWORD RESET REQUEST RECEIVED');
+  console.log('='.repeat(70));
+  console.log('Request body:', JSON.stringify(req.body, null, 2));
+  
   try {
     const { email, otp, newPassword } = req.body;
+    
+    if (!email || !otp || !newPassword) {
+      console.log('❌ Missing required fields');
+      return res.status(400).json({ message: 'Email, OTP, and new password are required' });
+    }
+    
+    console.log(`🔍 Looking for user: ${email}`);
 
     const user = await User.findOne({ email });
     if (!user) {
+      console.log(`❌ User not found: ${email}`);
       return res.status(404).json({ message: 'User not found' });
     }
 
     if (!user.resetPasswordOTP || !user.resetPasswordOTP.code) {
+      console.log(`❌ No password reset OTP found for: ${email}`);
       return res.status(400).json({ message: 'No password reset OTP found' });
     }
 
     if (user.resetPasswordOTP.expiresAt < new Date()) {
+      console.log(`❌ OTP expired for: ${email}`);
       return res.status(400).json({ message: 'OTP has expired' });
     }
 
     if (user.resetPasswordOTP.code !== otp) {
+      console.log(`❌ Invalid OTP for: ${email}`);
       return res.status(400).json({ message: 'Invalid OTP' });
     }
 
     // Update password
+    console.log(`✅ Resetting password for: ${email}`);
     user.password = newPassword;
     user.resetPasswordOTP = undefined;
     await user.save();
 
+    console.log(`✅ Password reset successfully for: ${email}`);
     res.json({ message: 'Password reset successfully' });
   } catch (error) {
-    // console.error('Reset password error:', error);
+    console.error('❌ Reset password error:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
     res.status(500).json({ message: 'Password reset failed' });
   }
 });

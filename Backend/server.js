@@ -253,25 +253,16 @@ const mongoOptions = {
   maxPoolSize: 50,
   minPoolSize: 10,
   maxIdleTimeMS: 30000,
-  serverSelectionTimeoutMS: 30000,
-  socketTimeoutMS: 45000,
-  connectTimeoutMS: 30000,
+  serverSelectionTimeoutMS: 60000, // Increased to 60s
+  socketTimeoutMS: 75000, // Increased to 75s
+  connectTimeoutMS: 60000, // Increased to 60s
   bufferCommands: false,
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
   retryWrites: true,
   w: 'majority',
   heartbeatFrequencyMS: 10000,
   retryReads: true,
-  maxStalenessSeconds: 90,
-  family: 4,
-  maxConnecting: 10,
+  family: 4, // Force IPv4
   directConnection: false,
-  compressors: ['zlib'],
-  zlibCompressionLevel: 6,
-  readPreference: 'secondaryPreferred',
-  readConcern: { level: 'majority' },
-  writeConcern: { w: 'majority', j: true },
   monitorCommands: process.env.NODE_ENV === 'development'
 };
 
