@@ -5,6 +5,7 @@ import {
   Star, TrendingUp, Users, Shield, Award, Zap, Globe, CheckCircle, 
   ArrowRight, Play, MessageSquare, ThumbsUp, Eye, Sparkles, Clock, ArrowRight as ArrowRightIcon
 } from 'lucide-react';
+import { FaFacebookF, FaInstagram, FaXTwitter, FaReddit } from 'react-icons/fa6';
 import ReviewCard from '../components/ReviewCard';
 import Footer from '../components/Footer';
 import { getMostViewedReviewsWeek } from '../services/api';
@@ -129,8 +130,70 @@ const HeroSection = () => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true });
 
+  const socialLinks = [
+    { icon: FaFacebookF, label: 'FACEBOOK', url: 'https://facebook.com', delay: 0.2 },
+    { icon: FaInstagram, label: 'INSTAGRAM', url: 'https://instagram.com', delay: 0.3 },
+    { icon: FaXTwitter, label: 'X', url: 'https://x.com', delay: 0.4 },
+    { icon: FaReddit, label: 'REDDIT', url: 'https://reddit.com', delay: 0.5 }
+  ];
+
   return (
-    <section ref={ref} className="bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white min-h-screen overflow-hidden flex items-center">
+    <section ref={ref} className="bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white min-h-screen overflow-hidden flex items-center relative">
+      
+      {/* Social Links Sidebar - Hidden on mobile, at right edge of screen and centered */}
+      <motion.div 
+        className="hidden lg:flex absolute right-8 top-1/2 -translate-y-1/2 z-20 flex-col items-center gap-3"
+        style={{ writingMode: 'vertical-lr' }}
+        initial={{ opacity: 0, x: 50 }}
+        animate={isInView ? { opacity: 1, x: 0 } : {}}
+        transition={{ duration: 0.8, delay: 0.6 }}
+      >
+        <div className="flex items-center gap-3 rotate-180">
+            {socialLinks.map((social, index) => {
+              const Icon = social.icon;
+              return (
+                <React.Fragment key={social.label}>
+                  <motion.a
+                    href={social.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 group cursor-pointer"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={isInView ? { opacity: 1, x: 0 } : {}}
+                    transition={{ duration: 0.6, delay: social.delay }}
+                    whileHover="hover"
+                  >
+                    <motion.div
+                      className="text-orange-500 rotate-90"
+                      variants={{
+                        hover: { 
+                          
+                          transition: { duration: 0.5 }
+                        }
+                      }}
+                    >
+                      <Icon className="w-4 h-4" />
+                    </motion.div>
+                    <span className="text-white text-xs font-medium tracking-wider group-hover:text-orange-500 transition-colors duration-300">
+                      {social.label}
+                    </span>
+                  </motion.a>
+                  {index < socialLinks.length - 1 && (
+                    <motion.span 
+                      className="text-orange-500 text-sm font-bold"
+                      initial={{ opacity: 0 }}
+                      animate={isInView ? { opacity: 1 } : {}}
+                      transition={{ duration: 0.6, delay: social.delay + 0.1 }}
+                    >
+                      -
+                    </motion.span>
+                  )}
+                </React.Fragment>
+            );
+          })}
+        </div>
+      </motion.div>
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
         <div className="text-center relative">
           <motion.div
