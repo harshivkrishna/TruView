@@ -1,13 +1,43 @@
-# Allow all crawlers
+# TruView - Robots.txt
+# Allow all crawlers to index public content
+
 User-agent: *
 Allow: /
+Allow: /categories
+Allow: /discover
+Allow: /review/
+Allow: /terms
+Allow: /privacy
 
 # Disallow admin and private routes
 Disallow: /admin
+Disallow: /admin/
 Disallow: /profile/
+Disallow: /submit
 
-# Sitemap location
-Sitemap: https://truview-steel.vercel.app/sitemap.xml
+# Google-specific bots
+User-agent: Googlebot
+Allow: /
+Disallow: /admin
+Disallow: /profile/
+Crawl-delay: 0.5
 
-# Crawl-delay (optional, in seconds)
+# Bing bot
+User-agent: Bingbot
+Allow: /
+Disallow: /admin
+Disallow: /profile/
 Crawl-delay: 1
+
+# Sitemap locations
+Sitemap: https://www.truviews.in/sitemap.xml
+
+# Crawl-delay for general bots
+Crawl-delay: 1
+
+# Block bad bots (optional security)
+User-agent: AhrefsBot
+Crawl-delay: 10
+
+User-agent: SemrushBot
+Crawl-delay: 10

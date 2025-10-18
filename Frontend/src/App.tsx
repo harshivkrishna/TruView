@@ -15,6 +15,8 @@ const ReviewDetail = lazy(() => import('./pages/ReviewDetail'));
 const DiscoveryEngine = lazy(() => import('./pages/DiscoveryEngine'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const UserProfile = lazy(() => import('./pages/UserProfile'));
+const TermsAndConditions = lazy(() => import('./pages/TermsAndConditions'));
+const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 
 // Loading component for suspense fallback
 const PageLoader = () => (
@@ -50,6 +52,8 @@ const App: React.FC = () => {
                   </ProtectedRoute>
                 } />
                 <Route path="/admin" element={<AdminDashboard />} />
+                <Route path="/terms" element={<TermsAndConditions />} />
+                <Route path="/privacy" element={<PrivacyPolicy />} />
               </Routes>
             </Suspense>
             <Toaster position="top-right" />
