@@ -263,7 +263,7 @@ router.post('/admin/login', async (req, res) => {
     }
     
     // Hardcoded admin credentials
-    const ADMIN_EMAIL = 'connect.truview@gmail.com';
+    const ADMIN_EMAIL = 'connect@truviews.in';
     const ADMIN_PASSWORD = 'Admin@1009';
     
     // Validate admin credentials
