@@ -1,9 +1,21 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+/**
+ * TruView - HomePage Component
+ * 
+ * @file HomePage.tsx
+ * @description Truviews
+ * @author Harshivkrishna M
+ * @email harshivkrishnam@gmail.com
+ * @created 2025
+ *  
+ * @copyright © 2025 TruView. All rights reserved.
+ */
+
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useInView, useAnimation } from 'framer-motion';
 import { 
   Star, TrendingUp, Users, Shield, Award, Zap, Globe, CheckCircle, 
-  ArrowRight, Play, MessageSquare, ThumbsUp, Eye, Sparkles, Clock, ArrowRight as ArrowRightIcon
+  MessageSquare, Eye, Sparkles, Clock, ArrowRight as ArrowRightIcon
 } from 'lucide-react';
 import { FaFacebookF, FaInstagram, FaXTwitter, FaReddit } from 'react-icons/fa6';
 import ReviewCard from '../components/ReviewCard';
@@ -22,9 +34,7 @@ const AwardIcon = Award as React.ComponentType<any>;
 const ZapIcon = Zap as React.ComponentType<any>;
 const GlobeIcon = Globe as React.ComponentType<any>;
 const CheckCircleIcon = CheckCircle as React.ComponentType<any>;
-const PlayIcon = Play as React.ComponentType<any>;
 const MessageSquareIcon = MessageSquare as React.ComponentType<any>;
-const ThumbsUpIcon = ThumbsUp as React.ComponentType<any>;
 const EyeIcon = Eye as React.ComponentType<any>;
 const SparklesIcon = Sparkles as React.ComponentType<any>;
 const ClockIcon = Clock as React.ComponentType<any>;
