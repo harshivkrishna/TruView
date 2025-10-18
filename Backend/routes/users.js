@@ -139,81 +139,149 @@ router.put('/profile', authenticateToken, async (req, res) => {
 
 // Upload profile photo
 router.post('/profile/photo', authenticateToken, (req, res, next) => {
-  console.log('=== Profile Photo Upload Request ===');
-  console.log('User authenticated:', req.user ? 'Yes' : 'No');
-  console.log('User ID:', req.user?.userId);
-  console.log('User email:', req.userProfile?.email);
+  console.log('\n' + '='.repeat(70));
+  console.log('📸 PROFILE PHOTO UPLOAD REQUEST');
+  console.log('='.repeat(70));
+  console.log('✅ User authenticated:', req.user ? 'Yes' : 'No');
+  console.log('🆔 User ID:', req.user?.userId);
+  console.log('📧 User email:', req.user?.email);
+  console.log('⏰ Timestamp:', new Date().toISOString());
   next();
-}, profilePhotoUpload.single('profilePhoto'), async (req, res) => {
+}, profilePhotoUpload.single('profilePhoto'), (err, req, res, next) => {
+  // Handle multer errors (including file size limit)
+  if (err) {
+    console.error('❌ Multer Error:', err.message);
+    
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      const maxSizeMB = 5;
+      console.error(`File size exceeds ${maxSizeMB}MB limit`);
+      return res.status(413).json({ 
+        message: `File size is too large. Maximum allowed size is ${maxSizeMB} MB. Please select a smaller image.`,
+        code: 'FILE_TOO_LARGE',
+        maxSize: maxSizeMB
+      });
+    }
+    
+    if (err.message === 'Only image files are allowed') {
+      return res.status(400).json({ 
+        message: 'Only image files are allowed. Please select a JPEG, PNG, or GIF image.',
+        code: 'INVALID_FILE_TYPE'
+      });
+    }
+    
+    return res.status(400).json({ 
+      message: err.message || 'File upload failed',
+      code: 'UPLOAD_ERROR'
+    });
+  }
+  next();
+}, async (req, res) => {
   try {
-    console.log('=== After Multer Middleware ===');
-    console.log('File received:', req.file ? 'Yes' : 'No');
+    console.log('\n📦 AFTER MULTER MIDDLEWARE');
+    console.log('File received:', req.file ? 'Yes ✅' : 'No ❌');
     
     if (!req.file) {
-      console.error('No file in request');
+      console.error('❌ No file in request');
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
-    console.log('File details:', {
+    console.log('📄 File details:', {
       filename: req.file.filename || req.file.key,
-      size: req.file.size,
+      size: `${(req.file.size / 1024).toFixed(2)} KB`,
       mimetype: req.file.mimetype
     });
-    console.log('User ID from token:', req.user?.userId);
+    console.log('🆔 User ID from token:', req.user?.userId);
 
     let avatarUrl;
     if (isAWSConfigured) {
-      console.log('Using AWS S3 storage');
-      console.log('File key:', req.file.key);
-      console.log('File location:', req.file.location);
+      console.log('☁️  Using AWS S3 storage');
+      console.log('🔑 S3 File key:', req.file.key);
+      console.log('📍 S3 File location:', req.file.location);
       
       // Create CloudFront URL directly using string construction
       const cloudFrontDomain = process.env.AWS_CLOUDFRONT_DOMAIN;
       if (cloudFrontDomain && req.file.key) {
         avatarUrl = `https://${cloudFrontDomain}/${req.file.key}`;
-        console.log('Generated CloudFront URL:', avatarUrl);
+        console.log('✅ Generated CloudFront URL:', avatarUrl);
+        console.log('⚡ CloudFront will provide faster loading');
       } else {
         // Fallback to S3 URL if CloudFront domain not configured
         avatarUrl = req.file.location;
-        console.log('Using S3 URL (CloudFront not configured):', avatarUrl);
+        console.log('⚠️  Using S3 URL (CloudFront not configured):', avatarUrl);
       }
     } else {
-      console.log('Using local storage');
+      console.log('💾 Using local storage');
       // Local storage response
       const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
       avatarUrl = `${baseUrl}/uploads/profile-photos/${req.file.filename}`;
       console.log('Generated local avatar URL:', avatarUrl);
     }
 
-    console.log('Generated avatar URL:', avatarUrl);
-    console.log('Attempting to update user with ID:', req.user.userId);
+    console.log('\n🔍 CHECKING USER IN DATABASE');
+    console.log('Looking for user ID:', req.user.userId);
 
     // First, check if user exists
-    const existingUser = await User.findById(req.user.userId);
-    console.log('User exists before update:', existingUser ? 'Yes' : 'No');
+    const existingUser = await User.findById(req.user.userId).select('_id firstName lastName email');
     
     if (!existingUser) {
-      console.error('User not found with ID:', req.user.userId);
-      return res.status(404).json({ message: 'Profile not found. Please try logging in again.' });
+      console.error('❌ USER NOT FOUND IN DATABASE');
+      console.error('Searched for ID:', req.user.userId);
+      console.error('This usually means:');
+      console.error('  1. User was deleted from database');
+      console.error('  2. Token has invalid user ID');
+      console.error('  3. MongoDB connection issue');
+      console.error('\n💡 Solution: User should logout and login again');
+      return res.status(404).json({ 
+        message: 'Profile not found. Please log out and log in again to refresh your session.',
+        code: 'USER_NOT_FOUND'
+      });
     }
+
+    console.log('✅ User found:', {
+      id: existingUser._id,
+      name: `${existingUser.firstName} ${existingUser.lastName}`,
+      email: existingUser.email
+    });
+
+    console.log('\n💾 UPDATING USER AVATAR');
+    console.log('Avatar URL to save:', avatarUrl);
 
     // Update user profile with new avatar URL
     const user = await User.findByIdAndUpdate(
       req.user.userId,
       { avatar: avatarUrl },
       { new: true, runValidators: false }
-    ).select('-password');
+    ).select('-password -verificationOTP -resetPasswordOTP');
 
     if (!user) {
-      console.error('User update failed for ID:', req.user.userId);
+      console.error('❌ User update failed for ID:', req.user.userId);
       return res.status(500).json({ message: 'Failed to update profile with new photo.' });
     }
 
-    console.log('User updated successfully with new avatar:', user.avatar);
-    res.json({ avatar: user.avatar, photoUrl: user.avatar, user });
+    console.log('✅ USER AVATAR UPDATED SUCCESSFULLY');
+    console.log('New avatar URL:', user.avatar);
+    console.log('User ID:', user._id);
+    console.log('='.repeat(70) + '\n');
+    
+    res.json({ 
+      avatar: user.avatar, 
+      photoUrl: user.avatar, 
+      user,
+      success: true,
+      message: 'Profile photo uploaded successfully'
+    });
   } catch (error) {
-    console.error('Profile photo upload error:', error);
-    res.status(500).json({ message: 'Failed to upload profile photo', error: error.message });
+    console.error('\n❌ PROFILE PHOTO UPLOAD ERROR');
+    console.error('Error type:', error.name);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    console.error('='.repeat(70) + '\n');
+    
+    res.status(500).json({ 
+      message: 'Failed to upload profile photo', 
+      error: error.message,
+      code: 'UPLOAD_ERROR'
+    });
   }
 });
 

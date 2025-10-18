@@ -259,8 +259,34 @@ const UserProfile = () => {
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Check file size (5MB = 5 * 1024 * 1024 bytes)
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+      
+      if (file.size > maxSize) {
+        setError(`File size is too large (${fileSizeMB} MB). Please select an image smaller than 5 MB.`);
+        e.target.value = ''; // Clear the input
+        return;
+      }
+      
+      // Check if it's an image
+      if (!file.type.startsWith('image/')) {
+        setError('Please select an image file (JPEG, PNG, GIF, etc.)');
+        e.target.value = '';
+        return;
+      }
+      
+      setError(null); // Clear any previous errors
       setPhotoFile(file);
-      // Don't create preview immediately - only after successful upload
+      
+      // Create preview immediately so user can see what they selected
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+      
+      console.log(`✅ Image selected: ${file.name} (${fileSizeMB} MB)`);
     }
   };
 
@@ -293,22 +319,31 @@ const UserProfile = () => {
       }
       
       if (newPhotoUrl && profile) {
+        // Add cache-busting timestamp to force reload
+        const cacheBustedUrl = `${newPhotoUrl}?t=${Date.now()}`;
+        
         // Update the profile state with the new photo URL immediately
-        setProfile(prev => prev ? { ...prev, avatar: newPhotoUrl } : null);
+        setProfile(prev => prev ? { ...prev, avatar: cacheBustedUrl } : null);
         
-        // Update AuthContext with new avatar (note: User interface doesn't have avatar field, 
-        // but we can store it in localStorage user object for consistency)
-        updateCurrentUser({} as any); // This will trigger a re-read from localStorage
+        // Update AuthContext with new avatar
+        updateCurrentUser({} as any);
         
-        // Also refresh the profile data from backend to ensure consistency
+        // Force a complete refresh of the profile data
         try {
           const refreshedProfile = await getUserProfile(userId || '');
           if (refreshedProfile) {
+            // Add cache buster to refreshed profile too
+            if (refreshedProfile.avatar) {
+              refreshedProfile.avatar = `${refreshedProfile.avatar}?t=${Date.now()}`;
+            }
             setProfile(refreshedProfile);
           }
         } catch (refreshError) {
-          // Handle error silently
+          console.error('Error refreshing profile:', refreshError);
         }
+        
+        // Trigger a force update to re-render
+        setForceUpdate(prev => prev + 1);
       }
       
       // Clear file and preview only after successful update
@@ -316,16 +351,31 @@ const UserProfile = () => {
       setPhotoPreview(null);
       
     } catch (error: any) {
-      // Show detailed error message to user
-      const errorMessage = error.response?.data?.message || error.message || 'Failed to upload photo. Please try again.';
-      setError(errorMessage);
+      console.error('Photo upload error:', error);
       
-      // If it's an authentication error, suggest re-login
-      if (error.response?.status === 404 || error.response?.status === 401) {
-        setError('Session expired. Please log out and log in again to upload a photo.');
+      // Show detailed error message to user
+      let errorMessage = 'Failed to upload photo. Please try again.';
+      
+      if (error.response?.status === 413) {
+        // File too large
+        errorMessage = error.response?.data?.message || 'File size is too large. Please select an image smaller than 5 MB.';
+      } else if (error.response?.status === 404) {
+        errorMessage = 'Profile not found. Your session may have expired. Please log out and log back in.';
+      } else if (error.response?.status === 401) {
+        errorMessage = 'Authentication failed. Please log out and log back in to upload photos.';
+      } else if (error.response?.status === 400) {
+        errorMessage = error.response?.data?.message || 'Invalid file. Please select a valid image file.';
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
       }
       
-      // Keep the file for retry
+      setError(errorMessage);
+      
+      // Clear the file and preview on error
+      setPhotoFile(null);
+      setPhotoPreview(null);
     } finally {
       setUploadingPhoto(false);
     }

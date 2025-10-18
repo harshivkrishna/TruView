@@ -1,4 +1,4 @@
-# BrutalReviews - MERN Stack Review Platform
+# MERN Stack Review Platform
 
 A modern, production-ready review platform built with the MERN stack, featuring OTP-based authentication, AWS CDN integration, and social media sharing.
 
@@ -60,7 +60,7 @@ A modern, production-ready review platform built with the MERN stack, featuring 
 ### 1. Clone Repository
 ```bash
 git clone <repository-url>
-cd trustpilot-clone-mern
+cd truviews
 ```
 
 ### 2. Install Dependencies

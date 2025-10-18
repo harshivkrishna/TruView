@@ -46,6 +46,8 @@ const RegisterModal: React.FC<RegisterModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [showOTPModal, setShowOTPModal] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState('');
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [termsError, setTermsError] = useState('');
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -153,6 +155,13 @@ const RegisterModal: React.FC<RegisterModalProps> = ({
       return;
     }
     
+    // Check if user agreed to terms (skip for admin mode)
+    if (!isAdminMode && !agreedToTerms) {
+      setTermsError('You must agree to the Terms & Conditions and Privacy Policy to continue');
+      return;
+    }
+    
+    setTermsError('');
     setIsLoading(true);
     try {
       const { confirmPassword, passKey, ...userData } = formData;
@@ -240,6 +249,8 @@ const RegisterModal: React.FC<RegisterModalProps> = ({
     setShowPassKey(false);
     setShowOTPModal(false);
     setRegisteredEmail('');
+    setAgreedToTerms(false);
+    setTermsError('');
     onClose();
   };
 
@@ -482,6 +493,55 @@ const RegisterModal: React.FC<RegisterModalProps> = ({
                       <p className="text-red-500 text-xs mt-1">{errors.passKey}</p>
                     )}
                   </motion.div>
+                )}
+
+                {/* Terms & Conditions Checkbox - Only for regular users */}
+                {!isAdminMode && (
+                  <motion.div
+                    initial={{ x: -20, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    transition={{ delay: 0.7 }}
+                    className="flex items-start space-x-2 mb-4"
+                  >
+                    <input
+                      type="checkbox"
+                      id="agreeToTerms"
+                      checked={agreedToTerms}
+                      onChange={(e) => {
+                        setAgreedToTerms(e.target.checked);
+                        if (e.target.checked) {
+                          setTermsError('');
+                        }
+                      }}
+                      className="mt-1 h-4 w-4 text-orange-500 border-gray-300 rounded focus:ring-orange-500 focus:ring-2 cursor-pointer"
+                    />
+                    <label htmlFor="agreeToTerms" className="text-sm text-gray-600 cursor-pointer">
+                      I agree to the{' '}
+                      <a 
+                        href="/terms" 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-orange-500 hover:text-orange-600 font-medium underline"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        Terms & Conditions
+                      </a>
+                      {' '}and{' '}
+                      <a 
+                        href="/privacy" 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-orange-500 hover:text-orange-600 font-medium underline"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        Privacy Policy
+                      </a>
+                    </label>
+                  </motion.div>
+                )}
+                
+                {termsError && (
+                  <p className="text-red-500 text-xs mb-3 -mt-2">{termsError}</p>
                 )}
 
                 <motion.button
