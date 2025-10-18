@@ -337,18 +337,26 @@ const UserProfile = () => {
               refreshedProfile.avatar = `${refreshedProfile.avatar}?t=${Date.now()}`;
             }
             setProfile(refreshedProfile);
+            
+            // Clear file and preview only after successful refresh
+            // This ensures the new image is loaded before removing preview
+            setPhotoFile(null);
+            setPhotoPreview(null);
           }
         } catch (refreshError) {
           console.error('Error refreshing profile:', refreshError);
+          // Still clear on error
+          setPhotoFile(null);
+          setPhotoPreview(null);
         }
         
         // Trigger a force update to re-render
         setForceUpdate(prev => prev + 1);
+      } else {
+        // If no URL returned, still clear the preview
+        setPhotoFile(null);
+        setPhotoPreview(null);
       }
-      
-      // Clear file and preview only after successful update
-      setPhotoFile(null);
-      setPhotoPreview(null);
       
     } catch (error: any) {
       console.error('Photo upload error:', error);
@@ -479,7 +487,18 @@ const UserProfile = () => {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         {/* Profile Header */}
-        <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mb-4 sm:mb-6">
+        <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mb-4 sm:mb-6 relative">
+          {/* Mobile-only logout button at top right */}
+          {canEditProfile && (
+            <button
+              onClick={handleLogout}
+              className="sm:hidden absolute top-4 right-4 p-2 text-gray-600 hover:text-red-500 hover:bg-gray-100 rounded-full transition-colors"
+              title="Logout"
+            >
+              <LogOut className="w-5 h-5" />
+            </button>
+          )}
+          
           <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-4 sm:space-y-0 sm:space-x-6">
             <div className="relative">
               <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
@@ -569,7 +588,8 @@ const UserProfile = () => {
                   <p className="text-gray-600 text-sm sm:text-base">{profile.email}</p>
                 </div>
                 
-                <div className="flex flex-wrap justify-center sm:justify-end gap-2 sm:gap-3">
+                {/* Desktop buttons - hidden on mobile */}
+                <div className="hidden sm:flex flex-wrap justify-center sm:justify-end gap-2 sm:gap-3">
                   {canEditProfile && isEditing ? (
                     <>
                       <button
@@ -577,14 +597,14 @@ const UserProfile = () => {
                         className="flex items-center space-x-1 sm:space-x-2 bg-green-500 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg hover:bg-green-600 text-sm"
                       >
                         <Save className="w-4 h-4" />
-                        <span className="hidden sm:inline">Save</span>
+                        <span>Save</span>
                       </button>
                       <button
                         onClick={handleEditToggle}
                         className="flex items-center space-x-1 sm:space-x-2 bg-gray-500 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg hover:bg-gray-600 text-sm"
                       >
                         <X className="w-4 h-4" />
-                        <span className="hidden sm:inline">Cancel</span>
+                        <span>Cancel</span>
                       </button>
                     </>
                   ) : canEditProfile ? (
@@ -593,7 +613,7 @@ const UserProfile = () => {
                       className="flex items-center space-x-1 sm:space-x-2 bg-orange-500 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg hover:bg-orange-600 text-sm"
                     >
                       <Edit className="w-4 h-4" />
-                      <span className="hidden sm:inline">Edit Profile</span>
+                      <span>Edit Profile</span>
                     </button>
                   ) : null}
                   
@@ -604,7 +624,20 @@ const UserProfile = () => {
                       className="flex items-center space-x-1 sm:space-x-2 px-3 py-2 sm:px-4 sm:py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
                     >
                       <LogOut className="w-4 h-4" />
-                      <span className="hidden sm:inline">Logout</span>
+                      <span>Logout</span>
+                    </button>
+                  )}
+                </div>
+                
+                {/* Mobile-only edit button */}
+                <div className="flex sm:hidden gap-2">
+                  {canEditProfile && !isEditing && (
+                    <button
+                      onClick={handleEditToggle}
+                      className="flex items-center space-x-1 bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 text-sm font-medium"
+                    >
+                      <Edit className="w-4 h-4" />
+                      <span>Edit Profile</span>
                     </button>
                   )}
                 </div>
@@ -786,6 +819,26 @@ const UserProfile = () => {
             </div>
           </div>
         </div>
+
+        {/* Mobile-only Save/Cancel buttons - show only on small screens */}
+        {canEditProfile && isEditing && (
+          <div className="sm:hidden bg-white rounded-lg shadow-sm p-4 mt-4 flex gap-3 justify-center">
+            <button
+              onClick={handleSave}
+              className="flex-1 flex items-center justify-center space-x-2 bg-green-500 text-white px-4 py-3 rounded-lg hover:bg-green-600 font-medium"
+            >
+              <Save className="w-5 h-5" />
+              <span>Save Changes</span>
+            </button>
+            <button
+              onClick={handleEditToggle}
+              className="flex-1 flex items-center justify-center space-x-2 bg-gray-500 text-white px-4 py-3 rounded-lg hover:bg-gray-600 font-medium"
+            >
+              <X className="w-5 h-5" />
+              <span>Cancel</span>
+            </button>
+          </div>
+        )}
 
         {/* User Reviews Section */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 sm:p-6 mt-4 sm:mt-6 hover:shadow-md transition-all duration-300">

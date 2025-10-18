@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X, User, Settings } from 'lucide-react';
@@ -22,6 +22,20 @@ const Navbar = () => {
   // Debug: Log the current route and admin status
   // console.log('Current pathname:', location.pathname, 'isAdminRoute:', isAdminRoute);
 
+  // Prevent body scroll when sidebar is open
+  useEffect(() => {
+    if (isMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isMenuOpen]);
+
   const handleProfileClick = () => {
     if (currentUser?.id) {
       navigate(`/profile/${currentUser.id}`);
@@ -39,9 +53,8 @@ const Navbar = () => {
             transition={{ duration: 0.5 }}
           >
             <Link to="/" className="flex items-center space-x-2">
-        
-              <div className="w-52 h-auto mt-6 object-cover">
-                <img src="/assets/logo1.png" alt="Truviews" />
+              <div className="w-52 mt-[20px] h-auto">
+                <img src="/assets/logo1.png" alt="Truviews" className="object-contain" />
               </div>
             </Link>
           </motion.div>
@@ -80,7 +93,7 @@ const Navbar = () => {
                     onClick={handleProfileClick}
                     className="flex items-center gap-2 text-gray-700 hover:text-orange-500 transition-colors"
                   >
-                    <User className="w-5 h-6" />
+                    <User className="w-5 h-5" />
                     {currentUser.firstName || 'User'}
                   </button>
                 )}
@@ -91,7 +104,7 @@ const Navbar = () => {
                     to="/admin"
                     className="flex items-center gap-2 text-gray-700 hover:text-orange-500 transition-colors"
                   >
-                    <Settings className="w-4 h-4" />
+                    <Settings className="w-5 h-5" />
                     Admin Dashboard
                   </Link>
                 )}
@@ -118,109 +131,171 @@ const Navbar = () => {
           </motion.div>
 
           <button
-            className="md:hidden"
+            className="md:hidden flex items-center justify-center p-2"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
           >
             {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
         </div>
 
-        <AnimatePresence>
-          {isMenuOpen && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="md:hidden py-4 space-y-4 overflow-hidden"
-            >
-              <Link 
-                to="/" 
-                className="block text-gray-700 hover:text-orange-500 transition-colors"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Home
-              </Link>
-              <Link 
-                to="/categories" 
-                className="block text-gray-700 hover:text-orange-500 transition-colors"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Categories
-              </Link>
-              <Link 
-                to="/discover" 
-                className="block text-gray-700 hover:text-orange-500 transition-colors"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Discovery
-              </Link>
-              
-              {currentUser && currentUser.emailVerified ? (
-                <>
-                  {/* Only show Write Review for non-admin users */}
-                  {currentUser.role !== 'admin' && (
-                    <Link 
-                      to="/submit" 
-                      className="block bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors text-center"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      Write Review
-                    </Link>
-                  )}
-                  
-                  {/* Only show Profile for non-admin users */}
-                  {currentUser.role !== 'admin' && (
-                    <button
-                      onClick={() => {
-                        handleProfileClick();
-                        setIsMenuOpen(false);
-                      }}
-                      className="block w-full text-left text-gray-700 hover:text-orange-500 transition-colors"
-                    >
-                      My Profile
-                    </button>
-                  )}
-                  
-                  {/* Show Admin Dashboard for admin users */}
-                  {currentUser.role === 'admin' && (
-                    <Link 
-                      to="/admin" 
-                      className="block text-gray-700 hover:text-orange-500 transition-colors"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      Admin Dashboard
-                    </Link>
-                  )}
-                </>
-              ) : (
-                // Only show auth buttons if not on admin route (admin auth is handled by ProtectedRoute)
-                location.pathname !== '/admin' && (
-                  <>
-                    <button
-                      onClick={() => {
-                        setShowLoginModal(true);
-                        setIsMenuOpen(false);
-                      }}
-                      className="block text-gray-700 hover:text-orange-500 transition-colors"
-                    >
-                      Login
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowRegisterModal(true);
-                        setIsMenuOpen(false);
-                      }}
-                      className="block bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors text-center"
-                    >
-                      Sign Up
-                    </button>
-                  </>
-                )
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
+
+      {/* Mobile Sliding Sidebar */}
+      <AnimatePresence>
+        {isMenuOpen && (
+          <>
+            {/* Backdrop/Overlay */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+              onClick={() => setIsMenuOpen(false)}
+            />
+            
+            {/* Sliding Sidebar */}
+            <motion.div
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed top-0 left-0 h-full w-full bg-white shadow-2xl z-50 md:hidden overflow-y-auto flex flex-col"
+            >
+              {/* Sidebar Header */}
+              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 min-h-[64px]">
+                <Link to="/" onClick={() => setIsMenuOpen(false)} className="flex items-center">
+                  <img src="/assets/logo1.png" alt="Truviews" className="w-40 h-auto object-contain" />
+                </Link>
+                <button
+                  onClick={() => setIsMenuOpen(false)}
+                  className="p-2 mt-[-20px] rounded-full hover:bg-gray-100 transition-colors flex items-center justify-center shrink-0"
+                  aria-label="Close menu"
+                >
+                  <X className="w-6 h-6 text-gray-600" />
+                </button>
+              </div>
+
+              {/* Sidebar Navigation - Main content area */}
+              <div className="flex-1 flex flex-col p-4 space-y-2 overflow-y-auto">
+                <Link 
+                  to="/" 
+                  className="block px-4 py-3 text-gray-700 hover:bg-orange-50 hover:text-orange-500 rounded-lg transition-colors font-medium text-lg"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Home
+                </Link>
+                <Link 
+                  to="/categories" 
+                  className="block px-4 py-3 text-gray-700 hover:bg-orange-50 hover:text-orange-500 rounded-lg transition-colors font-medium text-lg"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Categories
+                </Link>
+                <Link 
+                  to="/discover" 
+                  className="block px-4 py-3 text-gray-700 hover:bg-orange-50 hover:text-orange-500 rounded-lg transition-colors font-medium text-lg"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Discovery
+                </Link>
+                
+                {/* Logged in user actions */}
+                {currentUser && currentUser.emailVerified ? (
+                  <>
+                    {currentUser.role !== 'admin' ? (
+                      <>
+                        {/* My Profile link - same style as other links */}
+                        <button
+                          onClick={() => {
+                            handleProfileClick();
+                            setIsMenuOpen(false);
+                          }}
+                          className="block px-4 py-3 text-gray-700 hover:bg-orange-50 hover:text-orange-500 rounded-lg transition-colors font-medium text-lg w-full text-left"
+                        >
+                          My Profile
+                        </button>
+                        
+                        {/* Write Review button */}
+                        <Link 
+                          to="/submit" 
+                          className="flex items-center justify-center gap-2 bg-orange-500 text-white px-4 py-3 rounded-lg hover:bg-orange-600 transition-colors text-center font-semibold mt-2"
+                          onClick={() => setIsMenuOpen(false)}
+                        >
+                          Write Review
+                        </Link>
+                      </>
+                    ) : (
+                      <>
+                        {/* Divider */}
+                        <div className="border-t border-gray-200 my-3"></div>
+                        
+                        {/* Show Admin Dashboard for admin users */}
+                        <Link 
+                          to="/admin" 
+                          className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-orange-50 hover:text-orange-500 rounded-lg transition-colors font-medium text-lg"
+                          onClick={() => setIsMenuOpen(false)}
+                        >
+                          <Settings className="w-5 h-5" />
+                          Admin Dashboard
+                        </Link>
+                      </>
+                    )}
+                  </>
+                ) : (
+                  // Auth buttons for non-logged in users
+                  location.pathname !== '/admin' && (
+                    <>
+                      {/* Divider */}
+                      <div className="border-t border-gray-200 my-3"></div>
+                      
+                      <button
+                        onClick={() => {
+                          setShowLoginModal(true);
+                          setIsMenuOpen(false);
+                        }}
+                        className="block px-4 py-3 text-gray-700 hover:bg-orange-50 hover:text-orange-500 rounded-lg transition-colors font-medium text-lg text-left"
+                      >
+                        Login
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowRegisterModal(true);
+                          setIsMenuOpen(false);
+                        }}
+                        className="block bg-orange-500 text-white px-4 py-3 rounded-lg hover:bg-orange-600 transition-colors text-center font-medium text-lg"
+                      >
+                        Sign Up
+                      </button>
+                    </>
+                  )
+                )}
+                
+                {/* Spacer to push footer links to bottom */}
+                <div className="flex-1"></div>
+                
+                {/* Footer Links */}
+                <div className="border-t border-gray-200 pt-3 mt-auto space-y-1">
+                  <Link 
+                    to="/privacy" 
+                    className="block px-4 py-2 text-gray-600 hover:text-orange-500 transition-colors text-sm"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Privacy Policy
+                  </Link>
+                  <Link 
+                    to="/terms" 
+                    className="block px-4 py-2 text-gray-600 hover:text-orange-500 transition-colors text-sm"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Terms & Conditions
+                  </Link>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Auth Modals */}
       <LoginModal
