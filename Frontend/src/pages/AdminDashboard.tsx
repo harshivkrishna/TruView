@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Users, FileText, Flag, TrendingUp, Search, Filter, Check, X, Eye, BarChart3, PieChart, Calendar, Activity, LogOut, Shield, EyeOff } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Users, FileText, Flag, TrendingUp, Search, Check, X, Eye, BarChart3, PieChart, Calendar, Activity, LogOut, Shield, EyeOff, Filter } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getAdminReviews, getAdminUsers, getAdminReports, handleReportAction, adminLogin } from '../services/api';
 import toast from 'react-hot-toast';
@@ -20,7 +20,7 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { getCachedData, reviewCache } from '../utils/cache';
 import { updateMetaTags } from '../utils/seo';
 
@@ -30,7 +30,6 @@ const FileTextIcon = FileText as React.ComponentType<any>;
 const FlagIcon = Flag as React.ComponentType<any>;
 const TrendingUpIcon = TrendingUp as React.ComponentType<any>;
 const SearchIcon = Search as React.ComponentType<any>;
-const FilterIcon = Filter as React.ComponentType<any>;
 const CheckIcon = Check as React.ComponentType<any>;
 const XIcon = X as React.ComponentType<any>;
 const EyeIcon = Eye as React.ComponentType<any>;
@@ -40,6 +39,7 @@ const PieChartIcon = PieChart as React.ComponentType<any>;
 const CalendarIcon = Calendar as React.ComponentType<any>;
 const ActivityIcon = Activity as React.ComponentType<any>;
 const LogOutIcon = LogOut as React.ComponentType<any>;
+const FilterIcon = Filter as React.ComponentType<any>;
 
 // Type assertions for Recharts components to fix TypeScript compatibility
 const ResponsiveContainerComponent = ResponsiveContainer as React.ComponentType<any>;
@@ -470,23 +470,76 @@ const AdminDashboard = () => {
 
   // handleUpdatePassKey removed - Admin Management tab removed
 
+  // Confirmation dialog state
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    reportId: string | null;
+    action: 'accept' | 'reject' | null;
+    reportType: string;
+  }>({
+    isOpen: false,
+    reportId: null,
+    action: null,
+    reportType: ''
+  });
+
   const handleReportActionLocal = async (reportId: string, action: 'accept' | 'reject') => {
+    // Find the report to get its type for the confirmation dialog
+    const report = reports.find((r: any) => r._id === reportId) as any;
+    const reportType = report?.type || report?.reason || 'report';
+    
+    setConfirmDialog({
+      isOpen: true,
+      reportId,
+      action,
+      reportType
+    });
+  };
+
+  const confirmReportAction = async () => {
+    if (!confirmDialog.reportId || !confirmDialog.action) return;
+    
     try {
-      await handleReportAction(reportId, action);
-      fetchAdminData(); // Refresh data
-    } catch (error) {
-      // Handle error silently
+      toast.loading(`${confirmDialog.action === 'accept' ? 'Accepting' : 'Rejecting'} report...`);
+      
+      await handleReportAction(confirmDialog.reportId, confirmDialog.action);
+      
+      toast.dismiss();
+      toast.success(`Report ${confirmDialog.action === 'accept' ? 'accepted' : 'rejected'} successfully!`);
+      
+      // Refresh data
+      await fetchAdminData();
+    } catch (error: any) {
+      toast.dismiss();
+      console.error('Report action error:', error);
+      
+      let errorMessage = `Failed to ${confirmDialog.action} report. Please try again.`;
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      toast.error(errorMessage);
+    } finally {
+      setConfirmDialog({
+        isOpen: false,
+        reportId: null,
+        action: null,
+        reportType: ''
+      });
     }
   };
 
-  // Check if user should have admin access
-  // Since PassKey validation happened during registration, allow access to any authenticated user on /admin route
-  const hasAdminAccess = () => {
-    // If user is authenticated and accessing /admin route, allow access
-    // The PassKey validation already happened during registration
-    // Also check if user has admin role
-    return currentUser !== null && currentUser.role === 'admin';
+  const cancelReportAction = () => {
+    setConfirmDialog({
+      isOpen: false,
+      reportId: null,
+      action: null,
+      reportType: ''
+    });
   };
+
 
   // Show admin login form if not authenticated as admin
   if (!isAdmin) {
@@ -698,6 +751,42 @@ const AdminDashboard = () => {
           )}
         </div>
       </div>
+
+      {/* Confirmation Dialog */}
+      {confirmDialog.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Confirm {confirmDialog.action === 'accept' ? 'Accept' : 'Reject'} Report
+            </h3>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to {confirmDialog.action} this {confirmDialog.reportType} report? 
+              {confirmDialog.action === 'accept' 
+                ? ' This will mark the report as resolved and may result in content removal.'
+                : ' This will dismiss the report without taking action.'
+              }
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={cancelReportAction}
+                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmReportAction}
+                className={`px-4 py-2 text-white rounded-lg transition-colors ${
+                  confirmDialog.action === 'accept'
+                    ? 'bg-green-600 hover:bg-green-700'
+                    : 'bg-red-600 hover:bg-red-700'
+                }`}
+              >
+                {confirmDialog.action === 'accept' ? 'Accept Report' : 'Reject Report'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -1429,6 +1518,7 @@ const UsersTab = ({ users, currentUser }: any) => {
 };
 
 const ReportsTab = ({ reports, onAction }: any) => {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [selectedType, setSelectedType] = useState('');
@@ -1577,7 +1667,13 @@ const ReportsTab = ({ reports, onAction }: any) => {
                   {report.content || report.description || 'No description'}
                 </div>
                     <div className="col-span-2 text-gray-600 truncate" title={report.reporter?.name || 'Anonymous'}>
-                  {report.reporter?.name || 'Anonymous'}
+                  {report.reportedBy ? (
+                      <Link to={`/user/${report.reportedBy._id}`} className="text-blue-500 hover:underline">
+                        {`${report.reportedBy.firstName} ${report.reportedBy.lastName}`}
+                      </Link>
+                    ) : (
+                      'Anonymous'
+                    )}
                 </div>
                     <div className="col-span-1">
                   <span className={`px-2 py-1 text-xs rounded-full ${
@@ -1612,7 +1708,8 @@ const ReportsTab = ({ reports, onAction }: any) => {
                       </button>
                     </>
                   )}
-                      <button 
+                      <button
+                        onClick={() => navigate(`/review/${report.review?._id}`)}
                         className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-1 rounded transition-colors"
                         title="View report details"
                       >

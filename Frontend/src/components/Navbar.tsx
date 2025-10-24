@@ -16,11 +16,7 @@ const Navbar = () => {
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
 
-  // Check if we're on the admin route
-  const isAdminRoute = location.pathname === '/admin';
-  
-  // Debug: Log the current route and admin status
-  // console.log('Current pathname:', location.pathname, 'isAdminRoute:', isAdminRoute);
+  const isAdmin = currentUser?.role === 'admin';
 
   // Prevent body scroll when sidebar is open
   useEffect(() => {
@@ -75,42 +71,36 @@ const Navbar = () => {
               Discovery
             </Link>
             
-            {currentUser && currentUser.emailVerified ? (
+            
+            {(currentUser && currentUser.emailVerified) || isAdmin ? (
               <>
-                {/* Only show Write Review for non-admin users */}
-                {currentUser.role !== 'admin' && (
+                {isAdmin ? (
                   <Link 
-                    to="/submit" 
+                    to="/admin" 
                     className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors"
                   >
-                    Write Review
-                  </Link>
-                )}
-                
-                {/* Only show Profile for non-admin users */}
-                {currentUser.role !== 'admin' && (
-                  <button
-                    onClick={handleProfileClick}
-                    className="flex items-center gap-2 text-gray-700 hover:text-orange-500 transition-colors"
-                  >
-                    <User className="w-5 h-5" />
-                    {currentUser.firstName || 'User'}
-                  </button>
-                )}
-                
-                {/* Show Admin Dashboard for admin users */}
-                {currentUser.role === 'admin' && (
-                  <Link
-                    to="/admin"
-                    className="flex items-center gap-2 text-gray-700 hover:text-orange-500 transition-colors"
-                  >
-                    <Settings className="w-5 h-5" />
                     Admin Dashboard
                   </Link>
+                ) : (
+                  <>
+                    <Link 
+                      to="/submit" 
+                      className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors"
+                    >
+                      Write Review
+                    </Link>
+                    <button
+                      onClick={handleProfileClick}
+                      className="flex items-center gap-2 text-gray-700 hover:text-orange-500 transition-colors"
+                    >
+                      <User className="w-5 h-5" />
+                      {currentUser.firstName || 'User'}
+                    </button>
+                  </>
                 )}
               </>
             ) : (
-              // Only show auth buttons if not on admin route (admin auth is handled by ProtectedRoute)
+              // Only show auth buttons if not on admin route and no user is logged in
               location.pathname !== '/admin' && (
                 <div className="flex items-center gap-3">
                   <button
@@ -200,12 +190,25 @@ const Navbar = () => {
                   Discovery
                 </Link>
                 
+                
                 {/* Logged in user actions */}
-                {currentUser && currentUser.emailVerified ? (
+                {(currentUser && currentUser.emailVerified) || isAdmin ? (
                   <>
-                    {currentUser.role !== 'admin' ? (
+                    {isAdmin ? (
                       <>
-                        {/* My Profile link - same style as other links */}
+                        {/* Admin Dashboard */}
+                        <Link 
+                          to="/admin" 
+                          className="flex items-center gap-2 px-4 py-3 bg-orange-500 text-white hover:bg-orange-600 rounded-lg transition-colors font-medium text-lg"
+                          onClick={() => setIsMenuOpen(false)}
+                        >
+                          <Settings className="w-5 h-5" />
+                          Admin Dashboard
+                        </Link>
+                      </>
+                    ) : (
+                      <>
+                        {/* Regular user options */}
                         <button
                           onClick={() => {
                             handleProfileClick();
@@ -216,28 +219,12 @@ const Navbar = () => {
                           My Profile
                         </button>
                         
-                        {/* Write Review button */}
                         <Link 
                           to="/submit" 
                           className="flex items-center justify-center gap-2 bg-orange-500 text-white px-4 py-3 rounded-lg hover:bg-orange-600 transition-colors text-center font-semibold mt-2"
                           onClick={() => setIsMenuOpen(false)}
                         >
                           Write Review
-                        </Link>
-                      </>
-                    ) : (
-                      <>
-                        {/* Divider */}
-                        <div className="border-t border-gray-200 my-3"></div>
-                        
-                        {/* Show Admin Dashboard for admin users */}
-                        <Link 
-                          to="/admin" 
-                          className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-orange-50 hover:text-orange-500 rounded-lg transition-colors font-medium text-lg"
-                          onClick={() => setIsMenuOpen(false)}
-                        >
-                          <Settings className="w-5 h-5" />
-                          Admin Dashboard
                         </Link>
                       </>
                     )}
@@ -318,7 +305,7 @@ const Navbar = () => {
           setShowRegisterModal(false);
           setShowLoginModal(true);
         }}
-        isAdminMode={isAdminRoute}
+        isAdminMode={false}
       />
 
       <ForgotPasswordModal

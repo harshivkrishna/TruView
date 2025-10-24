@@ -177,8 +177,8 @@ router.get('/users', async (req, res) => {
 router.get('/reports', async (req, res) => {
   try {
     const reports = await Report.find({ status: 'pending' })
-      .populate('review', 'title description category')
-      .populate('reportedBy', 'firstName lastName email')
+      .populate('review', 'title description category _id') // Ensure review _id is populated
+      .populate('reportedBy', 'firstName lastName email _id') // Ensure reporter _id is populated
       .sort({ createdAt: -1 });
     res.json(reports);
   } catch (error) {
@@ -195,26 +195,40 @@ router.post('/reports/:id/:action', async (req, res) => {
       return res.status(400).json({ message: 'Invalid action' });
     }
 
-    const report = await Report.findById(id).populate('review');
+    const report = await Report.findById(id);
     if (!report) {
       return res.status(404).json({ message: 'Report not found' });
     }
 
     if (action === 'accept') {
-      // Delete the reported review
-      await Review.findByIdAndDelete(report.review._id);
+      // Mark the review as removed by admin (as per frontend implementation)
+      await Review.findByIdAndUpdate(report.review, { 
+        isRemovedByAdmin: true,
+        adminRemovalReason: `Review removed due to: ${report.reason}${report.description ? ` - ${report.description}` : ''}`
+      });
       report.status = 'accepted';
-    } else {
+      // Don't set reviewedBy for admin user since "admin" is not a valid ObjectId
+      // Only set reviewedBy if it's a real user ObjectId
+      if (req.user.userId !== 'admin') {
+        report.reviewedBy = req.user.userId;
+      }
+      report.reviewedAt = new Date();
+      await report.save();
+      res.json({ message: 'Report accepted, review removed by admin' });
+    } else { // action === 'reject'
       report.status = 'rejected';
+      // Don't set reviewedBy for admin user since "admin" is not a valid ObjectId
+      // Only set reviewedBy if it's a real user ObjectId
+      if (req.user.userId !== 'admin') {
+        report.reviewedBy = req.user.userId;
+      }
+      report.reviewedAt = new Date();
+      await report.save();
+      res.json({ message: 'Report rejected' });
     }
-
-    report.reviewedBy = req.user.id;
-    report.reviewedAt = new Date();
-    await report.save();
-
-    res.json({ message: `Report ${action}ed successfully` });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error(`Error handling report ${req.params.id} with action ${req.params.action}:`, error);
+    res.status(500).json({ message: 'Error handling report' });
   }
 });
 

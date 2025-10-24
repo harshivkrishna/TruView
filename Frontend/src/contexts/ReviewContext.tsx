@@ -6,6 +6,7 @@ interface Review {
   description: string;
   rating: number;
   category: string;
+  subcategory?: string;
   tags: string[];
   author: {
     name: string;
@@ -18,6 +19,8 @@ interface Review {
   viewedBy: any[];
   media: any[];
   trustScore: number;
+  isRemovedByAdmin?: boolean;
+  adminRemovalReason?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -25,7 +28,6 @@ interface Review {
 interface ReviewContextType {
   reviews: { [key: string]: Review };
   updateReview: (reviewId: string, updatedReview: Partial<Review>) => void;
-  incrementViewCount: (reviewId: string) => void;
   getReview: (reviewId: string) => Review | null;
   hasUserViewed: (reviewId: string, userId: string) => boolean;
 }

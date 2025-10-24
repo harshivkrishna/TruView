@@ -11,7 +11,7 @@ router.post('/', authenticateToken, async (req, res) => {
     // Check if user already reported this review
     const existingReport = await Report.findOne({
       review: reviewId,
-      reportedBy: req.user.id
+      reportedBy: req.user.userId
     });
 
     if (existingReport) {
@@ -20,7 +20,7 @@ router.post('/', authenticateToken, async (req, res) => {
 
     const report = new Report({
       review: reviewId,
-      reportedBy: req.user.id,
+      reportedBy: req.user.userId,
       reason,
       description
     });
@@ -28,6 +28,8 @@ router.post('/', authenticateToken, async (req, res) => {
     await report.save();
     res.status(201).json({ message: 'Report submitted successfully' });
   } catch (error) {
+    console.error('Report creation error:', error);
+    res.status(500).json({ message: 'Error creating report', error: error.message });
     res.status(500).json({ message: error.message });
   }
 });

@@ -23,6 +23,7 @@ import Footer from '../components/Footer';
 import { getMostViewedReviewsWeek } from '../services/api';
 import { getCachedData, reviewCache } from '../utils/cache';
 import { updateMetaTags, generateOrganizationStructuredData, addStructuredData } from '../utils/seo';
+import { useAuth } from '../contexts/AuthContext';
 import { preloadImage } from '../utils/imageOptimization';
 
 // Type assertions for Lucide icons and Link to fix TypeScript compatibility
@@ -34,18 +35,18 @@ const AwardIcon = Award as React.ComponentType<any>;
 const ZapIcon = Zap as React.ComponentType<any>;
 const GlobeIcon = Globe as React.ComponentType<any>;
 const CheckCircleIcon = CheckCircle as React.ComponentType<any>;
-const MessageSquareIcon = MessageSquare as React.ComponentType<any>;
 const EyeIcon = Eye as React.ComponentType<any>;
 const SparklesIcon = Sparkles as React.ComponentType<any>;
 const ClockIcon = Clock as React.ComponentType<any>;
+const MessageSquareIcon = MessageSquare as React.ComponentType<any>;
 const LinkComponent = Link as React.ComponentType<any>;
 
-const HomePage = () => {
+const HomePage: React.FC = () => {
+  const { currentUser } = useAuth();
   const [mostViewedReviews, setMostViewedReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Optimized data fetching with caching
   const fetchMostViewedReviews = useCallback(async () => {
     try {
       setLoading(true);
@@ -123,6 +124,7 @@ const HomePage = () => {
         loading={loading} 
         error={error} 
         onRetry={retryFetch}
+        currentUserId={currentUser?.id}
       />
 
       {/* Trust & Safety Section */}
@@ -141,67 +143,45 @@ const HeroSection = () => {
   const isInView = useInView(ref, { once: true });
 
   const socialLinks = [
-    { icon: FaFacebookF, label: 'FACEBOOK', url: 'https://facebook.com', delay: 0.2 },
-    { icon: FaInstagram, label: 'INSTAGRAM', url: 'https://instagram.com', delay: 0.3 },
-    { icon: FaXTwitter, label: 'X', url: 'https://x.com', delay: 0.4 },
-    { icon: FaReddit, label: 'REDDIT', url: 'https://reddit.com', delay: 0.5 }
+    { icon: FaFacebookF, url: 'https://facebook.com', bgColor: 'bg-blue-600', delay: 0.2 },
+    { icon: FaInstagram, url: 'https://instagram.com', bgColor: 'bg-gradient-to-br from-purple-500 to-pink-500', delay: 0.3 },
+    { icon: FaXTwitter, url: 'https://x.com', bgColor: 'bg-black', delay: 0.4 },
+    { icon: FaReddit, url: 'https://reddit.com', bgColor: 'bg-orange-600', delay: 0.5 }
   ];
 
   return (
     <section ref={ref} className="bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white min-h-screen overflow-hidden flex items-center relative">
       
-      {/* Social Links Sidebar - Hidden on mobile, at right edge of screen and centered */}
+      {/* Social Links - Left center positioned */}
       <motion.div 
-        className="hidden lg:flex absolute right-8 top-1/2 -translate-y-1/2 z-20 flex-col items-center gap-3"
-        style={{ writingMode: 'vertical-lr' }}
-        initial={{ opacity: 0, x: 50 }}
+        className="hidden lg:flex absolute left-0 z-20 flex-col"
+        initial={{ opacity: 0, x: -50 }}
         animate={isInView ? { opacity: 1, x: 0 } : {}}
         transition={{ duration: 0.8, delay: 0.6 }}
       >
-        <div className="flex items-center gap-3 rotate-180">
-            {socialLinks.map((social, index) => {
-              const Icon = social.icon;
-              return (
-                <React.Fragment key={social.label}>
-                  <motion.a
-                    href={social.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 group cursor-pointer"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={isInView ? { opacity: 1, x: 0 } : {}}
-                    transition={{ duration: 0.6, delay: social.delay }}
-                    whileHover="hover"
-                  >
-                    <motion.div
-                      className="text-orange-500 rotate-90"
-                      variants={{
-                        hover: { 
-                          
-                          transition: { duration: 0.5 }
-                        }
-                      }}
-                    >
-                      <Icon className="w-4 h-4" />
-                    </motion.div>
-                    <span className="text-white text-xs font-medium tracking-wider group-hover:text-orange-500 transition-colors duration-300">
-                      {social.label}
-                    </span>
-                  </motion.a>
-                  {index < socialLinks.length - 1 && (
-                    <motion.span 
-                      className="text-orange-500 text-sm font-bold"
-                      initial={{ opacity: 0 }}
-                      animate={isInView ? { opacity: 1 } : {}}
-                      transition={{ duration: 0.6, delay: social.delay + 0.1 }}
-                    >
-                      -
-                    </motion.span>
-                  )}
-                </React.Fragment>
-            );
-          })}
-        </div>
+        {socialLinks.map((social, index) => {
+          const Icon = social.icon;
+          return (
+            <motion.a
+              key={index}
+              href={social.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`w-12 h-12 ${social.bgColor} flex items-center justify-center group cursor-pointer shadow-lg hover:shadow-xl transition-all duration-300`}
+              initial={{ opacity: 0, x: -20, scale: 0.8 }}
+              animate={isInView ? { opacity: 1, x: 0, scale: 1 } : {}}
+              transition={{ duration: 0.6, delay: social.delay }}
+              whileHover={{ 
+                scale: 1.1, 
+                y: -2,
+                transition: { duration: 0.2 }
+              }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Icon className="w-6 h-6 text-white" />
+            </motion.a>
+          );
+        })}
       </motion.div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
@@ -884,7 +864,7 @@ const FeaturesSection = () => {
   );
 };
 
-const TrendingSection = ({ reviews, loading, error, onRetry }: any) => {
+const TrendingSection = ({ reviews, loading, error, onRetry, currentUserId }: any) => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true });
 
@@ -985,7 +965,7 @@ const TrendingSection = ({ reviews, loading, error, onRetry }: any) => {
                     transition: { duration: 0.2 }
                   }}
                 >
-                  <ReviewCard review={review} />
+                  <ReviewCard review={review} currentUserId={currentUserId} />
                 </motion.div>
               ))}
             </motion.div>

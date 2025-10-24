@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Star, ThumbsUp, Eye, Calendar, User, Share2, Award, TrendingUp, Image } from 'lucide-react';
+import { Star, ThumbsUp, Eye, Calendar, User, Share2, Award, Shield } from 'lucide-react';
 import SocialShareModal from './SocialShareModal';
 import MediaCarousel from './MediaCarousel';
 import { calculateTrustScore, getTrustLevel } from '../utils/trustPrediction';
@@ -14,7 +14,7 @@ interface ReviewCardProps {
     title: string;
     description: string;
     category: string;
-    subcategory?: string;
+    subcategory: string;
     rating: number;
     tags: string[];
     media?: Array<{
@@ -31,12 +31,15 @@ interface ReviewCardProps {
     views: number;
     createdAt: string;
     trustScore?: number;
+    isRemovedByAdmin?: boolean;
+    adminRemovalReason?: string;
   };
   showRank?: boolean;
   rank?: number;
+  currentUserId?: string;
 }
 
-const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = false, rank }) => {
+const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = false, rank, currentUserId }) => {
   const navigate = useNavigate();
   const [showShareModal, setShowShareModal] = useState(false);
   const { getReview } = useReviewContext();
@@ -46,6 +49,13 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
   
   // Ensure currentReview has the correct type
   const safeReview = currentReview as typeof review;
+
+  // Check if review is removed by admin and handle visibility
+  const isRemovedByAdmin = safeReview.isRemovedByAdmin;
+  const isOriginalAuthor = currentUserId && safeReview.author?.userId === currentUserId;
+
+  // Don't hide removed reviews - show them with admin notice instead
+  // This ensures all cards maintain the same height
 
   // Memoized trust score calculation
   const { trustScore, trustLevel } = useMemo(() => {
@@ -189,7 +199,23 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
           transition: { duration: 0.3 }
         }}
       >
-        <div className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden h-full flex flex-col relative">
+        <div className={`bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden h-full min-h-[600px] flex flex-col relative ${isRemovedByAdmin ? 'border-2 border-red-300 bg-red-50' : ''}`}>
+          
+          {/* Admin Removal Notice - Only visible to original author */}
+          {isRemovedByAdmin && isOriginalAuthor && (
+            <div className="bg-red-100 border-b-2 border-red-300 p-4">
+              <div className="flex items-center gap-2 text-red-800">
+                <Shield className="w-5 h-5" />
+                <span className="font-semibold">Review Removed by Admin</span>
+              </div>
+              <p className="text-sm text-red-700 mt-1">
+                {safeReview.adminRemovalReason || 'This review has been removed by an administrator due to policy violations.'}
+              </p>
+              <p className="text-xs text-red-600 mt-2">
+                This review is only visible to you. Other users cannot see this content.
+              </p>
+            </div>
+          )}
           {/* Trust Score Badge - Always Visible */}
           <div className="absolute top-4 right-4 z-10">
             <div className={`px-3 py-1.5 rounded-full text-sm font-bold bg-white shadow-xl border-2 ${trustLevel.color.includes('bg-') ? `border-${trustLevel.color.split('-')[1]}-500` : 'border-gray-500'}`}>
@@ -200,66 +226,99 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
             </div>
           </div>
 
-          {/* Tags Section - Only top 2 tags visible */}
-          <div className="p-6 py-5 bg-gray-50 border-b border-gray-200">
-            <div className="flex items-center gap-2 flex-wrap">
-              {currentReview.tags.slice(0, 2).map((tag, index) => (
-                <span
-                  key={tag}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded-full bg-gradient-to-r ${getTagStyle(tag)} text-white`}
-                >
-                  {tag}
-                </span>
-              ))}
-              {currentReview.tags.length > 2 && (
-                <span className="px-2 py-1.5 text-xs text-gray-500 bg-gray-100 rounded-full">
-                  +{currentReview.tags.length - 2} more
-                </span>
-              )}
-              {!currentReview.media && (
-                <div className="ml-auto flex flex-col items-end gap-1">
-                  <span className={`px-3 py-1.5 text-xs font-semibold rounded-full bg-gradient-to-r ${getCategoryGradient(currentReview.category)} text-white`}>
-                    {currentReview.category}
-                  </span>
-                {currentReview.subcategory && (
-                <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700">
-                  {currentReview.subcategory}
-                </span>
-              )}
+          {/* Tags Section OR Admin Removal Notice */}
+          {isRemovedByAdmin && !isOriginalAuthor ? (
+            /* Admin Removal Notice for Public Users */
+            <div className="p-6 py-5 bg-red-100 border-b-2 border-red-300 min-h-[80px] flex items-center">
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-2 text-red-800">
+                  <Shield className="w-5 h-5" />
+                  <span className="font-semibold">Review Removed by Admin</span>
                 </div>
-              )}
+                <div className="px-3 py-1.5 bg-white shadow-lg border-2 border-red-500 rounded-full">
+                  <span className="text-sm font-bold text-red-700">65%</span>
+                </div>
+              </div>
             </div>
-          </div>
-
-          {/* Media Section - Simple and clean */}
-          {currentReview.media && currentReview.media.length > 0 && (
-            <div className="relative h-48 bg-gray-100">
-              <img
-                src={currentReview.media[0].url}
-                alt="Review media"
-                className="w-full h-full object-cover"
-                loading="lazy"
-              />
-              
-              {/* Category Badge */}
-              <div className="absolute bottom-3 left-3 flex flex-col gap-1">
-                <div className="px-2 py-1 bg-black bg-opacity-70 text-white text-xs font-medium rounded-full">
-                  {currentReview.category}
-                </div>
-                {currentReview.subcategory && (
-                  <div className="px-2 py-1 bg-black bg-opacity-50 text-white text-xs font-medium rounded-full">
+          ) : (
+            /* Normal Tags Section - Only top 2 tags visible */
+            <div className="p-6 py-5 bg-gray-50 border-b border-gray-200 min-h-[80px] flex items-center">
+              <div className="flex items-center gap-2 flex-wrap w-full">
+                {currentReview.tags.slice(0, 2).map((tag, index) => (
+                  <span
+                    key={tag}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-full bg-gradient-to-r ${getTagStyle(tag)} text-white`}
+                  >
+                    {tag}
+                  </span>
+                ))}
+                {currentReview.tags.length > 2 && (
+                  <span className="px-2 py-1.5 text-xs text-gray-500 bg-gray-100 rounded-full">
+                    +{currentReview.tags.length - 2} more
+                  </span>
+                )}
+                {!currentReview.media && (
+                  <div className="ml-auto flex flex-col items-end gap-1">
+                    <span className={`px-3 py-1.5 text-xs font-semibold rounded-full bg-gradient-to-r ${getCategoryGradient(currentReview.category)} text-white`}>
+                      {currentReview.category}
+                    </span>
+                  {currentReview.subcategory && (
+                  <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700">
                     {currentReview.subcategory}
+                  </span>
+                )}
                   </div>
                 )}
               </div>
             </div>
           )}
 
+          {/* Media Section OR Admin Removal Details */}
+          {currentReview.media && currentReview.media.length > 0 && (
+            <>
+              {isRemovedByAdmin && !isOriginalAuthor ? (
+                /* Admin Removal Details for Public Users */
+                <div className="relative h-48 bg-red-50 border-b-2 border-red-300 flex items-center justify-center">
+                  <div className="text-center text-red-700 p-6">
+                    <p className="text-sm mb-2">
+                      {safeReview.adminRemovalReason || 'Review removed due to: Policy Violation'}
+                    </p>
+                    <p className="text-xs text-red-600">
+                      This review is only visible to you. Other users cannot see this content.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                /* Normal Media Section */
+                <div className="relative h-48 bg-gray-100">
+                  <img
+                    src={currentReview.media[0].url}
+                    alt="Review media"
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                  
+                  {/* Category Badge */}
+                  <div className="absolute bottom-3 left-3 flex flex-col gap-1">
+                    <div className="px-2 py-1 bg-black bg-opacity-70 text-white text-xs font-medium rounded-full">
+                      {currentReview.category}
+                    </div>
+                    {currentReview.subcategory && (
+                      <div className="px-2 py-1 bg-black bg-opacity-50 text-white text-xs font-medium rounded-full">
+                        {currentReview.subcategory}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
           {/* Content Section */}
           <div className="p-4 flex-1 flex flex-col">
             {/* Title */}
             <Link to={`/review/${currentReview._id}`} className="block mb-3">
-              <h3 className="text-lg font-bold text-gray-900 line-clamp-2 hover:text-orange-600 transition-colors">
+              <h3 className="text-lg font-bold text-gray-900 line-clamp-2 hover:text-orange-600 transition-colors h-[56px] overflow-hidden">
                 {currentReview.title}
               </h3>
             </Link>
@@ -284,9 +343,16 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
             </div>
 
             {/* Description */}
-            <p className="text-gray-600 text-sm mb-6 line-clamp-3 flex-1 leading-relaxed">
-              {truncateText(currentReview.description, 140)}
-            </p>
+            <div className="text-gray-600 text-sm mb-6 h-[72px] overflow-hidden relative">
+              <p className="leading-relaxed" style={{
+                display: '-webkit-box',
+                WebkitLineClamp: 3,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden'
+              }}>
+                {currentReview.description}
+              </p>
+            </div>
 
             {/* Footer */}
             <div className="mt-auto space-y-4">

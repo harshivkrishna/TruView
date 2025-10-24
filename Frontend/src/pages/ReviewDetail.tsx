@@ -4,14 +4,14 @@ import { useAuth } from '../contexts/AuthContext';
 import { useReviewContext } from '../contexts/ReviewContext';
 import { getReview, incrementReviewView, upvoteReview } from '../services/api';
 import { toast } from 'react-hot-toast';
-import { ThumbsUp, Eye, Share2, Flag, User, Calendar, ArrowLeft, Award } from 'lucide-react';
+import { ThumbsUp, Eye, Share2, Flag, User, Calendar, ArrowLeft, Award, Shield, AlertTriangle } from 'lucide-react';
 import MediaCarousel from '../components/MediaCarousel';
 import SocialShareModal from '../components/SocialShareModal';
 import LoginModal from '../components/auth/LoginModal';
 import { calculateTrustScore, getTrustLevel } from '../utils/trustPrediction';
 import { updateMetaTags, generateReviewStructuredData, addStructuredData } from '../utils/seo';
 import { getCachedData, reviewCache } from '../utils/cache';
-import { lazyLoadImage, preloadImage } from '../utils/imageOptimization';
+import { preloadImage } from '../utils/imageOptimization';
 
 const ReviewDetail = () => {
   const { currentUser } = useAuth();
@@ -593,6 +593,74 @@ const ReviewDetail = () => {
     );
   }
 
+  // Check if review is removed by admin and current user is not the original author
+  const isRemovedByAdmin = review.isRemovedByAdmin;
+  const isOriginalAuthor = currentUser && review.author?.userId === currentUser.id;
+
+  // If review is removed by admin and current user is not the original author, show removal notice
+  if (isRemovedByAdmin && !isOriginalAuthor) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-4xl mx-auto px-2 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-6 md:py-8">
+          {/* Back Button */}
+          <Link
+            to="/categories"
+            className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-3 sm:mb-6 transition-colors text-sm sm:text-base"
+          >
+            <ArrowLeft className="w-4 h-5 h-5 mr-2" />
+            <span className="hidden sm:inline">Back to Reviews</span>
+            <span className="sm:hidden">Back</span>
+          </Link>
+
+          {/* Review Removed Card */}
+          <div className="bg-white rounded-2xl shadow-lg overflow-hidden border-2 border-red-300 bg-red-50" style={{ minHeight: '600px' }}>
+            {/* Admin Removal Notice Header */}
+            <div className="bg-red-100 border-b-2 border-red-300 p-6">
+              <div className="flex items-center gap-3 text-red-800 mb-3">
+                <Shield className="w-6 h-6" />
+                <span className="text-xl font-semibold">Review Removed by Admin</span>
+                <div className="ml-auto px-3 py-1.5 bg-white shadow-lg border-2 border-red-500 rounded-full">
+                  <span className="text-sm font-bold text-red-700">65%</span>
+                </div>
+              </div>
+              <p className="text-red-700 text-base">
+                {review.adminRemovalReason || 'This review has been removed by an administrator due to policy violations.'}
+              </p>
+              <p className="text-sm text-red-600 mt-3">
+                This review is not available for public viewing.
+              </p>
+            </div>
+
+            {/* Content Area with Warning */}
+            <div className="p-6 flex-1 flex flex-col justify-center items-center text-center" style={{ minHeight: '400px' }}>
+              <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-8 max-w-md w-full">
+                <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+                <h3 className="text-xl font-bold text-red-800 mb-3">Content Not Available</h3>
+                <p className="text-red-700 mb-6">
+                  This review has been removed by our moderation team and is no longer available for viewing.
+                </p>
+                <div className="space-y-3">
+                  <Link
+                    to="/categories"
+                    className="block w-full px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                  >
+                    Browse Other Reviews
+                  </Link>
+                  <Link
+                    to="/help"
+                    className="block w-full px-4 py-2 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 transition-colors"
+                  >
+                    Learn About Our Policies
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Custom Styles */}
@@ -610,7 +678,23 @@ const ReviewDetail = () => {
         </Link>
 
         {/* Review Content */}
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div className={`bg-white rounded-lg shadow-sm overflow-hidden ${isRemovedByAdmin && isOriginalAuthor ? 'border-2 border-red-300 bg-red-50' : ''}`}>
+          
+          {/* Admin Removal Notice - Only visible to original author */}
+          {isRemovedByAdmin && isOriginalAuthor && (
+            <div className="bg-red-100 border-b-2 border-red-300 p-4">
+              <div className="flex items-center gap-2 text-red-800">
+                <Shield className="w-5 h-5" />
+                <span className="font-semibold">Review Removed by Admin</span>
+              </div>
+              <p className="text-sm text-red-700 mt-1">
+                {review.adminRemovalReason || 'This review has been removed by an administrator due to policy violations.'}
+              </p>
+              <p className="text-xs text-red-600 mt-2">
+                This review is only visible to you. Other users cannot see this content.
+              </p>
+            </div>
+          )}
           {/* Media Section - Full width on mobile */}
           {review.media && review.media.length > 0 && (
             <div className="media-section bg-gray-50 p-2 sm:p-4 md:p-6 pb-3 sm:pb-6 md:pb-8 border-b border-gray-200 relative">
@@ -630,6 +714,7 @@ const ReviewDetail = () => {
 
           {/* Content Section - Mobile optimized padding */}
           <div className="review-content p-3 sm:p-6 md:p-8 pt-4 sm:pt-8 md:pt-10">
+            
             {/* Tags Section - Mobile optimized */}
             <div className="tags-section bg-gray-50 p-2 sm:p-4 rounded-lg mb-3 sm:mb-6 mt-2 sm:mt-4">
               <div className="tags-container flex items-center gap-1.5 sm:gap-2 flex-wrap">

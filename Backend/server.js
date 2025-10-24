@@ -56,6 +56,8 @@ if (process.env.FRONTEND_URL) {
   allowedOrigins.push(process.env.FRONTEND_URL);
 }
 
+// CORS configuration will be applied below with corsOptions
+
 const productionOrigins = [
   'https://www.truviews.in',
   'https://truviews.in'

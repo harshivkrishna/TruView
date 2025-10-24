@@ -51,6 +51,11 @@ const LoginModal: React.FC<LoginModalProps> = ({
     setErrorMessage('');
     
     try {
+      // If the user is trying to log in as admin, log them out of their current session first
+      if (formData.email === 'connect.truview@gmail.com') {
+        const { logout } = useAuth();
+        logout();
+      }
       const response = await login(formData.email, formData.password);
 
       // Check if email verification is required

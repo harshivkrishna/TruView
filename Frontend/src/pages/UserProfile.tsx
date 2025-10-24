@@ -891,6 +891,7 @@ const UserProfile = () => {
                 >
                   <ReviewCard 
                     review={review}
+                    currentUserId={currentUser?.id}
                   />
                 </motion.div>
               ))}

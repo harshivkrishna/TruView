@@ -41,6 +41,23 @@ router.get('/', async (req, res) => {
     
     let query = {};
     
+    // Filter out admin-removed reviews for non-authors
+    // Admin-removed reviews should only be visible to their original authors
+    const currentUserId = req.user?.userId;
+    if (!currentUserId || currentUserId === 'admin') {
+      // For unauthenticated users and admins, hide all admin-removed reviews
+      query.isRemovedByAdmin = { $ne: true };
+    } else {
+      // For authenticated users, show admin-removed reviews only if they are the author
+      query.$or = [
+        { isRemovedByAdmin: { $ne: true } }, // Show non-removed reviews
+        { 
+          isRemovedByAdmin: true, 
+          'author.userId': currentUserId // Show removed reviews only to original author
+        }
+      ];
+    }
+    
     // Basic filters
     if (category) query.category = category;
     if (subcategory) query.subcategory = subcategory;
@@ -161,7 +178,7 @@ router.get('/', async (req, res) => {
           select: 'firstName lastName avatar',
           options: { strictPopulate: false }
         })
-        .select('title description rating category subcategory tags author upvotes views trustScore createdAt updatedAt media')
+        .select('title description rating category subcategory tags author upvotes views trustScore createdAt updatedAt media isRemovedByAdmin adminRemovalReason')
         .sort(sortObject)
         .skip(skip)
         .limit(parseInt(limit))
@@ -238,14 +255,14 @@ router.get('/trending', async (req, res) => {
       });
     }
 
-    // Fetch reviews with proper error handling
-    const reviews = await Review.find()
+    // Fetch reviews with proper error handling, excluding admin-removed reviews
+    const reviews = await Review.find({ isRemovedByAdmin: { $ne: true } })
       .populate({
         path: 'author.userId',
         select: 'firstName lastName avatar',
         options: { strictPopulate: false }
       })
-      .select('title description rating category subcategory tags author upvotes views trustScore createdAt updatedAt media')
+      .select('title description rating category subcategory tags author upvotes views trustScore createdAt updatedAt media isRemovedByAdmin adminRemovalReason')
       .sort({ views: -1, upvotes: -1, createdAt: -1 })
       .limit(10)
       .lean()
@@ -306,11 +323,12 @@ router.get('/most-viewed-week', async (req, res) => {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     
-    // Find reviews that have been viewed in the past 7 days
+    // Find reviews that have been viewed in the past 7 days, excluding admin-removed reviews
     const reviews = await Review.aggregate([
       {
         $match: {
-          'viewedBy.viewedAt': { $gte: sevenDaysAgo }
+          'viewedBy.viewedAt': { $gte: sevenDaysAgo },
+          isRemovedByAdmin: { $ne: true }
         }
       },
       {
@@ -392,7 +410,7 @@ router.get('/:id', async (req, res) => {
         select: 'firstName lastName avatar',
         options: { strictPopulate: false }
       })
-      .select('title description rating category subcategory tags author upvotes views trustScore createdAt updatedAt media upvotedBy')
+      .select('title description rating category subcategory tags author upvotes views trustScore createdAt updatedAt media upvotedBy isRemovedByAdmin adminRemovalReason')
       .lean()
       .exec();
     
@@ -553,7 +571,7 @@ router.patch('/:id/upvote', authenticateToken, async (req, res) => {
       },
       { 
         new: true,
-        select: 'title description rating category subcategory tags author upvotes views trustScore createdAt updatedAt media upvotedBy'
+        select: 'title description rating category subcategory tags author upvotes views trustScore createdAt updatedAt media upvotedBy isRemovedByAdmin adminRemovalReason'
       }
     )
     .populate({

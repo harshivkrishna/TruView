@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { InternalAxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
 import { getAnonymousId } from '../utils/anonymousId';
 
 // Use environment variable or fallback to localhost for development
@@ -7,6 +7,10 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000, // Increased from 10s to 30s
+  withCredentials: true, // Enable sending cookies and authorization headers
+  headers: {
+    'Content-Type': 'application/json',
+  }
 });
 
 // Add token to requests if available
@@ -16,9 +20,9 @@ if (token) {
 }
 
 // Add request interceptor to always include the latest token
-api.interceptors.request.use((config) => {
+api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const token = localStorage.getItem('token');
-  if (token) {
+  if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
@@ -26,34 +30,44 @@ api.interceptors.request.use((config) => {
 
 // Add response interceptor for better error handling and logging
 api.interceptors.response.use(
-  (response) => {
+  (response: AxiosResponse) => {
     return response;
   },
-  (error) => {
-    // Handle token expiration and invalid token errors
-    if (error.response?.status === 401 && 
-        (error.response?.data?.message === 'Invalid token' ||
-         error.response?.data?.message === 'Token expired')) {
-      
-      // Only handle token expiration if we're on a protected route
-      const currentPath = window.location.pathname;
-      const isProtectedRoute = ['/submit', '/profile', '/admin'].some(route => 
-        currentPath.startsWith(route)
-      );
-      
-      if (isProtectedRoute) {
-        // Clear token and user data
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        
-        // Redirect to login page
-        setTimeout(() => {
-          window.location.href = '/login';
-        }, 100);
+  (error: AxiosError) => {
+    // Handle token expiration and invalid token errors first (more specific)
+    if (error.response?.status === 401) {
+      // Safely extract message from response data (backend might return different shapes)
+      const respData = error.response?.data as any;
+      const message = respData?.message ?? respData?.error ?? '';
+
+      if (message === 'Invalid token' || message === 'Token expired') {
+        // Only handle token expiration if we're on a protected route
+        const currentPath = window.location.pathname;
+        const isProtectedRoute = ['/submit', '/profile', '/admin'].some(route =>
+          currentPath.startsWith(route)
+        );
+
+        if (isProtectedRoute) {
+          // Clear token and user data
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+
+          // Redirect to login page
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 100);
+        }
+
+        return Promise.reject(error);
       }
     }
-    
-    // Re-throw the error for component handling
+
+    if (error.response?.status === 401) {
+      // Handle generic unauthorized access
+      localStorage.removeItem('token');
+      window.location.href = '/';
+    }
+
     return Promise.reject(error);
   }
 );

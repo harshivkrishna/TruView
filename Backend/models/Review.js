@@ -74,6 +74,14 @@ const ReviewSchema = new mongoose.Schema({
   trustScore: {
     type: Number,
     default: 0
+  },
+  isRemovedByAdmin: {
+    type: Boolean,
+    default: false
+  },
+  adminRemovalReason: {
+    type: String,
+    maxLength: 500
   }
 }, {
   timestamps: true

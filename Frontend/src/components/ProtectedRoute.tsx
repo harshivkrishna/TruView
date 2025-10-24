@@ -116,8 +116,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, fallback, adm
     );
   }
 
-  // Check if email is verified for Firebase users
-  if (currentUser && !currentUser.emailVerified) {
+  // Check if email is verified for Firebase users (skip for admin users)
+  if (currentUser && !currentUser.emailVerified && currentUser.role !== 'admin') {
     return (
       <motion.div 
         className="min-h-screen bg-gray-50 flex items-center justify-center"

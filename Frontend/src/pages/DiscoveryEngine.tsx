@@ -6,6 +6,7 @@ import { getReviews, getLeaderboard, getMostViewedReviewsWeek } from '../service
 import { getCachedData, reviewCache } from '../utils/cache';
 import { updateMetaTags } from '../utils/seo';
 import { preloadImage } from '../utils/imageOptimization';
+import { useAuth } from '../contexts/AuthContext';
 
 // Type assertions for Lucide icons to fix TypeScript compatibility
 const TrendingUpIcon = TrendingUp as React.ComponentType<any>;
@@ -19,6 +20,7 @@ const StarIcon = Star as React.ComponentType<any>;
 
 const DiscoveryEngine = () => {
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState('trending');
   const [reviews, setReviews] = useState<any[]>([]);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
@@ -260,6 +262,7 @@ const DiscoveryEngine = () => {
               <ReviewCard 
                 key={review._id} 
                 review={review} 
+                currentUserId={currentUser?.id}
               />
             ))}
           </div>

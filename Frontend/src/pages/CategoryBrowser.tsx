@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Search, Filter, TrendingUp, SlidersHorizontal, X, ArrowUp } from 'lucide-react';
+import { Search, SlidersHorizontal, Filter, X, ArrowUp } from 'lucide-react';
 import ReviewCard from '../components/ReviewCard';
 import ReviewCardSkeleton from '../components/ReviewCardSkeleton';
 import AdvancedSearch from '../components/AdvancedSearch';
 import { getReviews, getCategoriesWithSubcategories } from '../services/api';
 import { getCachedData, reviewCache } from '../utils/cache';
 import { updateMetaTags, generateCategoryStructuredData, addStructuredData } from '../utils/seo';
+import { useAuth } from '../contexts/AuthContext';
 import { lazyLoadImage } from '../utils/imageOptimization';
 
 // Define review type
@@ -63,6 +64,7 @@ interface AdvancedFilters {
 }
 
 const CategoryBrowser: React.FC = () => {
+  const { currentUser } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedSubcategory, setSelectedSubcategory] = useState('');
@@ -504,6 +506,7 @@ const CategoryBrowser: React.FC = () => {
                   <ReviewCard 
                     key={review._id} 
                     review={review} 
+                    currentUserId={currentUser?.id}
                   />
                 ))}
               </div>

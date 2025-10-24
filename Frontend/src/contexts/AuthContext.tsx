@@ -124,8 +124,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         response = await api.loginUser({ email, password });
       }
       
-      // Check if email verification is required (only for regular users)
-      if (response.requiresVerification) {
+      // Check if email verification is required (only for regular users, not admins)
+      if (response.requiresVerification && email !== ADMIN_EMAIL) {
         // Email is now sent by the backend via SES
         return response;
       }
@@ -133,6 +133,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Store token and user data
       localStorage.setItem('token', response.token);
       localStorage.setItem('user', JSON.stringify(response.user));
+      
+      if (response.user.role === 'admin') {
+        localStorage.setItem('isAdmin', 'true');
+      }
       
       // Clear anonymous ID when user logs in
       clearAnonymousId();
@@ -151,6 +155,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('user');
     localStorage.removeItem('token');
     localStorage.removeItem('pendingUserId');
+    localStorage.removeItem('isAdmin');
     
     // Clear any cached data that might contain user info
     sessionStorage.clear();
