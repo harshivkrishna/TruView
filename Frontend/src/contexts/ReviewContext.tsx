@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
-interface Review {
+export interface Review {
   _id: string;
   title: string;
   description: string;

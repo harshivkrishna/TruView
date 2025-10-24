@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useReviewContext } from '../contexts/ReviewContext';
+import type { Review } from '../contexts/ReviewContext';
 import { getReview, incrementReviewView, upvoteReview } from '../services/api';
 import { toast } from 'react-hot-toast';
 import { ThumbsUp, Eye, Share2, Flag, User, Calendar, ArrowLeft, Award, Shield, AlertTriangle } from 'lucide-react';
@@ -18,7 +19,7 @@ const ReviewDetail = () => {
   const { updateReview } = useReviewContext();
   const navigate = useNavigate();
   const { id } = useParams();
-  const [review, setReview] = useState<any>(null);
+  const [review, setReview] = useState<Review | null>(null);
   const [loading, setLoading] = useState(true);
   const [showShareModal, setShowShareModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
@@ -427,7 +428,7 @@ const ReviewDetail = () => {
         ...prev,
         upvotes: previousHasUpvoted ? previousUpvotes - 1 : previousUpvotes + 1,
         upvotedBy: previousHasUpvoted 
-          ? prev.upvotedBy?.filter((userId: any) => userId !== currentUser.id) || []
+          ? prev.upvotedBy?.filter((userId: string) => userId !== currentUser.id) || []
           : [...(prev.upvotedBy || []), currentUser.id]
       } : null);
       
