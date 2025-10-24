@@ -505,8 +505,21 @@ const ReviewDetail = () => {
       });
       setShowReportModal(false);
       toast.success('Report submitted successfully');
-    } catch (error) {
-      toast.error('Error submitting report');
+    } catch (error: any) {
+      console.error('Report submission error:', error);
+      
+      // Check for specific error messages
+      const errorMessage = error?.response?.data?.message || error?.message || 'Error submitting report';
+      
+      if (errorMessage.includes('already reported') || errorMessage.includes('You have already reported')) {
+        toast.error('You have already reported this review');
+      } else if (errorMessage.includes('not found')) {
+        toast.error('Review not found');
+      } else if (errorMessage.includes('unauthorized') || errorMessage.includes('login')) {
+        toast.error('Please login to report this review');
+      } else {
+        toast.error(errorMessage);
+      }
     }
   }, [id]);
 
