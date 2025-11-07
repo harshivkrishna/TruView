@@ -1,39 +1,52 @@
-const { SESClient, SendEmailCommand, SendTemplatedEmailCommand } = require('@aws-sdk/client-ses');
+const nodemailer = require('nodemailer');
 
 class EmailService {
   constructor() {
-    console.log('🔧 Initializing EmailService...');
+    console.log('🔧 Initializing EmailService with Nodemailer...');
     
     // Log configuration status
-    console.log('📧 SES Configuration:');
-    console.log('  - AWS Region:', process.env.AWS_REGION || 'ap-south-1');
-    console.log('  - From Email:', process.env.SES_FROM_EMAIL || 'noreply@truviews.in');
-    console.log('  - From Name:', process.env.SES_FROM_NAME || 'TruView Team');
-    console.log('  - Verification Template:', process.env.SES_VERIFICATION_TEMPLATE || 'Not set');
-    console.log('  - Password Reset Template:', process.env.SES_PASSWORD_RESET_TEMPLATE || 'Not set');
-    console.log('  - AWS Access Key ID:', process.env.AWS_ACCESS_KEY_ID ? 'Set' : 'Missing');
-    console.log('  - AWS Secret Access Key:', process.env.AWS_SECRET_ACCESS_KEY ? 'Set' : 'Missing');
+    console.log('📧 Email Configuration:');
+    console.log('  - SMTP Host:', process.env.EMAIL_HOST || 'smtp.gmail.com');
+    console.log('  - SMTP Port:', process.env.EMAIL_PORT || '587');
+    console.log('  - From Email:', process.env.EMAIL_FROM_EMAIL || 'connect@truviews.in');
+    console.log('  - From Name:', process.env.EMAIL_FROM_NAME || 'TruViews Team');
+    console.log('  - Email User:', process.env.EMAIL_USER ? 'Set' : 'Missing');
+    console.log('  - Email Password:', process.env.EMAIL_PASSWORD ? 'Set' : 'Missing');
     
-    // Initialize SES client
-    const awsConfig = {
-      region: process.env.AWS_REGION || 'ap-south-1',
-    };
-    
-    // Only add credentials if they exist (AWS SDK will use default credential chain if not provided)
-    if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
-      awsConfig.credentials = {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID.trim(),
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY.trim(),
-      };
-    }
-    
-    this.sesClient = new SESClient(awsConfig);
+    // Initialize Nodemailer transporter
+    this.transporter = nodemailer.createTransport({
+      host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+      port: parseInt(process.env.EMAIL_PORT) || 587,
+      secure: process.env.EMAIL_SECURE === 'true', // true for 465, false for other ports
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD,
+      },
+      tls: {
+        rejectUnauthorized: false
+      }
+    });
     
     // Email configuration
-    this.fromEmail = process.env.SES_FROM_EMAIL || 'noreply@truviews.in';
-    this.fromName = process.env.SES_FROM_NAME || 'TruView Team';
+    this.fromEmail = process.env.EMAIL_FROM_EMAIL || 'connect@truviews.in';
+    this.fromName = process.env.EMAIL_FROM_NAME || 'TruViews Team';
+    
+    // Verify transporter configuration
+    this.verifyConnection();
     
     console.log('✅ EmailService initialized successfully');
+  }
+
+  /**
+   * Verify SMTP connection
+   */
+  async verifyConnection() {
+    try {
+      await this.transporter.verify();
+      console.log('✅ SMTP connection verified successfully');
+    } catch (error) {
+      console.error('❌ SMTP connection verification failed:', error.message);
+    }
   }
 
   /**
@@ -50,34 +63,13 @@ class EmailService {
     console.log('  - OTP:', otpCode);
     
     try {
-      const templateName = process.env.SES_VERIFICATION_TEMPLATE;
-      console.log('  - Template Name:', templateName || 'Not configured, using raw email');
+      const subject = 'Verify Your Email - TruViews';
+      const htmlBody = this.getVerificationEmailHTML(userName, otpCode);
+      const textBody = this.getVerificationEmailText(userName, otpCode);
       
-      if (templateName) {
-        // Use SES template if configured
-        console.log('📋 Using SES template for verification email');
-        return await this.sendTemplatedEmail(templateName, email, {
-          userName,
-          otpCode,
-          companyName: 'TruView'
-        });
-      } else {
-        // Use raw email if no template configured
-        console.log('📝 Using raw HTML email for verification');
-        const subject = 'Verify Your Email - TruView';
-        const htmlBody = this.getVerificationEmailHTML(userName, otpCode);
-        const textBody = this.getVerificationEmailText(userName, otpCode);
-        
-        return await this.sendRawEmail(email, subject, htmlBody, textBody);
-      }
+      return await this.sendEmail(email, subject, htmlBody, textBody);
     } catch (error) {
       console.error('❌ Error sending verification OTP:', error);
-      console.error('Error details:', {
-        message: error.message,
-        code: error.code,
-        statusCode: error.$metadata?.httpStatusCode,
-        requestId: error.$metadata?.requestId
-      });
       return {
         success: false,
         message: 'Failed to send verification email',
@@ -100,34 +92,13 @@ class EmailService {
     console.log('  - OTP:', otpCode);
     
     try {
-      const templateName = process.env.SES_PASSWORD_RESET_TEMPLATE;
-      console.log('  - Template Name:', templateName || 'Not configured, using raw email');
+      const subject = 'Reset Your Password - TruViews';
+      const htmlBody = this.getPasswordResetEmailHTML(userName, otpCode);
+      const textBody = this.getPasswordResetEmailText(userName, otpCode);
       
-      if (templateName) {
-        // Use SES template if configured
-        console.log('📋 Using SES template for password reset email');
-        return await this.sendTemplatedEmail(templateName, email, {
-          userName,
-          otpCode,
-          companyName: 'TruView'
-        });
-      } else {
-        // Use raw email if no template configured
-        console.log('📝 Using raw HTML email for password reset');
-        const subject = 'Reset Your Password - TruView';
-        const htmlBody = this.getPasswordResetEmailHTML(userName, otpCode);
-        const textBody = this.getPasswordResetEmailText(userName, otpCode);
-        
-        return await this.sendRawEmail(email, subject, htmlBody, textBody);
-      }
+      return await this.sendEmail(email, subject, htmlBody, textBody);
     } catch (error) {
       console.error('❌ Error sending password reset OTP:', error);
-      console.error('Error details:', {
-        message: error.message,
-        code: error.code,
-        statusCode: error.$metadata?.httpStatusCode,
-        requestId: error.$metadata?.requestId
-      });
       return {
         success: false,
         message: 'Failed to send password reset email',
@@ -137,157 +108,308 @@ class EmailService {
   }
 
   /**
-   * Send templated email using SES templates
-   * @param {string} templateName - SES template name
-   * @param {string} email - Recipient email
-   * @param {object} templateData - Template variables
-   * @returns {Promise<{success: boolean, message: string, error?: string}>}
-   */
-  async sendTemplatedEmail(templateName, email, templateData) {
-    console.log('📋 Sending templated email...');
-    console.log('  - Template:', templateName);
-    console.log('  - To:', email);
-    console.log('  - From:', `${this.fromName} <${this.fromEmail}>`);
-    console.log('  - Template Data:', templateData);
-    
-    try {
-      const command = new SendTemplatedEmailCommand({
-        Source: `${this.fromName} <${this.fromEmail}>`,
-        Destination: {
-          ToAddresses: [email],
-        },
-        Template: templateName,
-        TemplateData: JSON.stringify(templateData),
-      });
-
-      console.log('📤 Sending email command to SES...');
-      const result = await this.sesClient.send(command);
-      
-      console.log('✅ Templated email sent successfully!');
-      console.log('  - Message ID:', result.MessageId);
-      
-      return {
-        success: true,
-        message: 'Email sent successfully',
-        messageId: result.MessageId
-      };
-    } catch (error) {
-      console.error('❌ Error sending templated email:', error);
-      console.error('Error details:', {
-        message: error.message,
-        code: error.code,
-        statusCode: error.$metadata?.httpStatusCode,
-        requestId: error.$metadata?.requestId
-      });
-      throw error;
-    }
-  }
-
-  /**
-   * Send raw email without templates
+   * Send email using Nodemailer
    * @param {string} email - Recipient email
    * @param {string} subject - Email subject
    * @param {string} htmlBody - HTML body
    * @param {string} textBody - Text body
    * @returns {Promise<{success: boolean, message: string, error?: string}>}
    */
-  async sendRawEmail(email, subject, htmlBody, textBody) {
-    console.log('📝 Sending raw email...');
+  async sendEmail(email, subject, htmlBody, textBody) {
+    console.log('📝 Sending email...');
     console.log('  - To:', email);
     console.log('  - From:', `${this.fromName} <${this.fromEmail}>`);
     console.log('  - Subject:', subject);
-    console.log('  - HTML Body Length:', htmlBody.length, 'characters');
-    console.log('  - Text Body Length:', textBody.length, 'characters');
     
     try {
-      const command = new SendEmailCommand({
-        Source: `${this.fromName} <${this.fromEmail}>`,
-        Destination: {
-          ToAddresses: [email],
-        },
-        Message: {
-          Subject: {
-            Data: subject,
-            Charset: 'UTF-8',
-          },
-          Body: {
-            Html: {
-              Data: htmlBody,
-              Charset: 'UTF-8',
-            },
-            Text: {
-              Data: textBody,
-              Charset: 'UTF-8',
-            },
-          },
-        },
-      });
+      const mailOptions = {
+        from: `${this.fromName} <${this.fromEmail}>`,
+        to: email,
+        subject: subject,
+        text: textBody,
+        html: htmlBody,
+      };
 
-      console.log('📤 Sending raw email command to SES...');
-      const result = await this.sesClient.send(command);
+      console.log('📤 Sending email via Nodemailer...');
+      const result = await this.transporter.sendMail(mailOptions);
       
-      console.log('✅ Raw email sent successfully!');
-      console.log('  - Message ID:', result.MessageId);
+      console.log('✅ Email sent successfully!');
+      console.log('  - Message ID:', result.messageId);
       
       return {
         success: true,
         message: 'Email sent successfully',
-        messageId: result.MessageId
+        messageId: result.messageId
       };
     } catch (error) {
-      console.error('❌ Error sending raw email:', error);
-      console.error('Error details:', {
-        message: error.message,
-        code: error.code,
-        statusCode: error.$metadata?.httpStatusCode,
-        requestId: error.$metadata?.requestId
-      });
+      console.error('❌ Error sending email:', error);
       throw error;
     }
   }
 
   /**
-   * Get verification email HTML template
+   * Get verification email HTML template with modern design
    */
   getVerificationEmailHTML(userName, otpCode) {
     return `
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Verify Your Email - TruView</title>
+    <title>Verify Your Email - TruViews</title>
     <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-        .otp-box { background: #fff; border: 2px solid #667eea; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0; }
-        .otp-code { font-size: 32px; font-weight: bold; color: #667eea; letter-spacing: 5px; }
-        .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
-        .button { display: inline-block; background: #667eea; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f8fafc;
+        }
+        
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+            position: relative;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/><circle cx="50" cy="10" r="0.5" fill="white" opacity="0.1"/><circle cx="10" cy="60" r="0.5" fill="white" opacity="0.1"/><circle cx="90" cy="40" r="0.5" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+        }
+        
+        .logo {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .header-subtitle {
+            font-size: 16px;
+            opacity: 0.9;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .content {
+            padding: 40px 30px;
+        }
+        
+        .greeting {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1a202c;
+            margin-bottom: 20px;
+        }
+        
+        .message {
+            font-size: 16px;
+            color: #4a5568;
+            margin-bottom: 30px;
+            line-height: 1.7;
+        }
+        
+        .otp-container {
+            background: linear-gradient(135deg, #fff7ed 0%, #fed7aa 100%);
+            border: 2px solid #fdba74;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            margin: 30px 0;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .otp-container::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(249, 115, 22, 0.05) 0%, transparent 70%);
+            animation: pulse 3s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+        
+        .otp-label {
+            font-size: 14px;
+            color: #c2410c;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .otp-code {
+            font-size: 36px;
+            font-weight: 700;
+            color: #f97316;
+            letter-spacing: 8px;
+            font-family: 'Courier New', monospace;
+            background: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            display: inline-block;
+            box-shadow: 0 4px 12px rgba(249, 115, 22, 0.15);
+            position: relative;
+            z-index: 1;
+        }
+        
+        .otp-expiry {
+            font-size: 13px;
+            color: #c2410c;
+            margin-top: 15px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .security-notice {
+            background: #fff7ed;
+            border-left: 4px solid #f97316;
+            padding: 20px;
+            border-radius: 0 8px 8px 0;
+            margin: 30px 0;
+        }
+        
+        .security-notice-title {
+            font-weight: 600;
+            color: #c2410c;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .security-notice-text {
+            font-size: 14px;
+            color: #9a3412;
+            line-height: 1.6;
+        }
+        
+        .footer {
+            background: #f7fafc;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e2e8f0;
+        }
+        
+        .footer-text {
+            color: #718096;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+        
+        .company-name {
+            font-weight: 600;
+            color: #4a5568;
+        }
+        
+        .disclaimer {
+            font-size: 12px;
+            color: #a0aec0;
+            margin-top: 20px;
+            line-height: 1.5;
+        }
+        
+        .icon {
+            display: inline-block;
+            margin-right: 8px;
+        }
+        
+        @media (max-width: 600px) {
+            .email-container {
+                margin: 10px;
+                border-radius: 8px;
+            }
+            
+            .header, .content, .footer {
+                padding: 25px 20px;
+            }
+            
+            .otp-code {
+                font-size: 28px;
+                letter-spacing: 4px;
+                padding: 12px 20px;
+            }
+            
+            .greeting {
+                font-size: 20px;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>🔐 Email Verification</h1>
-        <p>Welcome to TruView!</p>
-    </div>
-    
-    <div class="content">
-        <h2>Hello ${userName}!</h2>
-        <p>Thank you for registering with TruView. To complete your registration, please verify your email address using the OTP code below:</p>
-        
-        <div class="otp-box">
-            <p>Your verification code is:</p>
-            <div class="otp-code">${otpCode}</div>
-            <p><small>This code will expire in 10 minutes</small></p>
+    <div class="email-container">
+        <div class="header">
+            <div class="logo">TruViews</div>
+            <div class="header-subtitle">Email Verification Required</div>
         </div>
         
-        <p>If you didn't create an account with TruView, please ignore this email.</p>
+        <div class="content">
+            <div class="greeting">Hello ${userName},</div>
+            
+            <div class="message">
+                Welcome to TruViews! We're excited to have you join our community of authentic reviewers. 
+                To complete your registration and secure your account, please verify your email address using the verification code below.
+            </div>
+            
+            <div class="otp-container">
+                <div class="otp-label">Your Verification Code</div>
+                <div class="otp-code">${otpCode}</div>
+                <div class="otp-expiry">This code expires in 10 minutes</div>
+            </div>
+            
+            <div class="security-notice">
+                <div class="security-notice-title">
+                    <span class="icon"></span>
+                    Security Notice
+                </div>
+                <div class="security-notice-text">
+                    If you didn't create an account with TruViews, please ignore this email. 
+                    Your email address will not be used for any purpose without your consent.
+                </div>
+            </div>
+        </div>
         
         <div class="footer">
-            <p>Best regards,<br>The TruView Team</p>
-            <p><small>This is an automated message, please do not reply to this email.</small></p>
+            <div class="footer-text">
+                Best regards,<br>
+                <span class="company-name">The TruViews Team</span>
+            </div>
+            
+            <div class="disclaimer">
+                This is an automated security message. Please do not reply to this email.
+                If you need assistance, please contact our support team through the TruViews platform.
+            </div>
         </div>
     </div>
 </body>
@@ -299,67 +421,329 @@ class EmailService {
    */
   getVerificationEmailText(userName, otpCode) {
     return `
+TruViews - Email Verification
+
 Hello ${userName}!
 
-Thank you for registering with TruView. To complete your registration, please verify your email address using the OTP code below:
+Welcome to TruViews! We're excited to have you join our community of authentic reviewers.
 
-Your verification code is: ${otpCode}
+To complete your registration and secure your account, please verify your email address using the verification code below:
 
-This code will expire in 10 minutes.
+VERIFICATION CODE: ${otpCode}
 
-If you didn't create an account with TruView, please ignore this email.
+This code expires in 10 minutes.
+
+SECURITY NOTICE:
+If you didn't create an account with TruViews, please ignore this email. Your email address will not be used for any purpose without your consent.
 
 Best regards,
-The TruView Team
+The TruViews Team
 
-This is an automated message, please do not reply to this email.
+---
+This is an automated security message. Please do not reply to this email.
+If you need assistance, please contact our support team through the TruViews platform.
 `;
   }
 
   /**
-   * Get password reset email HTML template
+   * Get password reset email HTML template with modern design
    */
   getPasswordResetEmailHTML(userName, otpCode) {
     return `
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reset Your Password - TruView</title>
+    <title>Reset Your Password - TruViews</title>
     <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-        .otp-box { background: #fff; border: 2px solid #ff6b6b; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0; }
-        .otp-code { font-size: 32px; font-weight: bold; color: #ff6b6b; letter-spacing: 5px; }
-        .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
-        .warning { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f8fafc;
+        }
+        
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+            position: relative;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/><circle cx="50" cy="10" r="0.5" fill="white" opacity="0.1"/><circle cx="10" cy="60" r="0.5" fill="white" opacity="0.1"/><circle cx="90" cy="40" r="0.5" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+        }
+        
+        .logo {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .header-subtitle {
+            font-size: 16px;
+            opacity: 0.9;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .content {
+            padding: 40px 30px;
+        }
+        
+        .greeting {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1a202c;
+            margin-bottom: 20px;
+        }
+        
+        .message {
+            font-size: 16px;
+            color: #4a5568;
+            margin-bottom: 30px;
+            line-height: 1.7;
+        }
+        
+        .otp-container {
+            background: linear-gradient(135deg, #fff7ed 0%, #fed7aa 100%);
+            border: 2px solid #fdba74;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            margin: 30px 0;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .otp-container::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(249, 115, 22, 0.05) 0%, transparent 70%);
+            animation: pulse 3s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+        
+        .otp-label {
+            font-size: 14px;
+            color: #c2410c;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .otp-code {
+            font-size: 36px;
+            font-weight: 700;
+            color: #f97316;
+            letter-spacing: 8px;
+            font-family: 'Courier New', monospace;
+            background: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            display: inline-block;
+            box-shadow: 0 4px 12px rgba(249, 115, 22, 0.15);
+            position: relative;
+            z-index: 1;
+        }
+        
+        .otp-expiry {
+            font-size: 13px;
+            color: #c2410c;
+            margin-top: 15px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .security-alert {
+            background: #fff7ed;
+            border: 2px solid #fdba74;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 30px 0;
+        }
+        
+        .security-alert-title {
+            font-weight: 700;
+            color: #c2410c;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            font-size: 16px;
+        }
+        
+        .security-alert-text {
+            font-size: 14px;
+            color: #9a3412;
+            line-height: 1.6;
+        }
+        
+        .warning-notice {
+            background: #fff7ed;
+            border-left: 4px solid #f97316;
+            padding: 20px;
+            border-radius: 0 8px 8px 0;
+            margin: 30px 0;
+        }
+        
+        .warning-notice-title {
+            font-weight: 600;
+            color: #c2410c;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .warning-notice-text {
+            font-size: 14px;
+            color: #9a3412;
+            line-height: 1.6;
+        }
+        
+        .footer {
+            background: #f7fafc;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e2e8f0;
+        }
+        
+        .footer-text {
+            color: #718096;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+        
+        .company-name {
+            font-weight: 600;
+            color: #4a5568;
+        }
+        
+        .disclaimer {
+            font-size: 12px;
+            color: #a0aec0;
+            margin-top: 20px;
+            line-height: 1.5;
+        }
+        
+        .icon {
+            display: inline-block;
+            margin-right: 8px;
+        }
+        
+        @media (max-width: 600px) {
+            .email-container {
+                margin: 10px;
+                border-radius: 8px;
+            }
+            
+            .header, .content, .footer {
+                padding: 25px 20px;
+            }
+            
+            .otp-code {
+                font-size: 28px;
+                letter-spacing: 4px;
+                padding: 12px 20px;
+            }
+            
+            .greeting {
+                font-size: 20px;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>🔒 Password Reset</h1>
-        <p>TruView Account Security</p>
-    </div>
-    
-    <div class="content">
-        <h2>Hello ${userName}!</h2>
-        <p>We received a request to reset your password for your TruView account. Use the OTP code below to reset your password:</p>
-        
-        <div class="otp-box">
-            <p>Your password reset code is:</p>
-            <div class="otp-code">${otpCode}</div>
-            <p><small>This code will expire in 10 minutes</small></p>
+    <div class="email-container">
+        <div class="header">
+            <div class="logo">TruViews</div>
+            <div class="header-subtitle">Password Reset Request</div>
         </div>
         
-        <div class="warning">
-            <p><strong>Security Notice:</strong> If you didn't request a password reset, please ignore this email. Your account remains secure.</p>
+        <div class="content">
+            <div class="greeting">Hello ${userName},</div>
+            
+            <div class="message">
+                We received a request to reset your password for your TruViews account. 
+                If this was you, please use the verification code below to proceed with resetting your password.
+            </div>
+            
+            <div class="otp-container">
+                <div class="otp-label">Password Reset Code</div>
+                <div class="otp-code">${otpCode}</div>
+                <div class="otp-expiry">This code expires in 10 minutes</div>
+            </div>
+            
+            <div class="security-alert">
+                <div class="security-alert-title">
+                    <span class="icon"></span>
+                    Important Security Information
+                </div>
+                <div class="security-alert-text">
+                    <strong>Did you request this password reset?</strong><br>
+                    If yes, use the code above to reset your password.<br>
+                    If no, please ignore this email - your account remains secure.
+                </div>
+            </div>
+            
+            <div class="warning-notice">
+                <div class="warning-notice-title">
+                    <span class="icon"></span>
+                    Account Security Tips
+                </div>
+                <div class="warning-notice-text">
+                    • Never share your verification codes with anyone<br>
+                    • TruViews will never ask for your password via email<br>
+                    • If you suspect unauthorized access, contact our support team immediately
+                </div>
+            </div>
         </div>
         
         <div class="footer">
-            <p>Best regards,<br>The TruView Team</p>
-            <p><small>This is an automated message, please do not reply to this email.</small></p>
+            <div class="footer-text">
+                Best regards,<br>
+                <span class="company-name">The TruViews Security Team</span>
+            </div>
+            
+            <div class="disclaimer">
+                This is an automated security message. Please do not reply to this email.
+                If you need assistance, please contact our support team through the TruViews platform.
+            </div>
         </div>
     </div>
 </body>
@@ -371,31 +755,45 @@ This is an automated message, please do not reply to this email.
    */
   getPasswordResetEmailText(userName, otpCode) {
     return `
+TruViews - Password Reset Request
+
 Hello ${userName}!
 
-We received a request to reset your password for your TruView account. Use the OTP code below to reset your password:
+We received a request to reset your password for your TruViews account.
 
-Your password reset code is: ${otpCode}
+If this was you, please use the verification code below to proceed with resetting your password:
 
-This code will expire in 10 minutes.
+PASSWORD RESET CODE: ${otpCode}
 
-Security Notice: If you didn't request a password reset, please ignore this email. Your account remains secure.
+This code expires in 10 minutes.
+
+IMPORTANT SECURITY INFORMATION:
+Did you request this password reset?
+- If yes, use the code above to reset your password.
+- If no, please ignore this email - your account remains secure.
+
+ACCOUNT SECURITY TIPS:
+• Never share your verification codes with anyone
+• TruViews will never ask for your password via email
+• If you suspect unauthorized access, contact our support team immediately
 
 Best regards,
-The TruView Team
+The TruViews Security Team
 
-This is an automated message, please do not reply to this email.
+---
+This is an automated security message. Please do not reply to this email.
+If you need assistance, please contact our support team through the TruViews platform.
 `;
   }
 
   /**
-   * Check if SES is properly configured
+   * Check if email service is properly configured
    */
   isConfigured() {
     return !!(
-      process.env.AWS_ACCESS_KEY_ID &&
-      process.env.AWS_SECRET_ACCESS_KEY &&
-      process.env.SES_FROM_EMAIL
+      process.env.EMAIL_USER &&
+      process.env.EMAIL_PASSWORD &&
+      process.env.EMAIL_FROM_EMAIL
     );
   }
 
@@ -404,13 +802,12 @@ This is an automated message, please do not reply to this email.
    */
   getConfigStatus() {
     return {
-      accessKeyId: !!process.env.AWS_ACCESS_KEY_ID,
-      secretAccessKey: !!process.env.AWS_SECRET_ACCESS_KEY,
-      region: !!process.env.AWS_REGION,
-      fromEmail: !!process.env.SES_FROM_EMAIL,
-      fromName: !!process.env.SES_FROM_NAME,
-      verificationTemplate: !!process.env.SES_VERIFICATION_TEMPLATE,
-      passwordResetTemplate: !!process.env.SES_PASSWORD_RESET_TEMPLATE,
+      emailUser: !!process.env.EMAIL_USER,
+      emailPassword: !!process.env.EMAIL_PASSWORD,
+      emailHost: !!process.env.EMAIL_HOST,
+      emailPort: !!process.env.EMAIL_PORT,
+      fromEmail: !!process.env.EMAIL_FROM_EMAIL,
+      fromName: !!process.env.EMAIL_FROM_NAME,
       ready: this.isConfigured()
     };
   }
@@ -421,23 +818,36 @@ This is an automated message, please do not reply to this email.
   async checkEmailServiceHealth() {
     try {
       const config = this.getConfigStatus();
+      
+      // Test SMTP connection
+      let connectionStatus = 'unknown';
+      try {
+        await this.transporter.verify();
+        connectionStatus = 'connected';
+      } catch (error) {
+        connectionStatus = 'failed';
+        console.error('SMTP connection test failed:', error.message);
+      }
+      
       return {
-        status: config.ready ? 'healthy' : 'unhealthy',
+        status: config.ready && connectionStatus === 'connected' ? 'healthy' : 'unhealthy',
         configured: config.ready,
-        region: process.env.AWS_REGION || 'ap-south-1',
-        fromEmail: process.env.SES_FROM_EMAIL || 'Not configured',
-        templatesConfigured: !!(config.verificationTemplate && config.passwordResetTemplate)
+        connection: connectionStatus,
+        host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+        port: process.env.EMAIL_PORT || '587',
+        fromEmail: config.fromEmail ? process.env.EMAIL_FROM_EMAIL : 'Not configured',
+        service: 'Nodemailer'
       };
     } catch (error) {
       console.error('❌ Email service health check failed:', error);
       return {
         status: 'unhealthy',
         configured: false,
-        error: error.message
+        error: error.message,
+        service: 'Nodemailer'
       };
     }
   }
-
 }
 
 // Export singleton instance

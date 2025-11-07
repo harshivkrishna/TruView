@@ -37,9 +37,15 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
     setIsLoading(true);
     try {
       await resetPassword(email);
+      toast.success('OTP sent to your email address');
       setStep('otp');
-    } catch (error) {
-      // Handle error silently
+    } catch (error: any) {
+      // Show specific error message based on the response
+      if (error.response?.status === 404) {
+        toast.error('No account found with this email address. Please check your email or create a new account.');
+      } else {
+        toast.error(error.response?.data?.message || 'Failed to send OTP. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -96,8 +102,13 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
     try {
       await resetPassword(email);
       toast.success('OTP sent successfully!');
-    } catch (error) {
-      toast.error('Failed to resend OTP');
+    } catch (error: any) {
+      // Show specific error message based on the response
+      if (error.response?.status === 404) {
+        toast.error('No account found with this email address. Please check your email or create a new account.');
+      } else {
+        toast.error(error.response?.data?.message || 'Failed to resend OTP. Please try again.');
+      }
     } finally {
       setIsResending(false);
     }

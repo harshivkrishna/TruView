@@ -76,7 +76,7 @@ router.post('/register', async (req, res) => {
     await user.save();
     console.log(`⏱️ User creation (including bcrypt) took ${Date.now() - userCreateStart}ms`);
 
-    // Send verification email via SES
+    // Send verification email via Nodemailer
     console.log('\n📧 ATTEMPTING TO SEND VERIFICATION EMAIL');
     console.log('  To:', email);
     console.log('  OTP:', otp);
@@ -217,7 +217,7 @@ router.post('/resend-verification', async (req, res) => {
 
     await user.save();
 
-    // Send verification email via SES
+    // Send verification email via Nodemailer
     console.log('\n📧 ATTEMPTING TO RESEND VERIFICATION EMAIL');
     console.log('  To:', email);
     console.log('  OTP:', otp);
@@ -353,7 +353,7 @@ router.post('/login', async (req, res) => {
       
       await user.save();
       
-      // Send verification email via SES
+      // Send verification email via Nodemailer
       console.log('\n📧 ATTEMPTING TO SEND VERIFICATION EMAIL (LOGIN)');
       console.log('  To:', user.email);
       console.log('  OTP:', otp);
@@ -421,6 +421,8 @@ router.post('/login', async (req, res) => {
 router.post('/forgot-password', async (req, res) => {
   try {
     console.log('📧 Forgot password request received');
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+    console.log('Request body type:', typeof req.body);
     
     // Check MongoDB connection
     if (mongoose.connection.readyState !== 1) {
@@ -430,15 +432,22 @@ router.post('/forgot-password', async (req, res) => {
 
     const { email } = req.body;
     
+    console.log('Extracted email:', email, '(type:', typeof email, ')');
+    
     if (!email) {
       return res.status(400).json({ message: 'Email is required' });
     }
 
-    console.log(`🔍 Looking for user with email: ${email}`);
-    const user = await User.findOne({ email });
+    // Ensure email is a string
+    const emailStr = String(email).trim();
+    console.log(`🔍 Looking for user with email: ${emailStr}`);
+    const user = await User.findOne({ email: emailStr });
     if (!user) {
-      console.log(`❌ User not found with email: ${email}`);
-      return res.status(404).json({ message: 'User not found' });
+      console.log(`❌ User not found with email: ${emailStr}`);
+      return res.status(404).json({ 
+        message: 'No account found with this email address. Please check your email or create a new account.',
+        code: 'USER_NOT_FOUND'
+      });
     }
 
     console.log(`✅ User found: ${user.firstName} ${user.lastName}`);
@@ -455,7 +464,7 @@ router.post('/forgot-password', async (req, res) => {
     await user.save();
     console.log(`💾 OTP saved to database for user: ${user.email}`);
 
-    // Send password reset email via SES
+    // Send password reset email via Nodemailer
     console.log('\n📧 ATTEMPTING TO SEND PASSWORD RESET EMAIL');
     console.log('  To:', email);
     console.log('  OTP:', otp);
@@ -504,12 +513,18 @@ router.post('/verify-login-otp', async (req, res) => {
 
     const { email, otp } = req.body;
     
+    console.log('Extracted values:');
+    console.log('- email:', email, '(type:', typeof email, ')');
+    console.log('- otp:', otp, '(type:', typeof otp, ')');
+    
     if (!email || !otp) {
       return res.status(400).json({ message: 'Email and OTP are required' });
     }
 
-    console.log(`🔍 Looking for user with email: ${email}`);
-    const user = await User.findOne({ email });
+    // Ensure email is a string
+    const emailStr = String(email).trim();
+    console.log(`🔍 Looking for user with email: ${emailStr}`);
+    const user = await User.findOne({ email: emailStr });
     if (!user) {
       console.log(`❌ User not found with email: ${email}`);
       return res.status(404).json({ message: 'User not found' });
@@ -582,20 +597,28 @@ router.post('/reset-password', async (req, res) => {
   console.log('🔒 PASSWORD RESET REQUEST RECEIVED');
   console.log('='.repeat(70));
   console.log('Request body:', JSON.stringify(req.body, null, 2));
+  console.log('Request body type:', typeof req.body);
   
   try {
     const { email, otp, newPassword } = req.body;
+    
+    console.log('Extracted values:');
+    console.log('- email:', email, '(type:', typeof email, ')');
+    console.log('- otp:', otp, '(type:', typeof otp, ')');
+    console.log('- newPassword:', newPassword, '(type:', typeof newPassword, ')');
     
     if (!email || !otp || !newPassword) {
       console.log('❌ Missing required fields');
       return res.status(400).json({ message: 'Email, OTP, and new password are required' });
     }
     
-    console.log(`🔍 Looking for user: ${email}`);
+    // Ensure email is a string
+    const emailStr = String(email).trim();
+    console.log(`🔍 Looking for user: ${emailStr}`);
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: emailStr });
     if (!user) {
-      console.log(`❌ User not found: ${email}`);
+      console.log(`❌ User not found: ${emailStr}`);
       return res.status(404).json({ message: 'User not found' });
     }
 
