@@ -13,8 +13,11 @@ class EmailService {
     console.log('  - Email User:', process.env.EMAIL_USER ? 'Set' : 'Missing');
     console.log('  - Email Password:', process.env.EMAIL_PASSWORD ? 'Set' : 'Missing');
     
-    // Initialize Nodemailer transporter
-    this.transporter = nodemailer.createTransport({
+    // Initialize Nodemailer transporter with production-optimized settings
+    const isProduction = process.env.NODE_ENV === 'production';
+    
+    const transportConfig = {
+      service: 'gmail', // Use Gmail service for better compatibility
       host: process.env.EMAIL_HOST || 'smtp.gmail.com',
       port: parseInt(process.env.EMAIL_PORT) || 587,
       secure: process.env.EMAIL_SECURE === 'true', // true for 465, false for other ports
@@ -23,9 +26,34 @@ class EmailService {
         pass: process.env.EMAIL_PASSWORD,
       },
       tls: {
-        rejectUnauthorized: false
-      }
+        rejectUnauthorized: false,
+        ciphers: 'SSLv3'
+      },
+      connectionTimeout: isProduction ? 120000 : 60000, // 2 minutes for production
+      greetingTimeout: isProduction ? 60000 : 30000, // 1 minute for production
+      socketTimeout: isProduction ? 120000 : 60000, // 2 minutes for production
+      debug: !isProduction,
+      logger: !isProduction
+    };
+    
+    // Add additional production-specific settings
+    if (isProduction) {
+      transportConfig.pool = true; // Use connection pooling
+      transportConfig.maxConnections = 5;
+      transportConfig.maxMessages = 100;
+      transportConfig.rateLimit = 14; // 14 emails per second max
+    }
+    
+    console.log('📧 Transport Configuration:', {
+      service: transportConfig.service,
+      host: transportConfig.host,
+      port: transportConfig.port,
+      secure: transportConfig.secure,
+      pool: transportConfig.pool || false,
+      production: isProduction
     });
+    
+    this.transporter = nodemailer.createTransport(transportConfig);
     
     // Email configuration
     this.fromEmail = process.env.EMAIL_FROM_EMAIL || 'connect@truviews.in';
@@ -38,15 +66,36 @@ class EmailService {
   }
 
   /**
-   * Verify SMTP connection
+   * Verify SMTP connection with retry logic
    */
   async verifyConnection() {
-    try {
-      await this.transporter.verify();
-      console.log('✅ SMTP connection verified successfully');
-    } catch (error) {
-      console.error('❌ SMTP connection verification failed:', error.message);
+    const maxRetries = 3;
+    let retryCount = 0;
+    
+    while (retryCount < maxRetries) {
+      try {
+        console.log(`🔄 Attempting SMTP connection verification (attempt ${retryCount + 1}/${maxRetries})...`);
+        await this.transporter.verify();
+        console.log('✅ SMTP connection verified successfully');
+        return true;
+      } catch (error) {
+        retryCount++;
+        console.error(`❌ SMTP connection verification failed (attempt ${retryCount}):`, error.message);
+        
+        if (retryCount < maxRetries) {
+          console.log(`⏳ Retrying in 2 seconds...`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        } else {
+          console.error('❌ All SMTP connection attempts failed');
+          console.error('🔧 This might be due to:');
+          console.error('   - Network restrictions on hosting platform');
+          console.error('   - Incorrect Gmail App Password');
+          console.error('   - Gmail account security settings');
+          console.error('   - SMTP server temporary issues');
+        }
+      }
     }
+    return false;
   }
 
   /**
@@ -108,7 +157,7 @@ class EmailService {
   }
 
   /**
-   * Send email using Nodemailer
+   * Send email using Nodemailer with retry logic
    * @param {string} email - Recipient email
    * @param {string} subject - Email subject
    * @param {string} htmlBody - HTML body
@@ -116,34 +165,60 @@ class EmailService {
    * @returns {Promise<{success: boolean, message: string, error?: string}>}
    */
   async sendEmail(email, subject, htmlBody, textBody) {
-    console.log('📝 Sending email...');
+    console.log('📝 Preparing to send email...');
     console.log('  - To:', email);
     console.log('  - From:', `${this.fromName} <${this.fromEmail}>`);
     console.log('  - Subject:', subject);
     
-    try {
-      const mailOptions = {
-        from: `${this.fromName} <${this.fromEmail}>`,
-        to: email,
-        subject: subject,
-        text: textBody,
-        html: htmlBody,
-      };
+    const maxRetries = 3;
+    let retryCount = 0;
+    
+    while (retryCount < maxRetries) {
+      try {
+        const mailOptions = {
+          from: `${this.fromName} <${this.fromEmail}>`,
+          to: email,
+          subject: subject,
+          text: textBody,
+          html: htmlBody,
+          // Additional options for better deliverability
+          headers: {
+            'X-Priority': '1',
+            'X-MSMail-Priority': 'High',
+            'Importance': 'high'
+          }
+        };
 
-      console.log('📤 Sending email via Nodemailer...');
-      const result = await this.transporter.sendMail(mailOptions);
-      
-      console.log('✅ Email sent successfully!');
-      console.log('  - Message ID:', result.messageId);
-      
-      return {
-        success: true,
-        message: 'Email sent successfully',
-        messageId: result.messageId
-      };
-    } catch (error) {
-      console.error('❌ Error sending email:', error);
-      throw error;
+        console.log(`📤 Sending email via Nodemailer (attempt ${retryCount + 1}/${maxRetries})...`);
+        const result = await this.transporter.sendMail(mailOptions);
+        
+        console.log('✅ Email sent successfully!');
+        console.log('  - Message ID:', result.messageId);
+        console.log('  - Response:', result.response);
+        
+        return {
+          success: true,
+          message: 'Email sent successfully',
+          messageId: result.messageId
+        };
+      } catch (error) {
+        retryCount++;
+        console.error(`❌ Error sending email (attempt ${retryCount}):`, error.message);
+        console.error('Error details:', {
+          code: error.code,
+          command: error.command,
+          response: error.response,
+          responseCode: error.responseCode
+        });
+        
+        if (retryCount < maxRetries) {
+          console.log(`⏳ Retrying email send in 3 seconds...`);
+          await new Promise(resolve => setTimeout(resolve, 3000));
+        } else {
+          console.error('❌ All email send attempts failed');
+          throw error;
+        }
+      }
     }
   }
 
@@ -813,6 +888,28 @@ If you need assistance, please contact our support team through the TruViews pla
   }
 
   /**
+   * Test email sending capability
+   */
+  async testEmailSending() {
+    try {
+      console.log('🧪 Testing email sending capability...');
+      
+      const testResult = await this.sendEmail(
+        process.env.EMAIL_USER, // Send test email to self
+        'TruViews Email Service Test',
+        '<h1>Email Service Test</h1><p>This is a test email from TruViews backend.</p><p>Timestamp: ' + new Date().toISOString() + '</p>',
+        'Email Service Test - This is a test email from TruViews backend. Timestamp: ' + new Date().toISOString()
+      );
+      
+      console.log('✅ Test email sent successfully');
+      return testResult;
+    } catch (error) {
+      console.error('❌ Test email failed:', error.message);
+      throw error;
+    }
+  }
+
+  /**
    * Check email service health for server health endpoint
    */
   async checkEmailServiceHealth() {
@@ -821,9 +918,22 @@ If you need assistance, please contact our support team through the TruViews pla
       
       // Test SMTP connection
       let connectionStatus = 'unknown';
+      let testEmailStatus = 'not_tested';
+      
       try {
-        await this.transporter.verify();
-        connectionStatus = 'connected';
+        const connectionResult = await this.verifyConnection();
+        connectionStatus = connectionResult ? 'connected' : 'failed';
+        
+        // If connection is successful, try sending a test email in production
+        if (connectionResult && process.env.NODE_ENV === 'production') {
+          try {
+            await this.testEmailSending();
+            testEmailStatus = 'success';
+          } catch (error) {
+            testEmailStatus = 'failed';
+            console.error('Test email failed:', error.message);
+          }
+        }
       } catch (error) {
         connectionStatus = 'failed';
         console.error('SMTP connection test failed:', error.message);
@@ -833,10 +943,13 @@ If you need assistance, please contact our support team through the TruViews pla
         status: config.ready && connectionStatus === 'connected' ? 'healthy' : 'unhealthy',
         configured: config.ready,
         connection: connectionStatus,
+        testEmail: testEmailStatus,
         host: process.env.EMAIL_HOST || 'smtp.gmail.com',
         port: process.env.EMAIL_PORT || '587',
         fromEmail: config.fromEmail ? process.env.EMAIL_FROM_EMAIL : 'Not configured',
-        service: 'Nodemailer'
+        service: 'Nodemailer',
+        environment: process.env.NODE_ENV || 'development',
+        timestamp: new Date().toISOString()
       };
     } catch (error) {
       console.error('❌ Email service health check failed:', error);
@@ -844,7 +957,9 @@ If you need assistance, please contact our support team through the TruViews pla
         status: 'unhealthy',
         configured: false,
         error: error.message,
-        service: 'Nodemailer'
+        service: 'Nodemailer',
+        environment: process.env.NODE_ENV || 'development',
+        timestamp: new Date().toISOString()
       };
     }
   }

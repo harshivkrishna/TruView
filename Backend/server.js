@@ -191,6 +191,26 @@ app.get('/cors-test', (req, res) => {
   });
 });
 
+app.get('/email-test', async (req, res) => {
+  try {
+    const emailService = require('./services/emailService');
+    const health = await emailService.checkEmailServiceHealth();
+
+    res.json({
+      message: 'Email service test',
+      timestamp: new Date().toISOString(),
+      emailHealth: health,
+      environment: process.env.NODE_ENV || 'development'
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: 'Email service test failed',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 app.use(express.json({
   limit: '50mb',
   parameterLimit: 10000,
