@@ -47,9 +47,14 @@ app.use(hpp());
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
+  'http://127.0.0.1:5173',
   'https://www.truviews.in',
   'https://truviews.in',
-  'https://truview-xc01.onrender.com'
+  'https://truview-xc01.onrender.com',
+  'https://truviews-frontend.onrender.com',
+  'https://truviews.netlify.app',
+  'https://truviews.vercel.app',
+  'https://truview-steel.vercel.app'
 ];
 
 if (process.env.FRONTEND_URL) {
@@ -68,18 +73,30 @@ const finalAllowedOrigins = [...new Set([...allowedOrigins, ...productionOrigins
 
 const corsOptions = {
   origin: function (origin, callback) {
+    console.log(`🌐 CORS Check - Origin: ${origin || 'No origin'}`);
+
+    // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin) {
+      console.log('✅ CORS: Allowing request with no origin');
       return callback(null, true);
     }
-    
+
+    // Allow localhost and 127.0.0.1 for development
     if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+      console.log('✅ CORS: Allowing localhost/127.0.0.1');
       return callback(null, true);
     }
-    
+
+    // Check if origin is in allowed list
     if (finalAllowedOrigins.indexOf(origin) !== -1) {
+      console.log('✅ CORS: Origin found in allowed list');
       callback(null, true);
     } else {
+      console.log(`❌ CORS: Origin ${origin} not in allowed list`);
+      console.log('📋 Allowed origins:', finalAllowedOrigins);
+
       if (process.env.NODE_ENV === 'development') {
+        console.log('🔧 Development mode: Allowing all origins');
         callback(null, true);
       } else {
         callback(new Error(`Origin ${origin} not allowed by CORS policy`));
@@ -88,7 +105,7 @@ const corsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
   maxAge: 86400
 };
 
@@ -105,11 +122,11 @@ app.options('*', cors(corsOptions));
 app.get('/health', async (req, res) => {
   const mongoStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
   const mongoState = ['disconnected', 'connected', 'connecting', 'disconnecting'][mongoose.connection.readyState];
-  
+
   // Check email service health
   const emailService = require('./services/emailService');
   const emailHealth = await emailService.checkEmailServiceHealth();
-  
+
   res.status(200).json({
     status: 'OK',
     timestamp: new Date().toISOString(),
@@ -125,7 +142,7 @@ app.get('/health', async (req, res) => {
 app.get('/health/mongodb', (req, res) => {
   const mongoStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
   const mongoState = ['disconnected', 'connected', 'connecting', 'disconnecting'][mongoose.connection.readyState];
-  
+
   if (mongoose.connection.readyState === 1) {
     res.status(200).json({
       status: 'OK',
@@ -165,13 +182,22 @@ app.get('/test', (req, res) => {
   });
 });
 
-app.use(express.json({ 
+app.get('/cors-test', (req, res) => {
+  res.json({
+    message: 'CORS test successful',
+    origin: req.headers.origin || 'No origin',
+    timestamp: new Date().toISOString(),
+    allowedOrigins: finalAllowedOrigins
+  });
+});
+
+app.use(express.json({
   limit: '50mb',
   parameterLimit: 10000,
   extended: false
 }));
-app.use(express.urlencoded({ 
-  extended: true, 
+app.use(express.urlencoded({
+  extended: true,
   limit: '50mb',
   parameterLimit: 10000
 }));
@@ -199,7 +225,7 @@ app.use((req, res, next) => {
   res.set('X-Content-Type-Options', 'nosniff');
   res.set('X-Frame-Options', 'DENY');
   res.set('X-XSS-Protection', '1; mode=block');
-  
+
   next();
 });
 
@@ -222,30 +248,30 @@ app.use('*', (req, res) => {
 app.use((error, req, res, next) => {
   if (error.name === 'ValidationError') {
     const messages = Object.values(error.errors).map(err => err.message);
-    return res.status(400).json({ 
-      message: 'Validation Error', 
-      errors: messages 
+    return res.status(400).json({
+      message: 'Validation Error',
+      errors: messages
     });
   }
-  
+
   if (error.name === 'CastError') {
-    return res.status(400).json({ 
-      message: 'Invalid ID format' 
+    return res.status(400).json({
+      message: 'Invalid ID format'
     });
   }
-  
+
   if (error.name === 'JsonWebTokenError') {
-    return res.status(401).json({ 
-      message: 'Invalid token' 
+    return res.status(401).json({
+      message: 'Invalid token'
     });
   }
-  
+
   if (error.name === 'TokenExpiredError') {
-    return res.status(401).json({ 
-      message: 'Token expired' 
+    return res.status(401).json({
+      message: 'Token expired'
     });
   }
-  res.status(error.status || 500).json({ 
+  res.status(error.status || 500).json({
     message: error.message || 'Internal server error',
     ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
   });
@@ -272,11 +298,11 @@ const connectToMongoDB = async () => {
   try {
     console.log('🔄 Attempting to connect to MongoDB...');
     console.log('MongoDB URI:', process.env.MONGODB_URI ? 'Using environment variable' : 'Using default localhost');
-    
+
     await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/truviews', mongoOptions);
-    
+
     console.log('✅ MongoDB connected successfully with optimized settings');
-    
+
     mongoose.set('debug', process.env.NODE_ENV === 'development');
     mongoose.set('autoIndex', false);
     mongoose.connection.on('error', (err) => {
@@ -286,36 +312,36 @@ const connectToMongoDB = async () => {
         console.error('🔄 Network timeout detected, will retry connection...');
       }
     });
-    
+
     mongoose.connection.on('disconnected', () => {
       console.warn('⚠️ MongoDB disconnected. Attempting to reconnect...');
     });
-    
+
     mongoose.connection.on('reconnected', () => {
       console.log('✅ MongoDB reconnected successfully');
     });
-    
+
     mongoose.connection.on('close', () => {
       console.log('🔒 MongoDB connection closed');
     });
-    
+
     mongoose.connection.on('connecting', () => {
       console.log('🔄 MongoDB connecting...');
     });
-    
+
     mongoose.connection.on('connected', () => {
       console.log('✅ MongoDB connected');
     });
-    
+
     mongoose.connection.on('open', () => {
       console.log('🚀 MongoDB connection opened');
     });
-    
+
   } catch (err) {
     console.error('❌ Failed to connect to MongoDB:', err.message);
     console.error('Error type:', err.name);
     console.error('MongoDB URI:', process.env.MONGODB_URI || 'mongodb://localhost:27017/truviews');
-    
+
     console.log('🔄 Will attempt to reconnect in 5 seconds...');
     setTimeout(() => {
       connectToMongoDB();
