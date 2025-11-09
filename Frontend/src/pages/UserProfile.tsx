@@ -328,6 +328,23 @@ const UserProfile = () => {
         // Update AuthContext with new avatar
         updateCurrentUser({} as any);
         
+        // Don't clear preview immediately - let the new image load first
+        // Create an image element to preload the new image
+        const img = new Image();
+        img.onload = () => {
+          // Image loaded successfully, now safe to clear preview
+          setPhotoFile(null);
+          setPhotoPreview(null);
+        };
+        img.onerror = () => {
+          // Image failed to load, but still clear preview after a delay
+          setTimeout(() => {
+            setPhotoFile(null);
+            setPhotoPreview(null);
+          }, 1000);
+        };
+        img.src = cacheBustedUrl;
+        
         // Force a complete refresh of the profile data
         try {
           const refreshedProfile = await getUserProfile(userId || '');
@@ -337,25 +354,19 @@ const UserProfile = () => {
               refreshedProfile.avatar = `${refreshedProfile.avatar}?t=${Date.now()}`;
             }
             setProfile(refreshedProfile);
-            
-            // Clear file and preview only after successful refresh
-            // This ensures the new image is loaded before removing preview
-            setPhotoFile(null);
-            setPhotoPreview(null);
           }
         } catch (refreshError) {
           console.error('Error refreshing profile:', refreshError);
-          // Still clear on error
-          setPhotoFile(null);
-          setPhotoPreview(null);
         }
         
         // Trigger a force update to re-render
         setForceUpdate(prev => prev + 1);
       } else {
-        // If no URL returned, still clear the preview
-        setPhotoFile(null);
-        setPhotoPreview(null);
+        // If no URL returned, keep preview for a moment so user can see what failed
+        setTimeout(() => {
+          setPhotoFile(null);
+          setPhotoPreview(null);
+        }, 2000);
       }
       
     } catch (error: any) {
@@ -381,9 +392,11 @@ const UserProfile = () => {
       
       setError(errorMessage);
       
-      // Clear the file and preview on error
-      setPhotoFile(null);
-      setPhotoPreview(null);
+      // Keep the preview visible for a moment on error so user can see what failed
+      setTimeout(() => {
+        setPhotoFile(null);
+        setPhotoPreview(null);
+      }, 3000);
     } finally {
       setUploadingPhoto(false);
     }

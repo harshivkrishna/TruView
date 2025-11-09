@@ -2,7 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const emailService = require('../services/emailService');
+const emailService = require('../services/emailService'); // Now uses Brevo
 const router = express.Router();
 
 // Register user
@@ -430,16 +430,25 @@ router.post('/forgot-password', async (req, res) => {
       return res.status(503).json({ message: 'Service temporarily unavailable. Please try again.' });
     }
 
-    const { email } = req.body;
-    
-    console.log('Extracted email:', email, '(type:', typeof email, ')');
-    
-    if (!email) {
+    // Handle nested email object from frontend
+    let emailStr;
+    if (req.body.email && typeof req.body.email === 'object' && req.body.email.email) {
+      // Frontend sent nested object: { email: { email: "actual@email.com", ... } }
+      emailStr = req.body.email.email.trim();
+      console.log('Extracted email from nested object:', emailStr);
+    } else if (typeof req.body.email === 'string') {
+      // Normal case: { email: "actual@email.com" }
+      emailStr = req.body.email.trim();
+      console.log('Extracted email from string:', emailStr);
+    } else {
+      console.log('❌ Invalid email format in request body:', JSON.stringify(req.body, null, 2));
       return res.status(400).json({ message: 'Email is required' });
     }
 
-    // Ensure email is a string
-    const emailStr = String(email).trim();
+    if (!emailStr) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+
     console.log(`🔍 Looking for user with email: ${emailStr}`);
     const user = await User.findOne({ email: emailStr });
     if (!user) {
@@ -466,11 +475,11 @@ router.post('/forgot-password', async (req, res) => {
 
     // Send password reset email via Nodemailer
     console.log('\n📧 ATTEMPTING TO SEND PASSWORD RESET EMAIL');
-    console.log('  To:', email);
+    console.log('  To:', emailStr);
     console.log('  OTP:', otp);
     console.log('  Name:', user.firstName);
     
-    const emailResult = await emailService.sendPasswordResetOTP(email, otp, user.firstName);
+    const emailResult = await emailService.sendPasswordResetOTP(emailStr, otp, user.firstName);
     console.log('📬 Email Result:', JSON.stringify(emailResult, null, 2));
     
     if (!emailResult.success) {
@@ -482,11 +491,11 @@ router.post('/forgot-password', async (req, res) => {
       });
     }
 
-    console.log(`✅ Password reset OTP generated and sent for: ${email}`);
+    console.log(`✅ Password reset OTP generated and sent for: ${emailStr}`);
     console.log('Message ID:', emailResult.messageId);
     res.json({ 
       message: 'Password reset OTP sent successfully',
-      email: email,
+      email: emailStr,
       firstName: user.firstName
     });
   } catch (error) {
@@ -600,20 +609,32 @@ router.post('/reset-password', async (req, res) => {
   console.log('Request body type:', typeof req.body);
   
   try {
-    const { email, otp, newPassword } = req.body;
+    // Handle nested object structure from frontend
+    let emailStr, otp, newPassword;
     
-    console.log('Extracted values:');
-    console.log('- email:', email, '(type:', typeof email, ')');
-    console.log('- otp:', otp, '(type:', typeof otp, ')');
-    console.log('- newPassword:', newPassword, '(type:', typeof newPassword, ')');
+    if (req.body.email && typeof req.body.email === 'object') {
+      // Frontend sent nested object: { email: { email: "actual@email.com", otp: "123456", newPassword: "pass" } }
+      emailStr = req.body.email.email?.trim();
+      otp = req.body.email.otp;
+      newPassword = req.body.email.newPassword;
+      console.log('Extracted from nested object:');
+    } else {
+      // Normal case: { email: "actual@email.com", otp: "123456", newPassword: "pass" }
+      emailStr = req.body.email?.trim();
+      otp = req.body.otp;
+      newPassword = req.body.newPassword;
+      console.log('Extracted from flat object:');
+    }
     
-    if (!email || !otp || !newPassword) {
+    console.log('- email:', emailStr);
+    console.log('- otp:', otp);
+    console.log('- newPassword:', newPassword ? '[PROVIDED]' : '[MISSING]');
+    
+    if (!emailStr || !otp || !newPassword) {
       console.log('❌ Missing required fields');
       return res.status(400).json({ message: 'Email, OTP, and new password are required' });
     }
     
-    // Ensure email is a string
-    const emailStr = String(email).trim();
     console.log(`🔍 Looking for user: ${emailStr}`);
 
     const user = await User.findOne({ email: emailStr });
@@ -623,27 +644,27 @@ router.post('/reset-password', async (req, res) => {
     }
 
     if (!user.resetPasswordOTP || !user.resetPasswordOTP.code) {
-      console.log(`❌ No password reset OTP found for: ${email}`);
+      console.log(`❌ No password reset OTP found for: ${emailStr}`);
       return res.status(400).json({ message: 'No password reset OTP found' });
     }
 
     if (user.resetPasswordOTP.expiresAt < new Date()) {
-      console.log(`❌ OTP expired for: ${email}`);
+      console.log(`❌ OTP expired for: ${emailStr}`);
       return res.status(400).json({ message: 'OTP has expired' });
     }
 
     if (user.resetPasswordOTP.code !== otp) {
-      console.log(`❌ Invalid OTP for: ${email}`);
+      console.log(`❌ Invalid OTP for: ${emailStr}`);
       return res.status(400).json({ message: 'Invalid OTP' });
     }
 
     // Update password
-    console.log(`✅ Resetting password for: ${email}`);
+    console.log(`✅ Resetting password for: ${emailStr}`);
     user.password = newPassword;
     user.resetPasswordOTP = undefined;
     await user.save();
 
-    console.log(`✅ Password reset successfully for: ${email}`);
+    console.log(`✅ Password reset successfully for: ${emailStr}`);
     res.json({ message: 'Password reset successfully' });
   } catch (error) {
     console.error('❌ Reset password error:', error);

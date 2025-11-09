@@ -124,8 +124,8 @@ app.get('/health', async (req, res) => {
   const mongoState = ['disconnected', 'connected', 'connecting', 'disconnecting'][mongoose.connection.readyState];
 
   // Check email service health
-  const emailService = require('./services/emailService');
-  const emailHealth = await emailService.checkEmailServiceHealth();
+  const brevoEmailService = require('./services/brevoEmailService');
+  const emailHealth = await brevoEmailService.checkEmailServiceHealth();
 
   res.status(200).json({
     status: 'OK',
@@ -193,18 +193,53 @@ app.get('/cors-test', (req, res) => {
 
 app.get('/email-test', async (req, res) => {
   try {
-    const emailService = require('./services/emailService');
-    const health = await emailService.checkEmailServiceHealth();
-
+    const brevoEmailService = require('./services/brevoEmailService');
+    
+    const brevoHealth = await brevoEmailService.checkEmailServiceHealth();
+    
     res.json({
-      message: 'Email service test',
+      message: 'Brevo email service test',
       timestamp: new Date().toISOString(),
-      emailHealth: health,
+      brevoService: brevoHealth,
       environment: process.env.NODE_ENV || 'development'
     });
   } catch (error) {
     res.status(500).json({
       message: 'Email service test failed',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+app.post('/send-test-email', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+    
+    const brevoEmailService = require('./services/brevoEmailService');
+    
+    console.log('🧪 Sending test email via Brevo to:', email);
+    
+    const result = await brevoEmailService.sendVerificationOTP(
+      email, 
+      '123456', 
+      'Test User'
+    );
+    
+    res.json({
+      message: 'Test email sent',
+      result: result,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('Test email failed:', error);
+    res.status(500).json({
+      message: 'Test email failed',
       error: error.message,
       timestamp: new Date().toISOString()
     });
