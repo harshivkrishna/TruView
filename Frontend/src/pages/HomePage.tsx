@@ -143,10 +143,10 @@ const HeroSection = () => {
   const isInView = useInView(ref, { once: true });
 
   const socialLinks = [
-    { icon: FaFacebookF, url: 'https://facebook.com', bgColor: 'bg-blue-600', delay: 0.2 },
-    { icon: FaInstagram, url: 'https://instagram.com', bgColor: 'bg-gradient-to-br from-purple-500 to-pink-500', delay: 0.3 },
-    { icon: FaXTwitter, url: 'https://x.com', bgColor: 'bg-black', delay: 0.4 },
-    { icon: FaReddit, url: 'https://reddit.com', bgColor: 'bg-orange-600', delay: 0.5 }
+    { icon: FaFacebookF, url: 'https://www.facebook.com/profile.php?id=61583791044363', bgColor: 'bg-blue-600', delay: 0.2 },
+    { icon: FaInstagram, url: 'https://www.instagram.com/truviews.in', bgColor: 'bg-gradient-to-br from-purple-500 to-pink-500', delay: 0.3 },
+    { icon: FaXTwitter, url: 'https://x.com/truveiws_', bgColor: 'bg-black', delay: 0.4 },
+    { icon: FaReddit, url: 'https://www.reddit.com/user/truviews_/', bgColor: 'bg-orange-600', delay: 0.5 }
   ];
 
   return (
