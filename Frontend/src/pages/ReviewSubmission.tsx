@@ -7,6 +7,7 @@ import MediaCarousel from '../components/MediaCarousel';
 import { getCachedData, reviewCache } from '../utils/cache';
 import { updateMetaTags } from '../utils/seo';
 import { compressImage } from '../utils/imageOptimization';
+import toast from 'react-hot-toast';
 
 interface Category {
   id: number;
@@ -204,7 +205,10 @@ const ReviewSubmission = () => {
     e.preventDefault();
     
     if (!formData.title || !formData.description || !formData.category || !formData.subcategory || !formData.rating) {
-      alert('Please fill in all required fields');
+      toast.error('Please fill in all required fields', {
+        duration: 3000,
+        icon: '⚠️',
+      });
       return;
     }
 
@@ -217,10 +221,16 @@ const ReviewSubmission = () => {
       };
 
       await createReview(reviewData);
-      alert('Review submitted successfully!');
+      toast.success('Review submitted successfully!', {
+        duration: 3000,
+        icon: '✅',
+      });
       navigate('/categories');
     } catch (error) {
-      alert('Error submitting review. Please try again.');
+      toast.error('Error submitting review. Please try again.', {
+        duration: 4000,
+        icon: '❌',
+      });
     } finally {
       setIsSubmitting(false);
     }

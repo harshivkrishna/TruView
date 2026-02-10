@@ -2,7 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const emailService = require('../services/emailService'); // Now uses Brevo
+const emailService = require('../services/emailService'); // Now uses Gmail
 const router = express.Router();
 
 // Register user

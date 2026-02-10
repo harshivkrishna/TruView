@@ -1,7 +1,7 @@
-// Email service - now using real Brevo service
+// Email service - now using Gmail service
 // This file is kept for backward compatibility
 
-const brevoEmailService = require('./brevoEmailService');
+const gmailService = require('./gmailService');
 
-// Export the real Brevo service
-module.exports = brevoEmailService;
+// Export the Gmail service
+module.exports = gmailService;

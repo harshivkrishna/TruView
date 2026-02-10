@@ -66,8 +66,8 @@ const RegisterModal: React.FC<RegisterModalProps> = ({
     // Last Name validation
     if (!formData.lastName.trim()) {
       newErrors.lastName = 'Please enter your last name';
-    } else if (formData.lastName.trim().length < 2) {
-      newErrors.lastName = 'Last name must be at least 2 characters long';
+    } else if (formData.lastName.trim().length < 1) {
+      newErrors.lastName = 'Last name must be at least 1 character long';
     } else if (formData.lastName.trim().length > 50) {
       newErrors.lastName = 'Last name cannot exceed 50 characters';
     } else if (!/^[a-zA-Z\s]+$/.test(formData.lastName.trim())) {

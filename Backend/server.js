@@ -124,8 +124,8 @@ app.get('/health', async (req, res) => {
   const mongoState = ['disconnected', 'connected', 'connecting', 'disconnecting'][mongoose.connection.readyState];
 
   // Check email service health
-  const brevoEmailService = require('./services/brevoEmailService');
-  const emailHealth = await brevoEmailService.checkEmailServiceHealth();
+  const emailService = require('./services/emailService');
+  const emailHealth = await emailService.checkEmailServiceHealth();
 
   res.status(200).json({
     status: 'OK',
@@ -193,14 +193,14 @@ app.get('/cors-test', (req, res) => {
 
 app.get('/email-test', async (req, res) => {
   try {
-    const brevoEmailService = require('./services/brevoEmailService');
+    const emailService = require('./services/emailService');
     
-    const brevoHealth = await brevoEmailService.checkEmailServiceHealth();
+    const emailHealth = await emailService.checkEmailServiceHealth();
     
     res.json({
-      message: 'Brevo email service test',
+      message: 'Gmail email service test',
       timestamp: new Date().toISOString(),
-      brevoService: brevoHealth,
+      emailService: emailHealth,
       environment: process.env.NODE_ENV || 'development'
     });
   } catch (error) {
@@ -220,11 +220,11 @@ app.post('/send-test-email', async (req, res) => {
       return res.status(400).json({ message: 'Email is required' });
     }
     
-    const brevoEmailService = require('./services/brevoEmailService');
+    const emailService = require('./services/emailService');
     
-    console.log('🧪 Sending test email via Brevo to:', email);
+    console.log('🧪 Sending test email via Gmail to:', email);
     
-    const result = await brevoEmailService.sendVerificationOTP(
+    const result = await emailService.sendVerificationOTP(
       email, 
       '123456', 
       'Test User'

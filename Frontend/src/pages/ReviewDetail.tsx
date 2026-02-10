@@ -423,60 +423,58 @@ const ReviewDetail = () => {
     try {
       if (!id) return;
       
-      // Update UI immediately
+      // Optimistic UI update - instant feedback
+      const newUpvoteCount = previousHasUpvoted ? previousUpvotes - 1 : previousUpvotes + 1;
+      const newHasUpvoted = !previousHasUpvoted;
+      
       setReview(prev => prev ? {
         ...prev,
-        upvotes: previousHasUpvoted ? previousUpvotes - 1 : previousUpvotes + 1,
-        upvotedBy: previousHasUpvoted 
-          ? prev.upvotedBy?.filter((userId: string) => userId !== currentUser.id) || []
-          : [...(prev.upvotedBy || []), currentUser.id]
-      } : null);
-      
-      setHasUpvoted(!previousHasUpvoted);
-      
-      // Make API call
-      const updatedReview = await upvoteReview(id);
-      
-      // Update with actual response
-      setReview(updatedReview);
-      
-      // Update upvote state based on the updated review
-      if (updatedReview.upvotedBy) {
-        const newHasUpvoted = updatedReview.upvotedBy.some((userId: any) => userId === currentUser.id);
-        setHasUpvoted(newHasUpvoted);
-        
-        // Only show toast if the state actually changed
-        if (newHasUpvoted && !previousHasUpvoted) {
-          toast.success('Review liked!');
-        } else if (!newHasUpvoted && previousHasUpvoted) {
-          toast.success('Like removed');
-        }
-      }
-      
-      // Update global state
-      updateReview(id, updatedReview);
-      
-      // Update cache
-      reviewCache.set(`review-${id}`, updatedReview);
-    } catch (error: any) {
-      // Revert optimistic update on error
-      setReview(prev => prev ? {
-        ...prev,
-        upvotes: previousUpvotes,
-        upvotedBy: previousHasUpvoted 
+        upvotes: newUpvoteCount,
+        upvotedBy: newHasUpvoted 
           ? [...(prev.upvotedBy || []), currentUser.id]
-          : prev.upvotedBy?.filter((userId: any) => userId !== currentUser.id) || []
+          : prev.upvotedBy?.filter((userId: string) => userId !== currentUser.id) || []
       } : null);
-      setHasUpvoted(previousHasUpvoted);
       
-      if (error.response?.status === 401) {
-        setShowLoginModal(true);
-      } else if (error.response?.status === 403) {
-        toast.error(error.response?.data?.message || 'You cannot upvote this review');
-      } else {
-        toast.error('Failed to like review');
-      }
+      setHasUpvoted(newHasUpvoted);
+      
+      // Make API call in background (don't wait for response)
+      upvoteReview(id).then(updatedReview => {
+        // Update with actual response from server
+        setReview(updatedReview);
+        
+        // Update upvote state based on the updated review
+        if (updatedReview.upvotedBy) {
+          const serverHasUpvoted = updatedReview.upvotedBy.some((userId: any) => userId === currentUser.id);
+          setHasUpvoted(serverHasUpvoted);
+        }
+        
+        // Update global state
+        updateReview(id, updatedReview);
+        
+        // Update cache
+        reviewCache.set(`review-${id}`, updatedReview);
+      }).catch(error => {
+        // Revert optimistic update on error
+        setReview(prev => prev ? {
+          ...prev,
+          upvotes: previousUpvotes,
+          upvotedBy: previousHasUpvoted 
+            ? [...(prev.upvotedBy || []), currentUser.id]
+            : prev.upvotedBy?.filter((userId: any) => userId !== currentUser.id) || []
+        } : null);
+        setHasUpvoted(previousHasUpvoted);
+        
+        if (error.response?.status === 401) {
+          setShowLoginModal(true);
+        } else if (error.response?.status === 403) {
+          toast.error(error.response?.data?.message || 'You cannot upvote this review');
+        } else {
+          toast.error('Failed to like review');
+        }
+      });
+      
     } finally {
+      // Allow immediate next click
       setIsUpvoting(false);
     }
   }, [currentUser, isUpvoting, id, review, hasUpvoted, updateReview]);

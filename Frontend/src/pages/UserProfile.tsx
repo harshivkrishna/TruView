@@ -24,6 +24,7 @@ import { motion } from 'framer-motion';
 import { getCachedData, reviewCache } from '../utils/cache';
 import { updateMetaTags, generateUserProfileStructuredData, addStructuredData } from '../utils/seo';
 import { preloadImage } from '../utils/imageOptimization';
+import toast from 'react-hot-toast';
 
 interface UserProfileData {
   _id: string;
@@ -264,14 +265,24 @@ const UserProfile = () => {
       const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
       
       if (file.size > maxSize) {
-        setError(`File size is too large (${fileSizeMB} MB). Please select an image smaller than 5 MB.`);
+        const errorMessage = `File size is too large (${fileSizeMB} MB). Please select an image smaller than 5 MB.`;
+        setError(errorMessage);
+        toast.error(errorMessage, {
+          duration: 4000,
+          icon: '📁',
+        });
         e.target.value = ''; // Clear the input
         return;
       }
       
       // Check if it's an image
       if (!file.type.startsWith('image/')) {
-        setError('Please select an image file (JPEG, PNG, GIF, etc.)');
+        const errorMessage = 'Please select an image file (JPEG, PNG, GIF, etc.)';
+        setError(errorMessage);
+        toast.error(errorMessage, {
+          duration: 3000,
+          icon: '🖼️',
+        });
         e.target.value = '';
         return;
       }
@@ -297,10 +308,16 @@ const UserProfile = () => {
       setUploadingPhoto(true);
       setError(null); // Clear any previous errors
       
+      // Show loading toast
+      const loadingToast = toast.loading('Uploading photo...');
+      
       const formData = new FormData();
       formData.append('profilePhoto', photoFile);
       
       const response = await uploadProfilePhoto(formData);
+      
+      // Dismiss loading toast
+      toast.dismiss(loadingToast);
       
       // Update profile with new photo URL - handle different response structures
       let newPhotoUrl = '';
@@ -327,6 +344,12 @@ const UserProfile = () => {
         
         // Update AuthContext with new avatar
         updateCurrentUser({} as any);
+        
+        // Show success toast
+        toast.success('Profile photo updated successfully!', {
+          duration: 3000,
+          icon: '✅',
+        });
         
         // Don't clear preview immediately - let the new image load first
         // Create an image element to preload the new image
@@ -362,7 +385,9 @@ const UserProfile = () => {
         // Trigger a force update to re-render
         setForceUpdate(prev => prev + 1);
       } else {
-        // If no URL returned, keep preview for a moment so user can see what failed
+        // If no URL returned, show error
+        toast.error('Failed to get photo URL. Please try again.');
+        // Keep preview for a moment so user can see what failed
         setTimeout(() => {
           setPhotoFile(null);
           setPhotoPreview(null);
@@ -374,16 +399,21 @@ const UserProfile = () => {
       
       // Show detailed error message to user
       let errorMessage = 'Failed to upload photo. Please try again.';
+      let toastIcon = '❌';
       
       if (error.response?.status === 413) {
         // File too large
         errorMessage = error.response?.data?.message || 'File size is too large. Please select an image smaller than 5 MB.';
+        toastIcon = '📁';
       } else if (error.response?.status === 404) {
         errorMessage = 'Profile not found. Your session may have expired. Please log out and log back in.';
+        toastIcon = '🔍';
       } else if (error.response?.status === 401) {
         errorMessage = 'Authentication failed. Please log out and log back in to upload photos.';
+        toastIcon = '🔒';
       } else if (error.response?.status === 400) {
         errorMessage = error.response?.data?.message || 'Invalid file. Please select a valid image file.';
+        toastIcon = '⚠️';
       } else if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       } else if (error.message) {
@@ -391,6 +421,12 @@ const UserProfile = () => {
       }
       
       setError(errorMessage);
+      
+      // Show error toast
+      toast.error(errorMessage, {
+        duration: 4000,
+        icon: toastIcon,
+      });
       
       // Keep the preview visible for a moment on error so user can see what failed
       setTimeout(() => {

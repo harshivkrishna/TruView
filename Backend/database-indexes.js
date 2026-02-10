@@ -14,6 +14,18 @@ db.reviews.createIndex({ "createdAt": -1, "rating": -1 });
 db.reviews.createIndex({ "category": 1, "createdAt": -1 });
 db.reviews.createIndex({ "author.userId": 1, "createdAt": -1 });
 
+// CRITICAL: Compound index for trending reviews optimization
+db.reviews.createIndex({ "views": -1, "upvotes": -1, "createdAt": -1 });
+
+// IMPORTANT: Compound index for weekly trending with date filter
+db.reviews.createIndex({ "createdAt": -1, "views": -1, "upvotes": -1 });
+
+// OPTIMIZATION: Partial index for non-removed reviews (most common query)
+db.reviews.createIndex(
+  { "views": -1, "upvotes": -1, "createdAt": -1 },
+  { partialFilterExpression: { "isRemovedByAdmin": { $ne: true } } }
+);
+
 // Users collection indexes
 db.users.createIndex({ "email": 1 }, { unique: true });
 db.users.createIndex({ "username": 1 }, { unique: true });

@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const Review = require('../models/Review');
 const { authenticateToken } = require('../middleware/auth');
 const { calculateTrustScore } = require('../utils/trustCalculator');
+const cacheService = require('../services/cacheService');
 const router = express.Router();
 
 // Check if AWS is configured
@@ -44,19 +45,17 @@ router.get('/', async (req, res) => {
     // Filter out admin-removed reviews for non-authors
     // Admin-removed reviews should only be visible to their original authors
     const currentUserId = req.user?.userId;
-    if (!currentUserId || currentUserId === 'admin') {
-      // For unauthenticated users and admins, hide all admin-removed reviews
-      query.isRemovedByAdmin = { $ne: true };
-    } else {
-      // For authenticated users, show admin-removed reviews only if they are the author
-      query.$or = [
-        { isRemovedByAdmin: { $ne: true } }, // Show non-removed reviews
-        { 
-          isRemovedByAdmin: true, 
-          'author.userId': currentUserId // Show removed reviews only to original author
-        }
-      ];
-    }
+    const adminRemovedFilter = !currentUserId || currentUserId === 'admin'
+      ? { isRemovedByAdmin: { $ne: true } }
+      : {
+          $or: [
+            { isRemovedByAdmin: { $ne: true } },
+            { 
+              isRemovedByAdmin: true, 
+              'author.userId': currentUserId
+            }
+          ]
+        };
     
     // Basic filters
     if (category) query.category = category;
@@ -100,43 +99,39 @@ router.get('/', async (req, res) => {
       query.companyName = { $regex: companyName, $options: 'i' };
     }
     
-    // Handle text search and location with proper $and/$or logic
-    const orConditions = [];
+    // Handle text search and location with proper $and logic
+    const searchConditions = [];
     
     if (searchQuery) {
-      orConditions.push(
-        { title: { $regex: searchQuery, $options: 'i' } },
-        { description: { $regex: searchQuery, $options: 'i' } },
-        { companyName: { $regex: searchQuery, $options: 'i' } }
-      );
+      searchConditions.push({
+        $or: [
+          { title: { $regex: searchQuery, $options: 'i' } },
+          { description: { $regex: searchQuery, $options: 'i' } },
+          { companyName: { $regex: searchQuery, $options: 'i' } }
+        ]
+      });
     }
     
     if (location) {
-      orConditions.push(
-        { 'author.location': { $regex: location, $options: 'i' } },
-        { location: { $regex: location, $options: 'i' } }
-      );
+      searchConditions.push({
+        $or: [
+          { 'author.location': { $regex: location, $options: 'i' } },
+          { location: { $regex: location, $options: 'i' } }
+        ]
+      });
     }
     
-    if (orConditions.length > 0) {
-      if (searchQuery && location) {
-        // Both search and location: use $and with separate $or for each
-        query.$and = [
-          { $or: [
-            { title: { $regex: searchQuery, $options: 'i' } },
-            { description: { $regex: searchQuery, $options: 'i' } },
-            { companyName: { $regex: searchQuery, $options: 'i' } }
-          ]},
-          { $or: [
-            { 'author.location': { $regex: location, $options: 'i' } },
-            { location: { $regex: location, $options: 'i' } }
-          ]}
-        ];
-      } else {
-        // Only one of them: use simple $or
-        query.$or = orConditions.flat();
-      }
-    }
+    // Combine all conditions using $and
+    const finalQuery = {
+      $and: [
+        adminRemovedFilter,
+        query,
+        ...searchConditions
+      ].filter(condition => Object.keys(condition).length > 0)
+    };
+    
+    // If no complex conditions, use simple query
+    const mongoQuery = finalQuery.$and.length > 1 ? finalQuery : { ...adminRemovedFilter, ...query };
     
     // Determine sort field
     const sortField = sortBy || sort;
@@ -168,11 +163,11 @@ router.get('/', async (req, res) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
     
     // Log the constructed query for debugging
-    console.log('Reviews query:', JSON.stringify(query, null, 2));
+    console.log('Reviews query:', JSON.stringify(mongoQuery, null, 2));
     console.log('Sort object:', sortObject);
     
     const [reviews, totalCount] = await Promise.all([
-      Review.find(query)
+      Review.find(mongoQuery)
         .populate({
           path: 'author.userId',
           select: 'firstName lastName avatar',
@@ -184,7 +179,7 @@ router.get('/', async (req, res) => {
         .limit(parseInt(limit))
         .lean()
         .exec(),
-      Review.countDocuments(query).exec()
+      Review.countDocuments(mongoQuery).exec()
     ]);
     
     // Map the populated data to match the expected format with null safety
@@ -243,9 +238,18 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Get trending reviews (most viewed)
+// Get trending reviews (most viewed) - OPTIMIZED with caching
 router.get('/trending', async (req, res) => {
+  const cacheKey = 'trending-reviews';
+  
   try {
+    // Check cache first
+    const cachedData = cacheService.get(cacheKey);
+    if (cachedData) {
+      console.log('✅ Serving trending reviews from cache');
+      return res.json(cachedData);
+    }
+
     // Check MongoDB connection state
     if (mongoose.connection.readyState !== 1) {
       console.error('MongoDB not connected. State:', mongoose.connection.readyState);
@@ -255,14 +259,16 @@ router.get('/trending', async (req, res) => {
       });
     }
 
-    // Fetch reviews with proper error handling, excluding admin-removed reviews
-    const reviews = await Review.find({ isRemovedByAdmin: { $ne: true } })
+    // Optimized query with minimal fields and indexed sort
+    const reviews = await Review.find(
+      { isRemovedByAdmin: { $ne: true } },
+      'title description rating category subcategory tags author upvotes views trustScore createdAt media'
+    )
       .populate({
         path: 'author.userId',
         select: 'firstName lastName avatar',
         options: { strictPopulate: false }
       })
-      .select('title description rating category subcategory tags author upvotes views trustScore createdAt updatedAt media isRemovedByAdmin adminRemovalReason')
       .sort({ views: -1, upvotes: -1, createdAt: -1 })
       .limit(10)
       .lean()
@@ -271,7 +277,9 @@ router.get('/trending', async (req, res) => {
     // Handle empty results
     if (!reviews || reviews.length === 0) {
       console.log('No trending reviews found');
-      return res.json([]);
+      const emptyResult = [];
+      cacheService.set(cacheKey, emptyResult, 60000); // Cache for 1 minute
+      return res.json(emptyResult);
     }
 
     // Map the populated data to match the expected format with null safety
@@ -305,7 +313,10 @@ router.get('/trending', async (req, res) => {
       return reviewObj;
     });
     
-    console.log(`Successfully fetched ${formattedReviews.length} trending reviews`);
+    // Cache for 2 minutes (120000ms)
+    cacheService.set(cacheKey, formattedReviews, 120000);
+    
+    console.log(`✅ Successfully fetched and cached ${formattedReviews.length} trending reviews`);
     res.json(formattedReviews);
   } catch (error) {
     console.error('Error fetching trending reviews:', error);
@@ -316,73 +327,76 @@ router.get('/trending', async (req, res) => {
   }
 });
 
-// Get most viewed reviews in past 7 days
+// Get most viewed reviews in past 7 days - OPTIMIZED with caching and better query
 router.get('/most-viewed-week', async (req, res) => {
+  const cacheKey = 'most-viewed-week';
+  
   try {
+    // Check cache first
+    const cachedData = cacheService.get(cacheKey);
+    if (cachedData) {
+      console.log('✅ Serving weekly trending reviews from cache');
+      return res.json(cachedData);
+    }
+
     // Calculate date 7 days ago
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     
-    // Find reviews that have been viewed in the past 7 days, excluding admin-removed reviews
-    const reviews = await Review.aggregate([
+    // OPTIMIZED: Use simpler query with indexed fields instead of complex aggregation
+    // This approach is much faster for large datasets
+    const reviews = await Review.find(
       {
-        $match: {
-          'viewedBy.viewedAt': { $gte: sevenDaysAgo },
-          isRemovedByAdmin: { $ne: true }
-        }
+        isRemovedByAdmin: { $ne: true },
+        createdAt: { $gte: sevenDaysAgo } // Only look at recent reviews
       },
-      {
-        $addFields: {
-          // Count views in the past 7 days
-          recentViews: {
-            $size: {
-              $filter: {
-                input: '$viewedBy',
-                cond: { $gte: ['$$this.viewedAt', sevenDaysAgo] }
-              }
-            }
-          }
-        }
-      },
-      {
-        $sort: { recentViews: -1, upvotes: -1, createdAt: -1 }
-      },
-      {
-        $limit: 3
-      },
-      {
-        $lookup: {
-          from: 'users',
-          localField: 'author.userId',
-          foreignField: '_id',
-          as: 'authorInfo'
-        }
-      },
-      {
-        $unwind: {
-          path: '$authorInfo',
-          preserveNullAndEmptyArrays: true
-        }
-      },
-      {
-        $addFields: {
-          'author.name': {
-            $concat: ['$authorInfo.firstName', ' ', '$authorInfo.lastName']
-          },
-          'author.avatar': '$authorInfo.avatar',
-          'author.userId': '$authorInfo._id'
-        }
-      },
-      {
-        $project: {
-          authorInfo: 0
-        }
-      }
-    ]);
+      'title description rating category subcategory tags author upvotes views trustScore createdAt media'
+    )
+      .populate({
+        path: 'author.userId',
+        select: 'firstName lastName avatar',
+        options: { strictPopulate: false }
+      })
+      .sort({ views: -1, upvotes: -1, createdAt: -1 })
+      .limit(3)
+      .lean()
+      .exec();
     
-    res.json(reviews);
+    // Format the reviews
+    const formattedReviews = reviews.map(review => {
+      const reviewObj = { ...review };
+      
+      // Safely handle author population
+      if (reviewObj.author && reviewObj.author.userId) {
+        const userId = reviewObj.author.userId;
+        
+        if (userId && typeof userId === 'object' && userId.firstName) {
+          reviewObj.author.name = `${userId.firstName} ${userId.lastName}`;
+          reviewObj.author.avatar = userId.avatar;
+          reviewObj.author.userId = userId._id;
+        } else {
+          reviewObj.author.name = 'Anonymous';
+          reviewObj.author.avatar = null;
+          reviewObj.author.userId = null;
+        }
+      } else {
+        reviewObj.author = {
+          name: 'Anonymous',
+          avatar: null,
+          userId: null
+        };
+      }
+      
+      return reviewObj;
+    });
+    
+    // Cache for 3 minutes (180000ms)
+    cacheService.set(cacheKey, formattedReviews, 180000);
+    
+    console.log(`✅ Successfully fetched and cached ${formattedReviews.length} weekly trending reviews`);
+    res.json(formattedReviews);
   } catch (error) {
-    // console.error('Error fetching most viewed reviews:', error);
+    console.error('Error fetching most viewed reviews:', error);
     res.status(500).json({ message: error.message });
   }
 });
@@ -470,7 +484,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Create new review
+// Create new review with cache invalidation
 router.post('/', authenticateToken, async (req, res) => {
   try {
     // Fetch user information to get avatar
@@ -492,6 +506,10 @@ router.post('/', authenticateToken, async (req, res) => {
     
     const review = new Review(reviewData);
     await review.save();
+    
+    // Invalidate trending caches since new review affects trending
+    cacheService.delete('trending-reviews');
+    cacheService.delete('most-viewed-week');
     
     // Update user's review count and trust score
     if (user) {
@@ -523,7 +541,7 @@ router.post('/', authenticateToken, async (req, res) => {
   }
 });
 
-// Upvote review - Optimized version
+// Upvote review - Optimized version with cache invalidation
 router.patch('/:id/upvote', authenticateToken, async (req, res) => {
   const startTime = Date.now();
   
@@ -585,6 +603,10 @@ router.patch('/:id/upvote', authenticateToken, async (req, res) => {
     if (!updatedReview) {
       return res.status(404).json({ message: 'Review not found' });
     }
+
+    // Invalidate trending caches since upvotes affect trending
+    cacheService.delete('trending-reviews');
+    cacheService.delete('most-viewed-week');
 
     // Format the review data with null safety
     const reviewObj = { ...updatedReview };

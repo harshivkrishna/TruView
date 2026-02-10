@@ -4,6 +4,7 @@ import { Search, SlidersHorizontal, Filter, X, ArrowUp } from 'lucide-react';
 import ReviewCard from '../components/ReviewCard';
 import ReviewCardSkeleton from '../components/ReviewCardSkeleton';
 import AdvancedSearch from '../components/AdvancedSearch';
+import Footer from '../components/Footer';
 import { getReviews, getCategoriesWithSubcategories } from '../services/api';
 import { getCachedData, reviewCache } from '../utils/cache';
 import { updateMetaTags, generateCategoryStructuredData, addStructuredData } from '../utils/seo';
@@ -577,6 +578,8 @@ const CategoryBrowser: React.FC = () => {
           <ArrowUp className="w-6 h-6" />
         </button>
       )}
+
+      <Footer />
     </div>
   );
 };

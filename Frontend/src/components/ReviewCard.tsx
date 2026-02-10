@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Star, ThumbsUp, Eye, Calendar, User, Share2, Award, Shield } from 'lucide-react';
+import { Star, ThumbsUp, Eye, Calendar, User, Share2, Award, Shield, Play, Video } from 'lucide-react';
 import SocialShareModal from './SocialShareModal';
 import MediaCarousel from './MediaCarousel';
 import { calculateTrustScore, getTrustLevel } from '../utils/trustPrediction';
@@ -42,6 +42,8 @@ interface ReviewCardProps {
 const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = false, rank, currentUserId }) => {
   const navigate = useNavigate();
   const [showShareModal, setShowShareModal] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [videoLoaded, setVideoLoaded] = useState(false);
   const { getReview } = useReviewContext();
 
   // Get the most up-to-date review data from global state
@@ -289,27 +291,80 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
                   </div>
                 </div>
               ) : (
-                /* Normal Media Section */
-                <div className="relative h-48 bg-gray-100">
-                  <img
-                    src={currentReview.media[0].url}
-                    alt="Review media"
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                  />
+                /* Normal Media Section - Clickable */
+                <Link to={`/review/${currentReview._id}`} className="block relative h-48 bg-gray-100 cursor-pointer overflow-hidden">
+                  {currentReview.media[0].type === 'video' ? (
+                    /* Video Thumbnail with Play Icon */
+                    <>
+                      {/* Skeleton Loader for Video */}
+                      {!videoLoaded && (
+                        <div className="absolute inset-0 bg-gray-200 animate-pulse">
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="w-16 h-16 bg-gray-300 rounded-full"></div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      <video
+                        src={currentReview.media[0].url}
+                        className={`w-full h-full object-cover pointer-events-none transition-opacity duration-300 ${videoLoaded ? 'opacity-100' : 'opacity-0'}`}
+                        preload="metadata"
+                        onLoadedData={() => setVideoLoaded(true)}
+                      />
+                      
+                      {/* Play Icon Overlay - Only show when video is loaded */}
+                      {videoLoaded && (
+                        <>
+                          <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 hover:bg-opacity-40 transition-all">
+                            <motion.div
+                              className="w-16 h-16 bg-white bg-opacity-90 rounded-full flex items-center justify-center shadow-xl"
+                              whileHover={{ scale: 1.1 }}
+                              transition={{ duration: 0.2 }}
+                            >
+                              <Play className="w-8 h-8 text-orange-500 ml-1" />
+                            </motion.div>
+                          </div>
+                          {/* Video Badge */}
+                          <div className="absolute top-3 left-3 px-2 py-1 bg-black bg-opacity-70 text-white text-xs font-medium rounded-full flex items-center gap-1">
+                            <Video className="w-3 h-3" />
+                            Video
+                          </div>
+                        </>
+                      )}
+                    </>
+                  ) : (
+                    /* Image with Skeleton Loader */
+                    <>
+                      {/* Skeleton Loader for Image */}
+                      {!imageLoaded && (
+                        <div className="absolute inset-0 bg-gray-200 animate-pulse"></div>
+                      )}
+                      
+                      <img
+                        src={currentReview.media[0].url}
+                        alt="Review media"
+                        className={`w-full h-full object-cover transition-opacity duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
+                        loading="lazy"
+                        onLoad={() => setImageLoaded(true)}
+                        onError={() => setImageLoaded(true)}
+                      />
+                    </>
+                  )}
                   
-                  {/* Category Badge */}
-                  <div className="absolute bottom-3 left-3 flex flex-col gap-1">
-                    <div className="px-2 py-1 bg-black bg-opacity-70 text-white text-xs font-medium rounded-full">
-                      {currentReview.category}
-                    </div>
-                    {currentReview.subcategory && (
-                      <div className="px-2 py-1 bg-black bg-opacity-50 text-white text-xs font-medium rounded-full">
-                        {currentReview.subcategory}
+                  {/* Category Badge - Only show when media is loaded */}
+                  {(imageLoaded || videoLoaded) && (
+                    <div className="absolute bottom-3 left-3 flex flex-col gap-1">
+                      <div className="px-2 py-1 bg-black bg-opacity-70 text-white text-xs font-medium rounded-full">
+                        {currentReview.category}
                       </div>
-                    )}
-                  </div>
-                </div>
+                      {currentReview.subcategory && (
+                        <div className="px-2 py-1 bg-black bg-opacity-50 text-white text-xs font-medium rounded-full">
+                          {currentReview.subcategory}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </Link>
               )}
             </>
           )}

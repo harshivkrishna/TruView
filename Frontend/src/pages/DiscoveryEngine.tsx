@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TrendingUp, Flame, AlertTriangle, Trophy, Crown, Medal, Award, Star } from 'lucide-react';
 import ReviewCard from '../components/ReviewCard';
+import Footer from '../components/Footer';
 import { getReviews, getLeaderboard, getMostViewedReviewsWeek } from '../services/api';
 import { getCachedData, reviewCache } from '../utils/cache';
 import { updateMetaTags } from '../utils/seo';
@@ -285,6 +286,8 @@ const DiscoveryEngine = () => {
           </div>
         )}
       </div>
+
+      <Footer />
     </div>
   );
 };
