@@ -4,6 +4,34 @@ class GmailService {
   constructor() {
     console.log('🔧 Initializing Optimized Gmail Service...');
     
+    // Initialize Gmail transporter
+    this.transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_APP_PASSWORD
+      }
+    });
+    
+    this.fromEmail = process.env.GMAIL_USER || 'noreply@truviews.com';
+    this.fromName = 'TruViews';
+    
+    console.log('✅ Gmail Service initialized');
+  }
+
+  /**
+   * Verify Gmail connection
+   */
+  async verifyConnection() {
+    try {
+      await this.transporter.verify();
+      console.log('✅ Gmail connection verified');
+      return true;
+    } catch (error) {
+      console.error('❌ Gmail connection failed:', error);
+      return false;
+    }
+  }
 
   /**
    * Send email using Gmail
