@@ -9,11 +9,6 @@ const router = express.Router();
 router.post('/register', async (req, res) => {
   const startTime = Date.now();
   
-  console.log('\n' + '='.repeat(70));
-  console.log('📝 REGISTRATION REQUEST RECEIVED');
-  console.log('='.repeat(70));
-  console.log('Request body:', JSON.stringify(req.body, null, 2));
-  
   try {
     // Check MongoDB connection
     if (mongoose.connection.readyState !== 1) {
@@ -22,7 +17,6 @@ router.post('/register', async (req, res) => {
     }
 
     const { email, password, firstName, lastName, phoneNumber } = req.body;
-    console.log(`📧 Email: ${email}`);
 
     // Validate required fields
     if (!email || !password || !firstName || !lastName || !phoneNumber) {
@@ -35,16 +29,11 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ message: 'Phone number must be exactly 10 digits' });
     }
 
-    console.log(`⏱️ Registration validation took ${Date.now() - startTime}ms`);
-    const dbCheckStart = Date.now();
-
     // Check both email and phone in parallel for faster response
     const [existingUserByEmail, existingUserByPhone] = await Promise.all([
       User.findOne({ email }).select('_id').lean().exec(),
       User.findOne({ phoneNumber }).select('_id').lean().exec()
     ]);
-
-    console.log(`⏱️ DB existence check took ${Date.now() - dbCheckStart}ms`);
 
     if (existingUserByEmail) {
       return res.status(400).json({ message: 'User already exists with this email' });
@@ -56,8 +45,6 @@ router.post('/register', async (req, res) => {
 
     // Generate OTP before creating user
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    
-    const userCreateStart = Date.now();
 
     // Create user with unverified email
     const user = new User({
@@ -74,37 +61,12 @@ router.post('/register', async (req, res) => {
     });
 
     await user.save();
-    console.log(`⏱️ User creation (including bcrypt) took ${Date.now() - userCreateStart}ms`);
 
-    // Send verification email via Nodemailer
-    console.log('\n📧 ATTEMPTING TO SEND VERIFICATION EMAIL');
-    console.log('  To:', email);
-    console.log('  OTP:', otp);
-    console.log('  Name:', firstName);
-    
-    const emailStart = Date.now();
-    const emailResult = await emailService.sendVerificationOTP(email, otp, firstName);
-    console.log(`⏱️ Email sending took ${Date.now() - emailStart}ms`);
-    console.log('📬 Email Result:', JSON.stringify(emailResult, null, 2));
-
-    if (!emailResult.success) {
-      console.error('❌ Failed to send verification email:', emailResult.error);
-      console.error('Full error details:', emailResult);
-      // Still return success but mention email issue
-      return res.status(201).json({ 
-        message: 'Registration successful, but failed to send verification email. Please contact support.',
-        userId: user._id,
-        email: email,
-        firstName: firstName,
-        emailError: true
-      });
-    }
-    
-    console.log('✅ Verification email sent successfully!');
-    console.log('Message ID:', emailResult.messageId);
+    // Send verification email asynchronously (non-blocking)
+    emailService.sendVerificationOTP(email, otp, firstName);
 
     const totalTime = Date.now() - startTime;
-    console.log(`✅ Registration completed in ${totalTime}ms`);
+    console.log(`✅ Registration completed in ${totalTime}ms for ${email}`);
 
     res.status(201).json({ 
       message: 'Registration successful. Please check your email for verification OTP.',
@@ -114,7 +76,6 @@ router.post('/register', async (req, res) => {
     });
   } catch (error) {
     console.error('Registration error:', error.message);
-    console.error('Registration error stack:', error.stack);
     res.status(500).json({ message: 'Registration failed' });
   }
 });
@@ -217,26 +178,10 @@ router.post('/resend-verification', async (req, res) => {
 
     await user.save();
 
-    // Send verification email via Nodemailer
-    console.log('\n📧 ATTEMPTING TO RESEND VERIFICATION EMAIL');
-    console.log('  To:', email);
-    console.log('  OTP:', otp);
-    console.log('  Name:', user.firstName);
+    // Send verification email asynchronously (non-blocking)
+    emailService.sendVerificationOTP(email, otp, user.firstName);
     
-    const emailResult = await emailService.sendVerificationOTP(email, otp, user.firstName);
-    console.log('📬 Email Result:', JSON.stringify(emailResult, null, 2));
-    
-    if (!emailResult.success) {
-      console.error('❌ Failed to send verification email:', emailResult.error);
-      console.error('Full error details:', emailResult);
-      return res.status(500).json({ 
-        message: 'Failed to send verification email. Please try again.',
-        error: emailResult.error
-      });
-    }
-
-    console.log('✅ Verification email resent successfully!');
-    console.log('Message ID:', emailResult.messageId);
+    console.log(`✅ Verification OTP resent for: ${email}`);
 
     res.json({ 
       message: 'Verification OTP sent successfully',
@@ -244,7 +189,6 @@ router.post('/resend-verification', async (req, res) => {
       firstName: user.firstName
     });
   } catch (error) {
-    // console.error('Resend verification error:', error);
     res.status(500).json({ message: 'Failed to resend verification OTP' });
   }
 });
@@ -321,29 +265,22 @@ router.post('/login', async (req, res) => {
 
     const { email, password } = req.body;
 
-    const dbQueryStart = Date.now();
     // Only fetch fields we need for better performance
     const user = await User.findOne({ email })
       .select('email password firstName lastName phoneNumber role emailVerified lastLogin')
       .exec();
-    
-    console.log(`⏱️ User lookup took ${Date.now() - dbQueryStart}ms`);
 
     if (!user) {
       return res.status(404).json({ message: 'Email not registered. Please sign up first.' });
     }
 
-    const passwordCheckStart = Date.now();
     const isPasswordValid = await user.comparePassword(password);
-    console.log(`⏱️ Password verification took ${Date.now() - passwordCheckStart}ms`);
 
     if (!isPasswordValid) {
       return res.status(401).json({ message: 'Incorrect password. Please try again.' });
     }
 
     if (!user.emailVerified) {
-      console.log(`📧 User ${user.email} is not verified, sending verification OTP`);
-      
       // Generate verification OTP
       const otp = user.generateOTP();
       user.verificationOTP = {
@@ -353,26 +290,10 @@ router.post('/login', async (req, res) => {
       
       await user.save();
       
-      // Send verification email via Nodemailer
-      console.log('\n📧 ATTEMPTING TO SEND VERIFICATION EMAIL (LOGIN)');
-      console.log('  To:', user.email);
-      console.log('  OTP:', otp);
-      console.log('  Name:', user.firstName);
+      // Send verification email asynchronously (non-blocking)
+      emailService.sendVerificationOTP(user.email, otp, user.firstName);
       
-      const emailResult = await emailService.sendVerificationOTP(user.email, otp, user.firstName);
-      console.log('📬 Email Result:', JSON.stringify(emailResult, null, 2));
-      
-      if (!emailResult.success) {
-        console.error('❌ Failed to send verification email:', emailResult.error);
-        console.error('Full error details:', emailResult);
-        return res.status(500).json({ 
-          message: 'Failed to send verification email. Please try again.',
-          error: emailResult.error
-        });
-      }
-      
-      console.log(`✅ Verification OTP generated and sent for: ${user.email}`);
-      console.log('Message ID:', emailResult.messageId);
+      console.log(`✅ Verification OTP sent for unverified user: ${user.email}`);
       return res.status(200).json({ 
         message: 'Email verification required. OTP sent to your email.',
         requiresVerification: true,
@@ -395,7 +316,7 @@ router.post('/login', async (req, res) => {
     );
 
     const totalTime = Date.now() - startTime;
-    console.log(`✅ Login completed in ${totalTime}ms`);
+    console.log(`✅ Login completed in ${totalTime}ms for ${email}`);
 
     res.json({
       message: 'Login successful',
@@ -412,7 +333,6 @@ router.post('/login', async (req, res) => {
     });
   } catch (error) {
     console.error('Login error:', error.message);
-    console.error('Login error stack:', error.stack);
     res.status(500).json({ message: 'Login failed' });
   }
 });
@@ -420,10 +340,6 @@ router.post('/login', async (req, res) => {
 // Request password reset
 router.post('/forgot-password', async (req, res) => {
   try {
-    console.log('📧 Forgot password request received');
-    console.log('Request body:', JSON.stringify(req.body, null, 2));
-    console.log('Request body type:', typeof req.body);
-    
     // Check MongoDB connection
     if (mongoose.connection.readyState !== 1) {
       console.error('MongoDB not connected during forgot password');
@@ -433,15 +349,10 @@ router.post('/forgot-password', async (req, res) => {
     // Handle nested email object from frontend
     let emailStr;
     if (req.body.email && typeof req.body.email === 'object' && req.body.email.email) {
-      // Frontend sent nested object: { email: { email: "actual@email.com", ... } }
       emailStr = req.body.email.email.trim();
-      console.log('Extracted email from nested object:', emailStr);
     } else if (typeof req.body.email === 'string') {
-      // Normal case: { email: "actual@email.com" }
       emailStr = req.body.email.trim();
-      console.log('Extracted email from string:', emailStr);
     } else {
-      console.log('❌ Invalid email format in request body:', JSON.stringify(req.body, null, 2));
       return res.status(400).json({ message: 'Email is required' });
     }
 
@@ -449,21 +360,16 @@ router.post('/forgot-password', async (req, res) => {
       return res.status(400).json({ message: 'Email is required' });
     }
 
-    console.log(`🔍 Looking for user with email: ${emailStr}`);
     const user = await User.findOne({ email: emailStr });
     if (!user) {
-      console.log(`❌ User not found with email: ${emailStr}`);
       return res.status(404).json({ 
         message: 'No account found with this email address. Please check your email or create a new account.',
         code: 'USER_NOT_FOUND'
       });
     }
 
-    console.log(`✅ User found: ${user.firstName} ${user.lastName}`);
-
     // Generate OTP
     const otp = user.generateOTP();
-    console.log(`🔐 Generated OTP for user: ${user.email}`);
     
     user.resetPasswordOTP = {
       code: otp,
@@ -471,28 +377,11 @@ router.post('/forgot-password', async (req, res) => {
     };
 
     await user.save();
-    console.log(`💾 OTP saved to database for user: ${user.email}`);
 
-    // Send password reset email via Nodemailer
-    console.log('\n📧 ATTEMPTING TO SEND PASSWORD RESET EMAIL');
-    console.log('  To:', emailStr);
-    console.log('  OTP:', otp);
-    console.log('  Name:', user.firstName);
-    
-    const emailResult = await emailService.sendPasswordResetOTP(emailStr, otp, user.firstName);
-    console.log('📬 Email Result:', JSON.stringify(emailResult, null, 2));
-    
-    if (!emailResult.success) {
-      console.error('❌ Failed to send password reset email:', emailResult.error);
-      console.error('Full error details:', emailResult);
-      return res.status(500).json({ 
-        message: 'Failed to send password reset email. Please try again.',
-        error: emailResult.error
-      });
-    }
+    // Send password reset email asynchronously (non-blocking)
+    emailService.sendPasswordResetOTP(emailStr, otp, user.firstName);
 
-    console.log(`✅ Password reset OTP generated and sent for: ${emailStr}`);
-    console.log('Message ID:', emailResult.messageId);
+    console.log(`✅ Password reset OTP sent for: ${emailStr}`);
     res.json({ 
       message: 'Password reset OTP sent successfully',
       email: emailStr,
@@ -500,11 +389,6 @@ router.post('/forgot-password', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Forgot password error:', error);
-    console.error('Error details:', {
-      message: error.message,
-      stack: error.stack,
-      name: error.name
-    });
     res.status(500).json({ message: 'Failed to send password reset OTP' });
   }
 });
