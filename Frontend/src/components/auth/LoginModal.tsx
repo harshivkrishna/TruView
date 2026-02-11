@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Mail, Lock, Eye, EyeOff, Shield } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../services/api';
+import toast from 'react-hot-toast';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -51,18 +52,14 @@ const LoginModal: React.FC<LoginModalProps> = ({
     setErrorMessage('');
     
     try {
-      // If the user is trying to log in as admin, log them out of their current session first
-      if (formData.email === 'connect.truview@gmail.com') {
-        const { logout } = useAuth();
-        logout();
-      }
       const response = await login(formData.email, formData.password);
 
-      // Check if email verification is required
+      // Check if email verification is required - transition immediately
       if (response?.requiresVerification) {
+        toast.success('Verification required! Opening OTP screen...');
+        setIsLoading(false);
         setOtpData({ email: formData.email, otp: '' });
         setShowOTPVerification(true);
-        setIsLoading(false);
         return;
       }
 
@@ -84,7 +81,6 @@ const LoginModal: React.FC<LoginModalProps> = ({
       } else {
         setErrorMessage('Login failed. Please try again.');
       }
-    } finally {
       setIsLoading(false);
     }
   };
@@ -94,6 +90,11 @@ const LoginModal: React.FC<LoginModalProps> = ({
     
     if (!otpData.otp) {
       setErrorMessage('Please enter the OTP');
+      return;
+    }
+    
+    if (otpData.otp.length !== 6) {
+      setErrorMessage('OTP must be 6 digits');
       return;
     }
     
@@ -160,6 +161,17 @@ const LoginModal: React.FC<LoginModalProps> = ({
 
             {!showOTPVerification ? (
               <form onSubmit={handleSubmit} className="space-y-4">
+              {isLoading && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center gap-3"
+                >
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+                  <p className="text-blue-700 text-sm">Verifying credentials...</p>
+                </motion.div>
+              )}
+              
               <motion.div
                 initial={{ x: -20, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
@@ -239,8 +251,11 @@ const LoginModal: React.FC<LoginModalProps> = ({
                 initial={{ x: -20, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ delay: 0.4 }}
-                className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
               >
+                {isLoading && (
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                )}
                 {isLoading ? 'Logging in...' : 'Login'}
               </motion.button>
             </form>
@@ -270,14 +285,33 @@ const LoginModal: React.FC<LoginModalProps> = ({
                     <input
                       type="text"
                       value={otpData.otp}
-                      onChange={(e) => setOtpData(prev => ({ ...prev, otp: e.target.value }))}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-center text-lg tracking-widest"
-                      placeholder="Enter 6-digit code"
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, '');
+                        if (value.length <= 6) {
+                          setOtpData(prev => ({ ...prev, otp: value }));
+                          setErrorMessage('');
+                        }
+                      }}
+                      className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-center text-lg tracking-widest font-mono ${
+                        errorMessage ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="000000"
                       maxLength={6}
                       required
                     />
                   </div>
                 </motion.div>
+
+                {/* Error Message for OTP */}
+                {errorMessage && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-red-50 border border-red-200 rounded-lg p-3"
+                  >
+                    <p className="text-red-600 text-sm">{errorMessage}</p>
+                  </motion.div>
+                )}
 
                 <motion.button
                   type="submit"
@@ -285,8 +319,11 @@ const LoginModal: React.FC<LoginModalProps> = ({
                   initial={{ x: -20, opacity: 0 }}
                   animate={{ x: 0, opacity: 1 }}
                   transition={{ delay: 0.3 }}
-                  className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
                 >
+                  {isVerifyingOTP && (
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  )}
                   {isVerifyingOTP ? 'Verifying...' : 'Verify Email'}
                 </motion.button>
 

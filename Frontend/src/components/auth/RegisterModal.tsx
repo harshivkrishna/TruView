@@ -163,6 +163,8 @@ const RegisterModal: React.FC<RegisterModalProps> = ({
     
     setTermsError('');
     setIsLoading(true);
+    setGeneralError('');
+    
     try {
       const { confirmPassword, passKey, ...userData } = formData;
       
@@ -175,6 +177,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({
         });
         
         // Admin accounts are created immediately without email verification
+        setIsLoading(false);
         toast.success('Admin account created successfully! Please login with your credentials.');
         handleClose();
         setTimeout(() => {
@@ -183,10 +186,17 @@ const RegisterModal: React.FC<RegisterModalProps> = ({
       } else {
         // Regular user registration
         await signup(formData.email, formData.password, userData);
+        
+        // Show transition message
+        toast.success('Account created! Opening verification...');
+        
+        // Immediately transition to OTP modal
+        setIsLoading(false);
         setRegisteredEmail(formData.email);
         setShowOTPModal(true);
       }
     } catch (error: any) {
+      setIsLoading(false);
       // Handle specific registration errors
       if (error.response?.status === 400) {
         const errorMessage = error.response.data?.message;
@@ -217,8 +227,6 @@ const RegisterModal: React.FC<RegisterModalProps> = ({
       } else {
         toast.error('Registration failed. Please try again.');
       }
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -290,6 +298,19 @@ const RegisterModal: React.FC<RegisterModalProps> = ({
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
+                
+                {isLoading && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center gap-3"
+                  >
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+                    <p className="text-blue-700 text-sm">
+                      {isAdminMode ? 'Creating admin account...' : 'Creating your account...'}
+                    </p>
+                  </motion.div>
+                )}
                 
                 <div className="grid grid-cols-2 gap-4">
                   <motion.div
@@ -547,11 +568,14 @@ const RegisterModal: React.FC<RegisterModalProps> = ({
                 <motion.button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full bg-orange-500 text-white py-3 rounded-lg font-semibold hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-orange-500 text-white py-3 rounded-lg font-semibold hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: 0.6 }}
                 >
+                  {isLoading && (
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  )}
                   {isLoading 
                     ? (isAdminMode ? 'Creating Admin Account...' : 'Creating Account...') 
                     : (isAdminMode ? 'Create Admin Account' : 'Create Account')

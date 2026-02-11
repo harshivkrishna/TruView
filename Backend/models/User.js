@@ -84,6 +84,13 @@ const UserSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Indexes for faster queries
+UserSchema.index({ email: 1 }, { unique: true });
+UserSchema.index({ phoneNumber: 1 }, { unique: true });
+UserSchema.index({ emailVerified: 1 });
+UserSchema.index({ 'verificationOTP.expiresAt': 1 }, { sparse: true });
+UserSchema.index({ 'resetPasswordOTP.expiresAt': 1 }, { sparse: true });
+
 // Hash password before saving
 // Using 10 salt rounds for optimal balance between security and performance
 // 10 rounds = ~150ms, 12 rounds = ~300ms (2x slower)

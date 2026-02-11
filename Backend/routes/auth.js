@@ -60,9 +60,10 @@ router.post('/register', async (req, res) => {
       }
     });
 
+    // Save user first for fast response
     await user.save();
 
-    // Send verification email asynchronously (non-blocking)
+    // Send verification email asynchronously (non-blocking) - don't wait
     emailService.sendVerificationOTP(email, otp, firstName).catch(err => {
       console.error('Failed to send verification email:', err.message);
     });
@@ -292,14 +293,18 @@ router.post('/login', async (req, res) => {
         expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
       };
       
-      await user.save();
-      
-      // Send verification email asynchronously (non-blocking)
-      emailService.sendVerificationOTP(user.email, otp, user.firstName).catch(err => {
+      // Save user and send email in parallel for faster response
+      const savePromise = user.save();
+      const emailPromise = emailService.sendVerificationOTP(user.email, otp, user.firstName).catch(err => {
         console.error('Failed to send verification email:', err.message);
       });
       
-      console.log(`✅ Verification OTP sent for unverified user: ${user.email}`);
+      // Wait for save to complete, but don't wait for email
+      await savePromise;
+      
+      const totalTime = Date.now() - startTime;
+      console.log(`✅ Verification OTP generated in ${totalTime}ms for unverified user: ${user.email}`);
+      
       return res.status(200).json({ 
         message: 'Email verification required. OTP sent to your email.',
         requiresVerification: true,
