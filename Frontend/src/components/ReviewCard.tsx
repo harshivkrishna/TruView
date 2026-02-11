@@ -6,7 +6,10 @@ import SocialShareModal from './SocialShareModal';
 import MediaCarousel from './MediaCarousel';
 import { calculateTrustScore, getTrustLevel } from '../utils/trustPrediction';
 import { useReviewContext } from '../contexts/ReviewContext';
+import { useAuth } from '../contexts/AuthContext';
 import { lazyLoadImage } from '../utils/imageOptimization';
+import { upvoteReview } from '../services/api';
+import toast from 'react-hot-toast';
 
 interface ReviewCardProps {
   review: {
@@ -28,6 +31,7 @@ interface ReviewCardProps {
       userId?: string;
     };
     upvotes: number;
+    upvotedBy?: string[];
     views: number;
     createdAt: string;
     trustScore?: number;
@@ -41,16 +45,29 @@ interface ReviewCardProps {
 
 const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = false, rank, currentUserId }) => {
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
   const [showShareModal, setShowShareModal] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [videoLoaded, setVideoLoaded] = useState(false);
-  const { getReview } = useReviewContext();
+  const [isUpvoting, setIsUpvoting] = useState(false);
+  const [hasUpvoted, setHasUpvoted] = useState(false);
+  const { getReview, updateReview } = useReviewContext();
 
   // Get the most up-to-date review data from global state
   const currentReview = getReview(review._id) || review;
   
   // Ensure currentReview has the correct type
   const safeReview = currentReview as typeof review;
+
+  // Check if current user has upvoted this review
+  React.useEffect(() => {
+    if (currentUser && safeReview.upvotedBy) {
+      const upvoted = (safeReview.upvotedBy as any[]).some((userId: any) => 
+        userId === currentUser.id || userId.toString() === currentUser.id
+      );
+      setHasUpvoted(upvoted);
+    }
+  }, [currentUser, safeReview.upvotedBy]);
 
   // Check if review is removed by admin and handle visibility
   const isRemovedByAdmin = safeReview.isRemovedByAdmin;
@@ -131,6 +148,78 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
   ), [safeReview.tags]);
 
   // Callback handlers
+  const handleUpvote = useCallback(async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Check if user is logged in
+    if (!currentUser) {
+      toast.error('Please log in to like reviews');
+      return;
+    }
+    
+    // Prevent multiple simultaneous upvotes
+    if (isUpvoting) return;
+    
+    // Store previous values for potential rollback
+    const previousUpvotes = safeReview.upvotes || 0;
+    const previousHasUpvoted = hasUpvoted;
+    
+    try {
+      setIsUpvoting(true);
+      
+      // Optimistic UI update - instant feedback
+      const newUpvoteCount = previousHasUpvoted ? previousUpvotes - 1 : previousUpvotes + 1;
+      const newHasUpvoted = !previousHasUpvoted;
+      
+      setHasUpvoted(newHasUpvoted);
+      
+      // Update local state immediately
+      updateReview(safeReview._id, {
+        ...safeReview,
+        upvotes: newUpvoteCount,
+        upvotedBy: newHasUpvoted 
+          ? [...(safeReview.upvotedBy || []), currentUser.id]
+          : (safeReview.upvotedBy || []).filter((userId: any) => userId !== currentUser.id)
+      });
+      
+      // Make API call in background
+      const updatedReview = await upvoteReview(safeReview._id);
+      
+      // Update with actual response from server
+      updateReview(safeReview._id, updatedReview);
+      
+      // Update upvote state based on the updated review
+      if (updatedReview.upvotedBy) {
+        const serverHasUpvoted = (updatedReview.upvotedBy as any[]).some((userId: any) => 
+          userId === currentUser.id || userId.toString() === currentUser.id
+        );
+        setHasUpvoted(serverHasUpvoted);
+      }
+      
+    } catch (error: any) {
+      // Rollback on error
+      setHasUpvoted(previousHasUpvoted);
+      updateReview(safeReview._id, {
+        ...safeReview,
+        upvotes: previousUpvotes,
+        upvotedBy: previousHasUpvoted 
+          ? [...(safeReview.upvotedBy || []), currentUser.id]
+          : (safeReview.upvotedBy || []).filter((userId: any) => userId !== currentUser.id)
+      });
+      
+      if (error.response?.status === 401) {
+        toast.error('Please log in to like reviews');
+      } else if (error.response?.status === 403) {
+        toast.error(error.response?.data?.message || 'You cannot upvote this review');
+      } else {
+        toast.error('Failed to like review');
+      }
+    } finally {
+      setIsUpvoting(false);
+    }
+  }, [currentUser, isUpvoting, safeReview, hasUpvoted, updateReview]);
+
   const handleShare = useCallback(() => {
     setShowShareModal(true);
   }, []);
@@ -472,15 +561,33 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
               {/* Engagement Stats */}
               <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                 <div className="flex items-center gap-6">
-                  <motion.div 
-                    className="flex items-center text-gray-600"
-                    whileHover={{ scale: 1.05 }}
+                  <motion.button
+                    onClick={handleUpvote}
+                    disabled={!currentUser || isUpvoting}
+                    className={`flex items-center ${
+                      isUpvoting
+                        ? 'text-gray-400 cursor-not-allowed'
+                        : hasUpvoted 
+                          ? 'text-green-600' 
+                          : currentUser 
+                            ? 'text-gray-600 hover:text-green-600 cursor-pointer' 
+                            : 'text-gray-400 cursor-not-allowed'
+                    } transition-colors`}
+                    whileHover={currentUser && !isUpvoting ? { scale: 1.05 } : {}}
+                    whileTap={currentUser && !isUpvoting ? { scale: 0.95 } : {}}
+                    title={!currentUser ? 'Please log in to like reviews' : isUpvoting ? 'Updating...' : hasUpvoted ? 'Unlike' : 'Like'}
                   >
-                    <div className="w-8 h-8 bg-gradient-to-r from-green-100 to-green-200 rounded-full flex items-center justify-center mr-2">
-                      <ThumbsUp className="w-4 h-4 text-green-600" />
+                    <div className={`w-8 h-8 ${
+                      hasUpvoted 
+                        ? 'bg-gradient-to-r from-green-100 to-green-200' 
+                        : 'bg-gradient-to-r from-gray-100 to-gray-200'
+                    } rounded-full flex items-center justify-center mr-2 transition-colors`}>
+                      <ThumbsUp className={`w-4 h-4 ${
+                        hasUpvoted ? 'text-green-600 fill-current' : 'text-gray-600'
+                      } ${isUpvoting ? 'animate-pulse' : ''}`} />
                     </div>
                     <span className="text-sm font-semibold">{currentReview.upvotes}</span>
-                  </motion.div>
+                  </motion.button>
                   
                   <motion.div 
                     className="flex items-center text-gray-600"

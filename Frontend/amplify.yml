@@ -15,3 +15,20 @@ frontend:
     paths:
       - node_modules/**/*
       - dist/**/*
+  customHeaders:
+    - pattern: '**/*.js'
+      headers:
+        - key: 'Content-Type'
+          value: 'application/javascript; charset=utf-8'
+        - key: 'Cache-Control'
+          value: 'public, max-age=31536000, immutable'
+    - pattern: '**/*.css'
+      headers:
+        - key: 'Content-Type'
+          value: 'text/css; charset=utf-8'
+        - key: 'Cache-Control'
+          value: 'public, max-age=31536000, immutable'
+    - pattern: '/assets/**/*'
+      headers:
+        - key: 'Cache-Control'
+          value: 'public, max-age=31536000, immutable'

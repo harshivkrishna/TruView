@@ -66,6 +66,19 @@
   </head>
   <body>
     <div id="root"></div>
+    
+    <!-- SPA redirect script for handling 404s -->
+    <script>
+      // Check if we were redirected from a 404 page
+      (function() {
+        var redirect = sessionStorage.redirect;
+        delete sessionStorage.redirect;
+        if (redirect && redirect !== location.href) {
+          history.replaceState(null, null, redirect);
+        }
+      })();
+    </script>
+    
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

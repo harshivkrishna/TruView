@@ -578,14 +578,16 @@ const UserProfile = () => {
                     <>
                       <button
                         onClick={handleSave}
-                        className="flex items-center space-x-1 sm:space-x-2 bg-green-500 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg hover:bg-green-600 text-sm"
+                        disabled={uploadingPhoto}
+                        className="flex items-center space-x-1 sm:space-x-2 bg-green-500 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg hover:bg-green-600 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
                         <Save className="w-4 h-4" />
-                        <span>Save</span>
+                        <span>{uploadingPhoto ? 'Uploading...' : 'Save'}</span>
                       </button>
                       <button
                         onClick={handleEditToggle}
-                        className="flex items-center space-x-1 sm:space-x-2 bg-gray-500 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg hover:bg-gray-600 text-sm"
+                        disabled={uploadingPhoto}
+                        className="flex items-center space-x-1 sm:space-x-2 bg-gray-500 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg hover:bg-gray-600 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
                         <X className="w-4 h-4" />
                         <span>Cancel</span>
@@ -809,14 +811,16 @@ const UserProfile = () => {
           <div className="sm:hidden bg-white rounded-lg shadow-sm p-4 mt-4 flex gap-3 justify-center">
             <button
               onClick={handleSave}
-              className="flex-1 flex items-center justify-center space-x-2 bg-green-500 text-white px-4 py-3 rounded-lg hover:bg-green-600 font-medium"
+              disabled={uploadingPhoto}
+              className="flex-1 flex items-center justify-center space-x-2 bg-green-500 text-white px-4 py-3 rounded-lg hover:bg-green-600 font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <Save className="w-5 h-5" />
-              <span>Save Changes</span>
+              <span>{uploadingPhoto ? 'Uploading...' : 'Save Changes'}</span>
             </button>
             <button
               onClick={handleEditToggle}
-              className="flex-1 flex items-center justify-center space-x-2 bg-gray-500 text-white px-4 py-3 rounded-lg hover:bg-gray-600 font-medium"
+              disabled={uploadingPhoto}
+              className="flex-1 flex items-center justify-center space-x-2 bg-gray-500 text-white px-4 py-3 rounded-lg hover:bg-gray-600 font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <X className="w-5 h-5" />
               <span>Cancel</span>

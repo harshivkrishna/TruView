@@ -1,2 +1,18 @@
-# AWS Amplify SPA redirects
+# Netlify/AWS Amplify SPA redirects
+# Don't redirect asset files
+/assets/*  /assets/:splat  200
+/*.js      /:splat         200
+/*.css     /:splat         200
+/*.png     /:splat         200
+/*.jpg     /:splat         200
+/*.jpeg    /:splat         200
+/*.gif     /:splat         200
+/*.svg     /:splat         200
+/*.ico     /:splat         200
+/*.woff    /:splat         200
+/*.woff2   /:splat         200
+/*.ttf     /:splat         200
+/*.eot     /:splat         200
+
+# Redirect all other requests to index.html for SPA routing
 /*    /index.html   200
