@@ -25,6 +25,12 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  
+  // For file uploads, don't set Content-Type - let browser handle it
+  if (config.data instanceof FormData && config.headers) {
+    delete config.headers['Content-Type'];
+  }
+  
   return config;
 });
 
@@ -233,11 +239,8 @@ export const updateUserProfile = async (profileData: any) => {
 
 export const uploadProfilePhoto = async (formData: FormData) => {
   try {
-    const response = await api.post('/users/profile/photo', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    // Don't set Content-Type manually - let the browser set it with the boundary
+    const response = await api.post('/users/profile/photo', formData);
     return response.data;
   } catch (error) {
     throw error;

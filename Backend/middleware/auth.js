@@ -10,6 +10,11 @@ const authenticateToken = async (req, res, next) => {
     console.log('Token:', token ? 'Present' : 'Missing');
 
     if (!token) {
+      // Preserve CORS headers even on error
+      if (req.headers.origin) {
+        res.header('Access-Control-Allow-Origin', req.headers.origin);
+        res.header('Access-Control-Allow-Credentials', 'true');
+      }
       return res.status(401).json({ message: 'Access token required' });
     }
 
@@ -36,6 +41,11 @@ const authenticateToken = async (req, res, next) => {
     
     if (!user) {
       console.error('User not found in database with ID:', decoded.userId);
+      // Preserve CORS headers even on error
+      if (req.headers.origin) {
+        res.header('Access-Control-Allow-Origin', req.headers.origin);
+        res.header('Access-Control-Allow-Credentials', 'true');
+      }
       return res.status(404).json({ message: 'User not found. Please log in again.' });
     }
     
@@ -44,6 +54,11 @@ const authenticateToken = async (req, res, next) => {
     return next();
   } catch (error) {
     console.error('Auth error:', error.message);
+    // Preserve CORS headers even on error
+    if (req.headers.origin) {
+      res.header('Access-Control-Allow-Origin', req.headers.origin);
+      res.header('Access-Control-Allow-Credentials', 'true');
+    }
     if (error.name === 'TokenExpiredError') {
       return res.status(401).json({ message: 'Token expired. Please log in again.' });
     }

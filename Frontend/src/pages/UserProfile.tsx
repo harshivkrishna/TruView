@@ -266,10 +266,6 @@ const UserProfile = () => {
     if (file.size > maxSize) {
       const errorMessage = `File size is too large (${fileSizeMB} MB). Please select an image smaller than 5 MB.`;
       setError(errorMessage);
-      toast.error(errorMessage, {
-        duration: 4000,
-        icon: '📁',
-      });
       e.target.value = ''; // Clear the input
       return;
     }
@@ -278,10 +274,6 @@ const UserProfile = () => {
     if (!file.type.startsWith('image/')) {
       const errorMessage = 'Please select an image file (JPEG, PNG, GIF, etc.)';
       setError(errorMessage);
-      toast.error(errorMessage, {
-        duration: 3000,
-        icon: '🖼️',
-      });
       e.target.value = '';
       return;
     }
@@ -301,16 +293,10 @@ const UserProfile = () => {
     try {
       setUploadingPhoto(true);
       
-      // Show loading toast
-      const loadingToast = toast.loading('Uploading photo...');
-      
       const formData = new FormData();
       formData.append('profilePhoto', file);
       
       const response = await uploadProfilePhoto(formData);
-      
-      // Dismiss loading toast
-      toast.dismiss(loadingToast);
       
       // Update profile with new photo URL - handle different response structures
       let newPhotoUrl = '';
@@ -338,12 +324,6 @@ const UserProfile = () => {
         // Update AuthContext with new avatar
         updateCurrentUser({ avatar: cacheBustedUrl } as any);
         
-        // Show success toast
-        toast.success('Profile photo updated successfully!', {
-          duration: 3000,
-          icon: '✅',
-        });
-        
         // Clear preview after successful upload
         setPhotoPreview(null);
         
@@ -365,7 +345,7 @@ const UserProfile = () => {
         setForceUpdate(prev => prev + 1);
       } else {
         // If no URL returned, show error
-        toast.error('Failed to get photo URL. Please try again.');
+        setError('Failed to get photo URL. Please try again.');
         setPhotoPreview(null);
       }
       
@@ -374,20 +354,15 @@ const UserProfile = () => {
       
       // Show detailed error message to user
       let errorMessage = 'Failed to upload photo. Please try again.';
-      let toastIcon = '❌';
       
       if (error.response?.status === 413) {
         errorMessage = error.response?.data?.message || 'File size is too large. Please select an image smaller than 5 MB.';
-        toastIcon = '📁';
       } else if (error.response?.status === 404) {
         errorMessage = 'Profile not found. Your session may have expired. Please log out and log back in.';
-        toastIcon = '🔍';
       } else if (error.response?.status === 401) {
         errorMessage = 'Authentication failed. Please log out and log back in to upload photos.';
-        toastIcon = '🔒';
       } else if (error.response?.status === 400) {
         errorMessage = error.response?.data?.message || 'Invalid file. Please select a valid image file.';
-        toastIcon = '⚠️';
       } else if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       } else if (error.message) {
@@ -395,12 +370,6 @@ const UserProfile = () => {
       }
       
       setError(errorMessage);
-      
-      // Show error toast
-      toast.error(errorMessage, {
-        duration: 4000,
-        icon: toastIcon,
-      });
       
       // Clear preview on error
       setPhotoPreview(null);

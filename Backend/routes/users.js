@@ -148,11 +148,12 @@ router.options('/profile/photo', (req, res) => {
   res.sendStatus(200);
 });
 
-router.post('/profile/photo', authenticateToken, (req, res, next) => {
-  // Add CORS headers explicitly for this route
+router.post('/profile/photo', (req, res, next) => {
+  // Add CORS headers FIRST - before any other middleware
   res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
   res.header('Access-Control-Allow-Credentials', 'true');
-  
+  next();
+}, authenticateToken, (req, res, next) => {
   console.log('\n' + '='.repeat(70));
   console.log('📸 PROFILE PHOTO UPLOAD REQUEST');
   console.log('='.repeat(70));
