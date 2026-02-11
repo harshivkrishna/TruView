@@ -34,6 +34,34 @@ class GmailService {
   }
 
   /**
+   * Send verification OTP email
+   * @param {string} email - Recipient email
+   * @param {string} otp - OTP code
+   * @param {string} userName - User's name
+   */
+  async sendVerificationOTP(email, otp, userName) {
+    const subject = 'Verify Your Email - TruViews';
+    const htmlBody = this.getVerificationEmailHTML(userName, otp);
+    const textBody = this.getVerificationEmailText(userName, otp);
+    
+    return this.sendEmail(email, subject, htmlBody, textBody);
+  }
+
+  /**
+   * Send password reset OTP email
+   * @param {string} email - Recipient email
+   * @param {string} otp - OTP code
+   * @param {string} userName - User's name
+   */
+  async sendPasswordResetOTP(email, otp, userName) {
+    const subject = 'Reset Your Password - TruViews';
+    const htmlBody = this.getPasswordResetEmailHTML(userName, otp);
+    const textBody = this.getPasswordResetEmailText(userName, otp);
+    
+    return this.sendEmail(email, subject, htmlBody, textBody);
+  }
+
+  /**
    * Send email using Gmail
    * @param {string} email - Recipient email
    * @param {string} subject - Email subject

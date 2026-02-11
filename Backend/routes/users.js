@@ -288,8 +288,15 @@ router.post('/profile/photo', authenticateToken, (req, res, next) => {
 // Get user profile by ID (public)
 router.get('/:userId/profile', async (req, res) => {
   try {
+    // Validate MongoDB ObjectId
+    if (!mongoose.Types.ObjectId.isValid(req.params.userId)) {
+      console.log('Invalid user ID format:', req.params.userId);
+      return res.status(400).json({ message: 'Invalid user ID format' });
+    }
+
     const user = await User.findById(req.params.userId).select('-password -verificationOTP -resetPasswordOTP');
     if (!user) {
+      console.log('User not found:', req.params.userId);
       return res.status(404).json({ message: 'User not found' });
     }
 
@@ -308,7 +315,7 @@ router.get('/:userId/profile', async (req, res) => {
 
     res.json(profileData);
   } catch (error) {
-    // console.error('Error fetching user profile:', error);
+    console.error('Error fetching user profile:', error);
     res.status(500).json({ message: 'Failed to fetch user profile', error: error.message });
   }
 });
@@ -316,8 +323,15 @@ router.get('/:userId/profile', async (req, res) => {
 // Get user reviews
 router.get('/:userId/reviews', async (req, res) => {
   try {
+    // Validate MongoDB ObjectId
+    if (!mongoose.Types.ObjectId.isValid(req.params.userId)) {
+      console.log('Invalid user ID format:', req.params.userId);
+      return res.status(400).json({ message: 'Invalid user ID format' });
+    }
+
     const user = await User.findById(req.params.userId);
     if (!user) {
+      console.log('User not found for reviews:', req.params.userId);
       return res.status(404).json({ message: 'User not found' });
     }
 
@@ -346,7 +360,7 @@ router.get('/:userId/reviews', async (req, res) => {
 
     res.json(formattedReviews);
   } catch (error) {
-    // console.error('Error fetching user reviews:', error);
+    console.error('Error fetching user reviews:', error);
     res.status(500).json({ message: 'Failed to fetch user reviews', error: error.message });
   }
 });

@@ -91,10 +91,18 @@ const Navbar = () => {
                     </Link>
                     <button
                       onClick={handleProfileClick}
-                      className="flex items-center gap-2 text-gray-700 hover:text-orange-500 transition-colors"
+                      className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-200 hover:bg-gray-300 transition-colors overflow-hidden"
+                      title={`${currentUser.firstName}'s Profile`}
                     >
-                      <User className="w-5 h-5" />
-                      {currentUser.firstName || 'User'}
+                      {currentUser.avatar ? (
+                        <img 
+                          src={currentUser.avatar} 
+                          alt={currentUser.firstName}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <User className="w-5 h-5 text-gray-600" />
+                      )}
                     </button>
                   </>
                 )}

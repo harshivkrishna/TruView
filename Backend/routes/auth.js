@@ -63,7 +63,9 @@ router.post('/register', async (req, res) => {
     await user.save();
 
     // Send verification email asynchronously (non-blocking)
-    emailService.sendVerificationOTP(email, otp, firstName);
+    emailService.sendVerificationOTP(email, otp, firstName).catch(err => {
+      console.error('Failed to send verification email:', err.message);
+    });
 
     const totalTime = Date.now() - startTime;
     console.log(`✅ Registration completed in ${totalTime}ms for ${email}`);
@@ -179,7 +181,9 @@ router.post('/resend-verification', async (req, res) => {
     await user.save();
 
     // Send verification email asynchronously (non-blocking)
-    emailService.sendVerificationOTP(email, otp, user.firstName);
+    emailService.sendVerificationOTP(email, otp, user.firstName).catch(err => {
+      console.error('Failed to send verification email:', err.message);
+    });
     
     console.log(`✅ Verification OTP resent for: ${email}`);
 
@@ -291,7 +295,9 @@ router.post('/login', async (req, res) => {
       await user.save();
       
       // Send verification email asynchronously (non-blocking)
-      emailService.sendVerificationOTP(user.email, otp, user.firstName);
+      emailService.sendVerificationOTP(user.email, otp, user.firstName).catch(err => {
+        console.error('Failed to send verification email:', err.message);
+      });
       
       console.log(`✅ Verification OTP sent for unverified user: ${user.email}`);
       return res.status(200).json({ 
@@ -379,7 +385,9 @@ router.post('/forgot-password', async (req, res) => {
     await user.save();
 
     // Send password reset email asynchronously (non-blocking)
-    emailService.sendPasswordResetOTP(emailStr, otp, user.firstName);
+    emailService.sendPasswordResetOTP(emailStr, otp, user.firstName).catch(err => {
+      console.error('Failed to send password reset email:', err.message);
+    });
 
     console.log(`✅ Password reset OTP sent for: ${emailStr}`);
     res.json({ 

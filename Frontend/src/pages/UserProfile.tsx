@@ -14,7 +14,6 @@ import {
   Eye,
   EyeOff,
   Camera,
-  Upload,
   LogOut
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -71,7 +70,6 @@ const UserProfile = () => {
   const [profile, setProfile] = useState<UserProfileData | null>(null);
   const [userReviews, setUserReviews] = useState([]);
   const [error, setError] = useState<string | null>(null);
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [forceUpdate, setForceUpdate] = useState(0);
@@ -257,62 +255,57 @@ const UserProfile = () => {
     }
   }, [editForm, userId, updateCurrentUser]);
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      // Check file size (5MB = 5 * 1024 * 1024 bytes)
-      const maxSize = 5 * 1024 * 1024; // 5MB
-      const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
-      
-      if (file.size > maxSize) {
-        const errorMessage = `File size is too large (${fileSizeMB} MB). Please select an image smaller than 5 MB.`;
-        setError(errorMessage);
-        toast.error(errorMessage, {
-          duration: 4000,
-          icon: '📁',
-        });
-        e.target.value = ''; // Clear the input
-        return;
-      }
-      
-      // Check if it's an image
-      if (!file.type.startsWith('image/')) {
-        const errorMessage = 'Please select an image file (JPEG, PNG, GIF, etc.)';
-        setError(errorMessage);
-        toast.error(errorMessage, {
-          duration: 3000,
-          icon: '🖼️',
-        });
-        e.target.value = '';
-        return;
-      }
-      
-      setError(null); // Clear any previous errors
-      setPhotoFile(file);
-      
-      // Create preview immediately so user can see what they selected
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPhotoPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-      
-      console.log(`✅ Image selected: ${file.name} (${fileSizeMB} MB)`);
-    }
-  };
-
-  const handlePhotoUpload = async () => {
-    if (!photoFile) return;
+    if (!file) return;
     
+    // Check file size (5MB = 5 * 1024 * 1024 bytes)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+    
+    if (file.size > maxSize) {
+      const errorMessage = `File size is too large (${fileSizeMB} MB). Please select an image smaller than 5 MB.`;
+      setError(errorMessage);
+      toast.error(errorMessage, {
+        duration: 4000,
+        icon: '📁',
+      });
+      e.target.value = ''; // Clear the input
+      return;
+    }
+    
+    // Check if it's an image
+    if (!file.type.startsWith('image/')) {
+      const errorMessage = 'Please select an image file (JPEG, PNG, GIF, etc.)';
+      setError(errorMessage);
+      toast.error(errorMessage, {
+        duration: 3000,
+        icon: '🖼️',
+      });
+      e.target.value = '';
+      return;
+    }
+    
+    setError(null); // Clear any previous errors
+    
+    // Create preview immediately so user can see what they selected
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPhotoPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+    
+    console.log(`✅ Image selected: ${file.name} (${fileSizeMB} MB)`);
+    
+    // Automatically upload the photo
     try {
       setUploadingPhoto(true);
-      setError(null); // Clear any previous errors
       
       // Show loading toast
       const loadingToast = toast.loading('Uploading photo...');
       
       const formData = new FormData();
-      formData.append('profilePhoto', photoFile);
+      formData.append('profilePhoto', file);
       
       const response = await uploadProfilePhoto(formData);
       
@@ -343,7 +336,7 @@ const UserProfile = () => {
         setProfile(prev => prev ? { ...prev, avatar: cacheBustedUrl } : null);
         
         // Update AuthContext with new avatar
-        updateCurrentUser({} as any);
+        updateCurrentUser({ avatar: cacheBustedUrl } as any);
         
         // Show success toast
         toast.success('Profile photo updated successfully!', {
@@ -351,22 +344,8 @@ const UserProfile = () => {
           icon: '✅',
         });
         
-        // Don't clear preview immediately - let the new image load first
-        // Create an image element to preload the new image
-        const img = new Image();
-        img.onload = () => {
-          // Image loaded successfully, now safe to clear preview
-          setPhotoFile(null);
-          setPhotoPreview(null);
-        };
-        img.onerror = () => {
-          // Image failed to load, but still clear preview after a delay
-          setTimeout(() => {
-            setPhotoFile(null);
-            setPhotoPreview(null);
-          }, 1000);
-        };
-        img.src = cacheBustedUrl;
+        // Clear preview after successful upload
+        setPhotoPreview(null);
         
         // Force a complete refresh of the profile data
         try {
@@ -387,11 +366,7 @@ const UserProfile = () => {
       } else {
         // If no URL returned, show error
         toast.error('Failed to get photo URL. Please try again.');
-        // Keep preview for a moment so user can see what failed
-        setTimeout(() => {
-          setPhotoFile(null);
-          setPhotoPreview(null);
-        }, 2000);
+        setPhotoPreview(null);
       }
       
     } catch (error: any) {
@@ -402,7 +377,6 @@ const UserProfile = () => {
       let toastIcon = '❌';
       
       if (error.response?.status === 413) {
-        // File too large
         errorMessage = error.response?.data?.message || 'File size is too large. Please select an image smaller than 5 MB.';
         toastIcon = '📁';
       } else if (error.response?.status === 404) {
@@ -428,22 +402,12 @@ const UserProfile = () => {
         icon: toastIcon,
       });
       
-      // Keep the preview visible for a moment on error so user can see what failed
-      setTimeout(() => {
-        setPhotoFile(null);
-        setPhotoPreview(null);
-      }, 3000);
+      // Clear preview on error
+      setPhotoPreview(null);
     } finally {
       setUploadingPhoto(false);
-    }
-  };
-
-  const handleRemovePhoto = () => {
-    setPhotoFile(null);
-    setPhotoPreview(null);
-    // You can also add an API call here to remove the photo from the backend
-    if (profile) {
-      setProfile(prev => prev ? { ...prev, avatar: '' } : null);
+      // Clear the file input
+      e.target.value = '';
     }
   };
 
@@ -579,52 +543,23 @@ const UserProfile = () => {
               </div>
               
               {canEditProfile && isEditing && (
-                <div className="absolute -bottom-1 -right-1 sm:bottom-0 sm:right-0 flex flex-row sm:flex-col gap-1">
-                  <label 
-                    className="bg-orange-500 text-white p-1.5 sm:p-2 rounded-full hover:bg-orange-600 cursor-pointer"
-                    title="Click to select a new photo"
-                  >
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handlePhotoChange}
-                      className="hidden"
-                    />
+                <label 
+                  className="absolute -bottom-1 -right-1 sm:bottom-0 sm:right-0 bg-orange-500 text-white p-1.5 sm:p-2 rounded-full hover:bg-orange-600 cursor-pointer transition-colors"
+                  title="Click to change profile photo"
+                >
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePhotoChange}
+                    disabled={uploadingPhoto}
+                    className="hidden"
+                  />
+                  {uploadingPhoto ? (
+                    <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white"></div>
+                  ) : (
                     <Camera className="w-3 h-3 sm:w-4 sm:h-4" />
-                  </label>
-                  
-                  {photoFile && (
-                    <>
-                      <button
-                        onClick={handlePhotoUpload}
-                        disabled={uploadingPhoto}
-                        className="bg-green-500 text-white p-1.5 sm:p-2 rounded-full hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {uploadingPhoto ? (
-                          <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white"></div>
-                        ) : (
-                          <Upload className="w-3 h-3 sm:w-4 sm:h-4" />
-                        )}
-                      </button>
-                      <button
-                        onClick={handleRemovePhoto}
-                        className="bg-red-500 text-white p-1.5 sm:p-2 rounded-full hover:bg-red-600"
-                      >
-                        <X className="w-3 h-3 sm:w-4 sm:h-4" />
-                      </button>
-                    </>
                   )}
-                  
-                  {!photoFile && profile.avatar && (
-                    <button
-                      onClick={handleRemovePhoto}
-                      className="bg-red-500 text-white p-1.5 sm:p-2 rounded-full hover:bg-red-600"
-                      title="Remove photo"
-                    >
-                      <X className="w-3 h-3 sm:w-4 sm:h-4" />
-                    </button>
-                  )}
-                </div>
+                </label>
               )}
             </div>
             
