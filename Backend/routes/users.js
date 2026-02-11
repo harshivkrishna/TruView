@@ -138,13 +138,28 @@ router.put('/profile', authenticateToken, async (req, res) => {
 });
 
 // Upload profile photo
+router.options('/profile/photo', (req, res) => {
+  // Handle preflight request for file upload
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Max-Age', '86400');
+  res.sendStatus(200);
+});
+
 router.post('/profile/photo', authenticateToken, (req, res, next) => {
+  // Add CORS headers explicitly for this route
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
   console.log('\n' + '='.repeat(70));
   console.log('📸 PROFILE PHOTO UPLOAD REQUEST');
   console.log('='.repeat(70));
   console.log('✅ User authenticated:', req.user ? 'Yes' : 'No');
   console.log('🆔 User ID:', req.user?.userId);
   console.log('📧 User email:', req.user?.email);
+  console.log('🌐 Origin:', req.headers.origin);
   console.log('⏰ Timestamp:', new Date().toISOString());
   next();
 }, profilePhotoUpload.single('profilePhoto'), (err, req, res, next) => {
@@ -262,6 +277,10 @@ router.post('/profile/photo', authenticateToken, (req, res, next) => {
     console.log('New avatar URL:', user.avatar);
     console.log('User ID:', user._id);
     console.log('='.repeat(70) + '\n');
+    
+    // Add CORS headers to response
+    res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+    res.header('Access-Control-Allow-Credentials', 'true');
     
     res.json({ 
       avatar: user.avatar, 
