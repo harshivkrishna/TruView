@@ -4,19 +4,33 @@ class GmailService {
   constructor() {
     console.log('🔧 Initializing Optimized Gmail Service...');
     
-    // Initialize Gmail transporter
+    // Initialize Gmail transporter with production-ready settings
     this.transporter = nodemailer.createTransport({
       service: 'gmail',
+      host: 'smtp.gmail.com',
+      port: 587,
+      secure: false, // Use TLS
       auth: {
         user: process.env.GMAIL_USER,
         pass: process.env.GMAIL_APP_PASSWORD
-      }
+      },
+      tls: {
+        rejectUnauthorized: false // Allow self-signed certificates in production
+      },
+      connectionTimeout: 10000, // 10 seconds
+      greetingTimeout: 10000,
+      socketTimeout: 30000, // 30 seconds
+      pool: true, // Use connection pooling
+      maxConnections: 5,
+      maxMessages: 100,
+      rateLimit: 10 // Max 10 emails per second
     });
     
     this.fromEmail = process.env.GMAIL_USER || 'noreply@truviews.com';
     this.fromName = 'TruViews';
     
     console.log('✅ Gmail Service initialized');
+    console.log('📧 From email:', this.fromEmail);
   }
 
   /**
