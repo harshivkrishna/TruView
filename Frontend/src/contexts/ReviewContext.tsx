@@ -23,6 +23,7 @@ export interface Review {
   adminRemovalReason?: string;
   originalLanguage?: string;
   translations?: Record<string, string>;
+  titleTranslations?: Record<string, string>;
   createdAt: string;
   updatedAt: string;
 }
@@ -30,6 +31,7 @@ export interface Review {
 interface ReviewContextType {
   reviews: { [key: string]: Review };
   updateReview: (reviewId: string, updatedReview: Partial<Review>) => void;
+  incrementViewCount: (reviewId: string) => void;
   getReview: (reviewId: string) => Review | null;
   hasUserViewed: (reviewId: string, userId: string) => boolean;
 }

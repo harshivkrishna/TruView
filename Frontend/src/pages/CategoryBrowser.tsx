@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Search, SlidersHorizontal, Filter, X, ArrowUp } from 'lucide-react';
 import ReviewCard from '../components/ReviewCard';
@@ -17,7 +17,7 @@ interface Review {
   title: string;
   description: string;
   category: string;
-  subcategory?: string;
+  subcategory: string;
   rating: number;
   tags: string[];
   media?: Array<{
@@ -35,6 +35,9 @@ interface Review {
   createdAt: string;
   trustScore?: number;
   companyName?: string;
+  originalLanguage?: string;
+  translations?: Record<string, string>;
+  titleTranslations?: Record<string, string>;
 }
 
 interface Category {
@@ -98,7 +101,7 @@ const CategoryBrowser: React.FC = () => {
           getCategoriesWithSubcategories()
         ]);
         setCategories(categoriesData);
-        
+
         // Fetch initial reviews
         await fetchReviews(1, true);
       } catch (error) {
@@ -115,14 +118,14 @@ const CategoryBrowser: React.FC = () => {
   const fetchReviews = useCallback(async (page: number, reset: boolean = false) => {
     try {
       setLoadingMore(true);
-      
+
       const queryParams: any = { page, limit: 15 };
-      
+
       // Apply basic filters
       if (selectedCategory) queryParams.category = selectedCategory;
       if (selectedSubcategory) queryParams.subcategory = selectedSubcategory;
       if (searchQuery) queryParams.query = searchQuery;
-      
+
       // Apply advanced filters
       if (appliedFilters && Object.keys(appliedFilters).length > 0) {
         if (appliedFilters.rating) queryParams.rating = appliedFilters.rating;
@@ -132,17 +135,17 @@ const CategoryBrowser: React.FC = () => {
         if (appliedFilters.companyName) queryParams.companyName = appliedFilters.companyName;
         if (appliedFilters.sortBy) queryParams.sortBy = appliedFilters.sortBy;
       }
-      
+
       // Create cache key based on query parameters
       const cacheKey = `reviews-${JSON.stringify(queryParams)}`;
-      
+
       // Try to get from cache first
       const response = await getCachedData(
         reviewCache,
         cacheKey,
         () => getReviews(queryParams)
       );
-      
+
       if (reset) {
         setReviews(response.reviews);
         setPagination(response.pagination);
@@ -150,9 +153,9 @@ const CategoryBrowser: React.FC = () => {
         setReviews(prev => [...prev, ...response.reviews]);
         setPagination(response.pagination);
       }
-      
+
       setHasMore(response.pagination.hasNextPage);
-      
+
       // Apply lazy loading to new images
       if (response.reviews.length > 0) {
         setTimeout(() => {
@@ -172,11 +175,11 @@ const CategoryBrowser: React.FC = () => {
   useEffect(() => {
     const categoryFromUrl = searchParams.get('category');
     const subcategoryFromUrl = searchParams.get('subcategory');
-    
+
     if (categoryFromUrl) {
       setSelectedCategory(categoryFromUrl);
       setAppliedFilters({ category: categoryFromUrl });
-      
+
       // Set subcategory if provided
       if (subcategoryFromUrl) {
         setSelectedSubcategory(subcategoryFromUrl);
@@ -283,31 +286,31 @@ const CategoryBrowser: React.FC = () => {
 
   const handleAdvancedSearch = (filters: AdvancedFilters) => {
     setAppliedFilters(filters);
-    
+
     // Update basic filter states
     if (filters.category) {
       setSelectedCategory(filters.category);
     } else {
       setSelectedCategory('');
     }
-    
+
     if (filters.subcategory) {
       setSelectedSubcategory(filters.subcategory);
     } else {
       setSelectedSubcategory('');
     }
-    
+
     if (filters.query) {
       setSearchQuery(filters.query);
     } else {
       setSearchQuery('');
     }
-    
+
     // Update URL params for category and subcategory
     if (filters.category) {
-      setSearchParams({ 
-        category: filters.category, 
-        ...(filters.subcategory && { subcategory: filters.subcategory }) 
+      setSearchParams({
+        category: filters.category,
+        ...(filters.subcategory && { subcategory: filters.subcategory })
       });
     } else {
       setSearchParams({});
@@ -483,10 +486,10 @@ const CategoryBrowser: React.FC = () => {
           <div className="mb-6">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold text-gray-900">
-                {selectedSubcategory 
-                  ? `${selectedSubcategory} Reviews` 
-                  : selectedCategory 
-                    ? `${selectedCategory} Reviews` 
+                {selectedSubcategory
+                  ? `${selectedSubcategory} Reviews`
+                  : selectedCategory
+                    ? `${selectedCategory} Reviews`
                     : 'All Reviews'
                 }
               </h2>
@@ -503,15 +506,15 @@ const CategoryBrowser: React.FC = () => {
           ) : reviews.length > 0 ? (
             <>
               <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {reviews.map((review: Review, index) => (
-                  <ReviewCard 
-                    key={review._id} 
-                    review={review} 
+                {reviews.map((review: Review) => (
+                  <ReviewCard
+                    key={review._id}
+                    review={review}
                     currentUserId={currentUser?.id}
                   />
                 ))}
               </div>
-              
+
               {/* Loading More Indicator */}
               {loadingMore && (
                 <div className="col-span-full mt-8">
@@ -523,12 +526,12 @@ const CategoryBrowser: React.FC = () => {
                   </div>
                 </div>
               )}
-              
 
-              
+
+
               {/* Intersection Observer Target */}
               {hasMore && (
-                <div 
+                <div
                   ref={lastReviewRef}
                   className="col-span-full h-10 flex items-center justify-center"
                 >
@@ -543,8 +546,8 @@ const CategoryBrowser: React.FC = () => {
               </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">No reviews found</h3>
               <p className="text-gray-600 mb-6">
-                {searchQuery || selectedCategory 
-                  ? 'Try adjusting your search or category filter.' 
+                {searchQuery || selectedCategory
+                  ? 'Try adjusting your search or category filter.'
                   : 'Be the first to share a review!'
                 }
               </p>
@@ -572,7 +575,7 @@ const CategoryBrowser: React.FC = () => {
       {showScrollTop && (
         <button
           onClick={scrollToTop}
-          className="fixed bottom-20 right-4 bg-orange-500 text-white p-3 rounded-full shadow-lg hover:bg-orange-600 transition-colors"
+          className="fixed bottom-6 right-4 z-50 bg-orange-500 text-white p-3 rounded-full shadow-lg hover:bg-orange-600 transition-colors"
           title="Scroll to top"
         >
           <ArrowUp className="w-6 h-6" />

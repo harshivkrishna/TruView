@@ -13,6 +13,8 @@ const api = axios.create({
   }
 });
 
+
+
 // Add token to requests if available
 const token = localStorage.getItem('token');
 if (token) {
@@ -167,16 +169,7 @@ export const upvoteReview = async (id: string) => {
   }
 };
 
-// Translation API
-export const translateReview = async (reviewId: string, targetLang: string) => {
-  try {
-    const response = await api.get(`/reviews/${reviewId}/translate/${targetLang}`);
-    return response.data;
-  } catch (error) {
-    console.error('Translation API error:', error);
-    return null;
-  }
-};
+
 
 // Categories API
 export const getCategories = async () => {
@@ -523,5 +516,7 @@ export const resetPassword = async (resetData: {
     throw error;
   }
 };
+
+
 
 export default api;

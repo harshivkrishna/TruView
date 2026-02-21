@@ -1,42 +1,52 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Languages, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
-import { translateReview } from '../services/api';
+import { useReviewContext } from '../contexts/ReviewContext';
+import { translateReview } from '../services/translationApi';
 
 interface TranslatedReviewContentProps {
     review: {
         _id: string;
+        title?: string;
         description: string;
         originalLanguage?: string;
         translations?: Record<string, string> | Map<string, string>;
+        titleTranslations?: Record<string, string> | Map<string, string>;
     };
+    /** When true, renders only the translated title as an inline span (no badges/shimmer). */
+    titleOnly?: boolean;
     compact?: boolean;
     maxLength?: number;
 }
 
 const TranslatedReviewContent: React.FC<TranslatedReviewContentProps> = ({
     review,
+    titleOnly = false,
     compact = false,
     maxLength = 200
 }) => {
-    const { reviewLanguage, getLanguageName } = useLanguage();
+    const { reviewLanguage } = useLanguage();
+    const { updateReview } = useReviewContext();
     const [translating, setTranslating] = useState(false);
     const [onDemandTranslation, setOnDemandTranslation] = useState<string | null>(null);
+    const [onDemandTitleTranslation, setOnDemandTitleTranslation] = useState<string | null>(null);
     const [lastFetchedLang, setLastFetchedLang] = useState<string | null>(null);
 
     // Helper to get translation from either Map or plain object
-    const getTranslation = useCallback((lang: string): string | undefined => {
-        if (!review.translations) return undefined;
-        if (review.translations instanceof Map) {
-            return review.translations.get(lang);
-        }
-        return (review.translations as Record<string, string>)[lang];
-    }, [review.translations]);
+    const getTranslation = useCallback((
+        map: Record<string, string> | Map<string, string> | undefined,
+        lang: string
+    ): string | undefined => {
+        if (!map) return undefined;
+        if (map instanceof Map) return map.get(lang);
+        return (map as Record<string, string>)[lang];
+    }, []);
 
-    // Determine which text to display
+    const isOriginalLang = !reviewLanguage || reviewLanguage === review.originalLanguage;
+
+    // Determine which description text to display
     const displayContent = useMemo(() => {
-        // If a translation was fetched on-demand for current lang, use it
         if (onDemandTranslation && lastFetchedLang === reviewLanguage) {
             return {
                 text: onDemandTranslation,
@@ -45,41 +55,50 @@ const TranslatedReviewContent: React.FC<TranslatedReviewContentProps> = ({
             };
         }
 
-        // If review language matches original, show original
-        if (!reviewLanguage || reviewLanguage === review.originalLanguage) {
-            return {
-                text: review.description,
-                isTranslated: false,
-                fromLanguage: null,
-            };
+        if (isOriginalLang) {
+            return { text: review.description, isTranslated: false, fromLanguage: null };
         }
 
-        // Check cached translations (already fetched from backend)
-        const cached = getTranslation(reviewLanguage);
-        if (cached) {
-            return {
-                text: cached,
-                isTranslated: true,
-                fromLanguage: review.originalLanguage || null,
-            };
+        const cached = getTranslation(review.translations, reviewLanguage);
+        const cachedTitle = getTranslation(review.titleTranslations, reviewLanguage);
+
+        // Needs translation if description is missing OR if title exists but its translation is missing
+        const titleNeedsTranslation = review.title && !cachedTitle;
+
+        if (cached && !titleNeedsTranslation) {
+            return { text: cached, isTranslated: true, fromLanguage: review.originalLanguage || null };
         }
 
-        // No translation available yet — show original while auto-fetching
         return {
-            text: review.description,
-            isTranslated: false,
+            text: cached || review.description,
+            isTranslated: !!cached,
             fromLanguage: null,
             needsTranslation: true,
         };
-    }, [reviewLanguage, review.description, review.originalLanguage, review.translations, onDemandTranslation, lastFetchedLang, getTranslation]);
+    }, [reviewLanguage, review.description, review.title, review.originalLanguage, review.translations, review.titleTranslations, onDemandTranslation, lastFetchedLang, isOriginalLang, getTranslation]);
 
-    // Auto-translate when language changes and no cached translation exists
+    // Determine which title to display
+    const displayTitle = useMemo(() => {
+        if (!review.title) return review.title || '';
+
+        if (onDemandTitleTranslation && lastFetchedLang === reviewLanguage) {
+            return onDemandTitleTranslation;
+        }
+
+        if (isOriginalLang) return review.title;
+
+        const cached = getTranslation(review.titleTranslations, reviewLanguage);
+        if (cached) return cached;
+
+        return review.title; // fallback to original while fetching
+    }, [reviewLanguage, review.title, review.originalLanguage, review.titleTranslations, onDemandTitleTranslation, lastFetchedLang, isOriginalLang, getTranslation]);
+
+    // Auto-translate when language changes — fetches BOTH title + description in one API call
     useEffect(() => {
         const needsTranslation = (displayContent as any).needsTranslation;
-
         if (!needsTranslation) return;
         if (translating) return;
-        if (lastFetchedLang === reviewLanguage) return; // already tried for this lang
+        if (lastFetchedLang === reviewLanguage) return;
 
         const langToFetch = reviewLanguage;
         setTranslating(true);
@@ -89,7 +108,24 @@ const TranslatedReviewContent: React.FC<TranslatedReviewContentProps> = ({
                 if (result?.translatedText && !result.unavailable) {
                     setOnDemandTranslation(result.translatedText);
                 }
-                // Always mark as attempted (unavailable, null, or success) to stop retrying
+                if (result?.translatedTitle) {
+                    setOnDemandTitleTranslation(result.translatedTitle);
+                }
+
+                // Sync with global context so all cards/views get the translation
+                if (result && !result.unavailable) {
+                    updateReview(review._id, {
+                        translations: {
+                            ...(review.translations as Record<string, string> || {}),
+                            [langToFetch]: result.translatedText
+                        },
+                        titleTranslations: {
+                            ...(review.titleTranslations as Record<string, string> || {}),
+                            [langToFetch]: result.translatedTitle
+                        }
+                    });
+                }
+
                 setLastFetchedLang(langToFetch);
             })
             .catch(() => {
@@ -100,13 +136,24 @@ const TranslatedReviewContent: React.FC<TranslatedReviewContentProps> = ({
             });
     }, [reviewLanguage, (displayContent as any).needsTranslation]);
 
-    // Reset on-demand translation when review language changes to a different lang
+    // Reset on-demand translations when language changes
     useEffect(() => {
         if (lastFetchedLang && lastFetchedLang !== reviewLanguage) {
             setOnDemandTranslation(null);
+            setOnDemandTitleTranslation(null);
         }
     }, [reviewLanguage]);
 
+    // ── TITLE-ONLY mode: renders just the translated title inline ─────────
+    if (titleOnly) {
+        return (
+            <span className={translating ? 'opacity-60 transition-opacity' : ''}>
+                {displayTitle}
+            </span>
+        );
+    }
+
+    // ── DESCRIPTION mode ─────────────────────────────────────────────────────
     const text = displayContent.text || '';
     const displayText = compact && text.length > maxLength
         ? text.substring(0, maxLength) + '...'
@@ -123,7 +170,6 @@ const TranslatedReviewContent: React.FC<TranslatedReviewContentProps> = ({
                     transition={{ duration: 0.2 }}
                 >
                     {translating ? (
-                        // Show shimmer while translating
                         <div className="space-y-2">
                             <div className="h-4 bg-gray-100 animate-pulse rounded w-full" />
                             <div className="h-4 bg-gray-100 animate-pulse rounded w-5/6" />
@@ -140,19 +186,7 @@ const TranslatedReviewContent: React.FC<TranslatedReviewContentProps> = ({
                 </motion.div>
             </AnimatePresence>
 
-            {/* Translated badge */}
-            {displayContent.isTranslated && displayContent.fromLanguage && !translating && (
-                <motion.div
-                    initial={{ opacity: 0, y: 4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="flex items-center gap-1.5 mt-1.5"
-                >
-                    <Languages className="w-3 h-3 text-blue-400" />
-                    <span className="text-xs text-blue-400">
-                        Translated from {getLanguageName(displayContent.fromLanguage)}
-                    </span>
-                </motion.div>
-            )}
+            {/* Translated badge removed as per user request */}
 
             {/* Loading badge */}
             {translating && (
