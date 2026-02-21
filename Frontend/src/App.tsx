@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './contexts/AuthContext';
 import { ReviewProvider } from './contexts/ReviewContext';
+import { LanguageProvider } from './contexts/LanguageContext';
 import Navbar from './components/Navbar';
 import ProtectedRoute from './components/ProtectedRoute';
 import TokenExpirationCheck from './components/TokenExpirationCheck';
@@ -31,36 +32,38 @@ const PageLoader = () => (
 const App: React.FC = () => {
   return (
     <AuthProvider>
-      <ReviewProvider>
-        <Router>
-          <div className="min-h-screen bg-gray-50">
-            <Navbar />
-            <Suspense fallback={<PageLoader />}>
-              <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/submit" element={
-                  <ProtectedRoute>
-                    <ReviewSubmission />
-                  </ProtectedRoute>
-                } />
-                <Route path="/categories" element={<CategoryBrowser />} />
-                <Route path="/review/:id" element={<ReviewDetail />} />
-                <Route path="/discover" element={<DiscoveryEngine />} />
-                <Route path="/profile/:userId" element={
-                  <ProtectedRoute>
-                    <UserProfile />
-                  </ProtectedRoute>
-                } />
-                <Route path="/admin" element={<AdminDashboard />} />
-                <Route path="/terms" element={<TermsAndConditions />} />
-                <Route path="/privacy" element={<PrivacyPolicy />} />
-              </Routes>
-            </Suspense>
-            <Toaster position="top-right" />
-            <TokenExpirationCheck />
-          </div>
-        </Router>
-      </ReviewProvider>
+      <LanguageProvider>
+        <ReviewProvider>
+          <Router>
+            <div className="min-h-screen bg-gray-50">
+              <Navbar />
+              <Suspense fallback={<PageLoader />}>
+                <Routes>
+                  <Route path="/" element={<HomePage />} />
+                  <Route path="/submit" element={
+                    <ProtectedRoute>
+                      <ReviewSubmission />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/categories" element={<CategoryBrowser />} />
+                  <Route path="/review/:id" element={<ReviewDetail />} />
+                  <Route path="/discover" element={<DiscoveryEngine />} />
+                  <Route path="/profile/:userId" element={
+                    <ProtectedRoute>
+                      <UserProfile />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/admin" element={<AdminDashboard />} />
+                  <Route path="/terms" element={<TermsAndConditions />} />
+                  <Route path="/privacy" element={<PrivacyPolicy />} />
+                </Routes>
+              </Suspense>
+              <Toaster position="top-right" />
+              <TokenExpirationCheck />
+            </div>
+          </Router>
+        </ReviewProvider>
+      </LanguageProvider>
     </AuthProvider>
   );
 };

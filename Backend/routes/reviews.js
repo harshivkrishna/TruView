@@ -4,6 +4,7 @@ const Review = require('../models/Review');
 const { authenticateToken } = require('../middleware/auth');
 const { calculateTrustScore } = require('../utils/trustCalculator');
 const cacheService = require('../services/cacheService');
+const { processReviewTranslations, translateAndCache } = require('../services/translationService');
 const router = express.Router();
 
 // Check if AWS is configured
@@ -17,68 +18,68 @@ router.get('/', async (req, res) => {
     // Check MongoDB connection state
     if (mongoose.connection.readyState !== 1) {
       console.error('MongoDB not connected. State:', mongoose.connection.readyState);
-      return res.status(503).json({ 
+      return res.status(503).json({
         message: 'Database temporarily unavailable. Please try again.',
         reviews: [],
         pagination: { currentPage: 1, totalPages: 0, totalReviews: 0, hasNextPage: false, hasPrevPage: false }
       });
     }
 
-    const { 
-      category, 
-      subcategory, 
-      tag, 
-      tags, 
-      rating, 
-      dateRange, 
-      location, 
-      companyName, 
+    const {
+      category,
+      subcategory,
+      tag,
+      tags,
+      rating,
+      dateRange,
+      location,
+      companyName,
       query: searchQuery,
-      sort = 'createdAt', 
+      sort = 'createdAt',
       sortBy,
-      page = 1, 
-      limit = 15 
+      page = 1,
+      limit = 15
     } = req.query;
-    
+
     let query = {};
-    
+
     // Filter out admin-removed reviews for non-authors
     // Admin-removed reviews should only be visible to their original authors
     const currentUserId = req.user?.userId;
     const adminRemovedFilter = !currentUserId || currentUserId === 'admin'
       ? { isRemovedByAdmin: { $ne: true } }
       : {
-          $or: [
-            { isRemovedByAdmin: { $ne: true } },
-            { 
-              isRemovedByAdmin: true, 
-              'author.userId': currentUserId
-            }
-          ]
-        };
-    
+        $or: [
+          { isRemovedByAdmin: { $ne: true } },
+          {
+            isRemovedByAdmin: true,
+            'author.userId': currentUserId
+          }
+        ]
+      };
+
     // Basic filters
     if (category) query.category = category;
     if (subcategory) query.subcategory = subcategory;
     if (tag) query.tags = { $in: [tag] };
-    
+
     // Advanced filters
     if (tags) {
       const tagArray = tags.split(',').map(t => t.trim());
       query.tags = { $in: tagArray };
     }
-    
+
     if (rating) {
       const ratingValue = parseInt(rating);
       if (ratingValue >= 1 && ratingValue <= 5) {
         query.rating = { $gte: ratingValue };
       }
     }
-    
+
     if (dateRange) {
       const now = new Date();
       let startDate;
-      
+
       switch (dateRange) {
         case 'week':
           startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -94,14 +95,14 @@ router.get('/', async (req, res) => {
         query.createdAt = { $gte: startDate };
       }
     }
-    
+
     if (companyName) {
       query.companyName = { $regex: companyName, $options: 'i' };
     }
-    
+
     // Handle text search and location with proper $and logic
     const searchConditions = [];
-    
+
     if (searchQuery) {
       searchConditions.push({
         $or: [
@@ -111,7 +112,7 @@ router.get('/', async (req, res) => {
         ]
       });
     }
-    
+
     if (location) {
       searchConditions.push({
         $or: [
@@ -120,7 +121,7 @@ router.get('/', async (req, res) => {
         ]
       });
     }
-    
+
     // Combine all conditions using $and
     const finalQuery = {
       $and: [
@@ -129,14 +130,14 @@ router.get('/', async (req, res) => {
         ...searchConditions
       ].filter(condition => Object.keys(condition).length > 0)
     };
-    
+
     // If no complex conditions, use simple query
     const mongoQuery = finalQuery.$and.length > 1 ? finalQuery : { ...adminRemovedFilter, ...query };
-    
+
     // Determine sort field
     const sortField = sortBy || sort;
     let sortObject = {};
-    
+
     switch (sortField) {
       case 'rating':
         sortObject = { rating: -1, createdAt: -1 };
@@ -159,13 +160,13 @@ router.get('/', async (req, res) => {
         sortObject = { createdAt: -1 };
         break;
     }
-    
+
     const skip = (parseInt(page) - 1) * parseInt(limit);
-    
+
     // Log the constructed query for debugging
     console.log('Reviews query:', JSON.stringify(mongoQuery, null, 2));
     console.log('Sort object:', sortObject);
-    
+
     const [reviews, totalCount] = await Promise.all([
       Review.find(mongoQuery)
         .populate({
@@ -173,7 +174,7 @@ router.get('/', async (req, res) => {
           select: 'firstName lastName avatar',
           options: { strictPopulate: false }
         })
-        .select('title description rating category subcategory tags author upvotes views trustScore createdAt updatedAt media isRemovedByAdmin adminRemovalReason')
+        .select('title description rating category subcategory tags author upvotes views trustScore createdAt updatedAt media isRemovedByAdmin adminRemovalReason originalLanguage translations')
         .sort(sortObject)
         .skip(skip)
         .limit(parseInt(limit))
@@ -181,15 +182,15 @@ router.get('/', async (req, res) => {
         .exec(),
       Review.countDocuments(mongoQuery).exec()
     ]);
-    
+
     // Map the populated data to match the expected format with null safety
     const formattedReviews = reviews.map(review => {
       const reviewObj = { ...review };
-      
+
       // Safely handle author population
       if (reviewObj.author && reviewObj.author.userId) {
         const userId = reviewObj.author.userId;
-        
+
         // Check if userId was populated successfully
         if (userId && typeof userId === 'object' && userId.firstName) {
           reviewObj.author.name = `${userId.firstName} ${userId.lastName}`;
@@ -209,13 +210,13 @@ router.get('/', async (req, res) => {
           userId: null
         };
       }
-      
+
       // URLs should already be CloudFront URLs from upload
       return reviewObj;
     });
-    
+
     console.log(`Fetched ${formattedReviews.length} reviews out of ${totalCount} total`);
-    
+
     res.json({
       reviews: formattedReviews,
       pagination: {
@@ -229,7 +230,7 @@ router.get('/', async (req, res) => {
   } catch (error) {
     console.error('Error fetching reviews:', error);
     console.error('Error stack:', error.stack);
-    
+
     // Return empty result instead of error to prevent UI breaks
     res.status(200).json({
       reviews: [],
@@ -241,7 +242,7 @@ router.get('/', async (req, res) => {
 // Get trending reviews (most viewed) - OPTIMIZED with caching
 router.get('/trending', async (req, res) => {
   const cacheKey = 'trending-reviews';
-  
+
   try {
     // Check cache first
     const cachedData = cacheService.get(cacheKey);
@@ -253,16 +254,16 @@ router.get('/trending', async (req, res) => {
     // Check MongoDB connection state
     if (mongoose.connection.readyState !== 1) {
       console.error('MongoDB not connected. State:', mongoose.connection.readyState);
-      return res.status(503).json({ 
+      return res.status(503).json({
         message: 'Database temporarily unavailable. Please try again.',
-        reviews: [] 
+        reviews: []
       });
     }
 
     // Optimized query with minimal fields and indexed sort
     const reviews = await Review.find(
       { isRemovedByAdmin: { $ne: true } },
-      'title description rating category subcategory tags author upvotes views trustScore createdAt media'
+      'title description rating category subcategory tags author upvotes views trustScore createdAt media originalLanguage translations'
     )
       .populate({
         path: 'author.userId',
@@ -273,7 +274,7 @@ router.get('/trending', async (req, res) => {
       .limit(10)
       .lean()
       .exec();
-    
+
     // Handle empty results
     if (!reviews || reviews.length === 0) {
       console.log('No trending reviews found');
@@ -285,11 +286,11 @@ router.get('/trending', async (req, res) => {
     // Map the populated data to match the expected format with null safety
     const formattedReviews = reviews.map(review => {
       const reviewObj = { ...review };
-      
+
       // Safely handle author population
       if (reviewObj.author && reviewObj.author.userId) {
         const userId = reviewObj.author.userId;
-        
+
         // Check if userId was populated successfully
         if (userId && typeof userId === 'object' && userId.firstName) {
           reviewObj.author.name = `${userId.firstName} ${userId.lastName}`;
@@ -309,19 +310,19 @@ router.get('/trending', async (req, res) => {
           userId: null
         };
       }
-      
+
       return reviewObj;
     });
-    
+
     // Cache for 2 minutes (120000ms)
     cacheService.set(cacheKey, formattedReviews, 120000);
-    
+
     console.log(`✅ Successfully fetched and cached ${formattedReviews.length} trending reviews`);
     res.json(formattedReviews);
   } catch (error) {
     console.error('Error fetching trending reviews:', error);
     console.error('Error stack:', error.stack);
-    
+
     // Return empty array instead of error to prevent UI breaks
     res.status(200).json([]);
   }
@@ -330,7 +331,7 @@ router.get('/trending', async (req, res) => {
 // Get most viewed reviews in past 7 days - OPTIMIZED with caching and better query
 router.get('/most-viewed-week', async (req, res) => {
   const cacheKey = 'most-viewed-week';
-  
+
   try {
     // Check cache first
     const cachedData = cacheService.get(cacheKey);
@@ -342,7 +343,7 @@ router.get('/most-viewed-week', async (req, res) => {
     // Calculate date 7 days ago
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    
+
     // OPTIMIZED: Use simpler query with indexed fields instead of complex aggregation
     // This approach is much faster for large datasets
     const reviews = await Review.find(
@@ -350,7 +351,7 @@ router.get('/most-viewed-week', async (req, res) => {
         isRemovedByAdmin: { $ne: true },
         createdAt: { $gte: sevenDaysAgo } // Only look at recent reviews
       },
-      'title description rating category subcategory tags author upvotes views trustScore createdAt media'
+      'title description rating category subcategory tags author upvotes views trustScore createdAt media originalLanguage translations'
     )
       .populate({
         path: 'author.userId',
@@ -361,15 +362,15 @@ router.get('/most-viewed-week', async (req, res) => {
       .limit(3)
       .lean()
       .exec();
-    
+
     // Format the reviews
     const formattedReviews = reviews.map(review => {
       const reviewObj = { ...review };
-      
+
       // Safely handle author population
       if (reviewObj.author && reviewObj.author.userId) {
         const userId = reviewObj.author.userId;
-        
+
         if (userId && typeof userId === 'object' && userId.firstName) {
           reviewObj.author.name = `${userId.firstName} ${userId.lastName}`;
           reviewObj.author.avatar = userId.avatar;
@@ -386,13 +387,13 @@ router.get('/most-viewed-week', async (req, res) => {
           userId: null
         };
       }
-      
+
       return reviewObj;
     });
-    
+
     // Cache for 3 minutes (180000ms)
     cacheService.set(cacheKey, formattedReviews, 180000);
-    
+
     console.log(`✅ Successfully fetched and cached ${formattedReviews.length} weekly trending reviews`);
     res.json(formattedReviews);
   } catch (error) {
@@ -404,19 +405,19 @@ router.get('/most-viewed-week', async (req, res) => {
 // Get single review - Optimized version
 router.get('/:id', async (req, res) => {
   const startTime = Date.now();
-  
+
   try {
     // Check MongoDB connection
     if (mongoose.connection.readyState !== 1) {
       console.error('MongoDB not connected during review fetch');
-      return res.status(503).json({ 
+      return res.status(503).json({
         message: 'Service temporarily unavailable. Please try again.',
-        review: null 
+        review: null
       });
     }
 
     const reviewId = req.params.id;
-    
+
     // Fetch review with optimized query
     const review = await Review.findById(reviewId)
       .populate({
@@ -424,21 +425,21 @@ router.get('/:id', async (req, res) => {
         select: 'firstName lastName avatar',
         options: { strictPopulate: false }
       })
-      .select('title description rating category subcategory tags author upvotes views trustScore createdAt updatedAt media upvotedBy isRemovedByAdmin adminRemovalReason')
+      .select('title description rating category subcategory tags author upvotes views trustScore createdAt updatedAt media upvotedBy isRemovedByAdmin adminRemovalReason originalLanguage translations')
       .lean()
       .exec();
-    
+
     if (!review) {
       return res.status(404).json({ message: 'Review not found' });
     }
 
     // Format the review data with null safety
     const reviewObj = { ...review };
-    
+
     // Safely handle author population
     if (reviewObj.author && reviewObj.author.userId) {
       const userId = reviewObj.author.userId;
-      
+
       // Check if userId was populated successfully
       if (userId && typeof userId === 'object' && userId.firstName) {
         reviewObj.author.name = `${userId.firstName} ${userId.lastName}`;
@@ -465,7 +466,7 @@ router.get('/:id', async (req, res) => {
       // Use updateOne for better performance instead of save()
       Review.updateOne(
         { _id: reviewId },
-        { 
+        {
           $inc: { views: 1 },
           $addToSet: { viewedBy: userId }
         }
@@ -474,7 +475,7 @@ router.get('/:id', async (req, res) => {
 
     const totalTime = Date.now() - startTime;
     console.log(`✅ Review ${reviewId} fetched in ${totalTime}ms`);
-    
+
     // URLs should already be CloudFront URLs from upload
     res.json(reviewObj);
   } catch (error) {
@@ -490,7 +491,7 @@ router.post('/', authenticateToken, async (req, res) => {
     // Fetch user information to get avatar
     const User = require('../models/User');
     const user = await User.findById(req.user.userId);
-    
+
     const reviewData = {
       ...req.body,
       author: {
@@ -499,43 +500,50 @@ router.post('/', authenticateToken, async (req, res) => {
         userId: req.user.userId
       }
     };
-    
+
     // Calculate AI trust score
     const trustScore = calculateTrustScore(reviewData);
     reviewData.trustScore = trustScore;
-    
+
     const review = new Review(reviewData);
     await review.save();
-    
+
     // Invalidate trending caches since new review affects trending
     cacheService.delete('trending-reviews');
     cacheService.delete('most-viewed-week');
-    
+
     // Update user's review count and trust score
     if (user) {
       user.reviewCount = (user.reviewCount || 0) + 1;
-      
+
       // Recalculate user's overall trust score based on all their reviews
       const userReviews = await Review.find({ 'author.userId': req.user.userId });
       const totalTrustScore = userReviews.reduce((sum, rev) => sum + (rev.trustScore || 0), 0);
       user.trustScore = Math.round(totalTrustScore / userReviews.length);
-      
+
       await user.save();
     }
-    
+
     // Populate and format the response
     const populatedReview = await Review.findById(review._id)
       .populate('author.userId', 'firstName lastName avatar');
-    
+
     const reviewObj = populatedReview.toObject();
     if (reviewObj.author && reviewObj.author.userId) {
       reviewObj.author.name = `${reviewObj.author.userId.firstName} ${reviewObj.author.userId.lastName}`;
       reviewObj.author.avatar = reviewObj.author.userId.avatar;
       reviewObj.author.userId = reviewObj.author.userId._id;
     }
-    
+
     // URLs should already be CloudFront URLs from upload
     res.status(201).json(reviewObj);
+
+    // Non-blocking: trigger background translation after response is sent
+    process.nextTick(() => {
+      processReviewTranslations(review._id).catch(err => {
+        console.error('Background translation error:', err.message);
+      });
+    });
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
@@ -544,13 +552,13 @@ router.post('/', authenticateToken, async (req, res) => {
 // Upvote review - Optimized version with cache invalidation
 router.patch('/:id/upvote', authenticateToken, async (req, res) => {
   const startTime = Date.now();
-  
+
   try {
     // Check MongoDB connection
     if (mongoose.connection.readyState !== 1) {
       console.error('MongoDB not connected during upvote');
-      return res.status(503).json({ 
-        message: 'Service temporarily unavailable. Please try again.' 
+      return res.status(503).json({
+        message: 'Service temporarily unavailable. Please try again.'
       });
     }
 
@@ -559,7 +567,7 @@ router.patch('/:id/upvote', authenticateToken, async (req, res) => {
 
     // Check if this is an admin user (can't be tracked in upvotedBy due to ObjectId requirement)
     if (userId === 'admin') {
-      return res.status(403).json({ 
+      return res.status(403).json({
         message: 'Admin users cannot upvote reviews',
         reason: 'Admin accounts are for moderation purposes only'
       });
@@ -570,7 +578,7 @@ router.patch('/:id/upvote', authenticateToken, async (req, res) => {
       .select('upvotedBy upvotes')
       .lean()
       .exec();
-    
+
     if (!review) {
       return res.status(404).json({ message: 'Review not found' });
     }
@@ -583,22 +591,22 @@ router.patch('/:id/upvote', authenticateToken, async (req, res) => {
       reviewId,
       {
         $inc: { upvotes: hasUpvoted ? -1 : 1 },
-        [hasUpvoted ? '$pull' : '$addToSet']: { 
-          upvotedBy: userId 
+        [hasUpvoted ? '$pull' : '$addToSet']: {
+          upvotedBy: userId
         }
       },
-      { 
+      {
         new: true,
         select: 'title description rating category subcategory tags author upvotes views trustScore createdAt updatedAt media upvotedBy isRemovedByAdmin adminRemovalReason'
       }
     )
-    .populate({
-      path: 'author.userId',
-      select: 'firstName lastName avatar',
-      options: { strictPopulate: false }
-    })
-    .lean()
-    .exec();
+      .populate({
+        path: 'author.userId',
+        select: 'firstName lastName avatar',
+        options: { strictPopulate: false }
+      })
+      .lean()
+      .exec();
 
     if (!updatedReview) {
       return res.status(404).json({ message: 'Review not found' });
@@ -610,11 +618,11 @@ router.patch('/:id/upvote', authenticateToken, async (req, res) => {
 
     // Format the review data with null safety
     const reviewObj = { ...updatedReview };
-    
+
     // Safely handle author population
     if (reviewObj.author && reviewObj.author.userId) {
       const authorUserId = reviewObj.author.userId;
-      
+
       if (authorUserId && typeof authorUserId === 'object' && authorUserId.firstName) {
         reviewObj.author.name = `${authorUserId.firstName} ${authorUserId.lastName}`;
         reviewObj.author.avatar = authorUserId.avatar;
@@ -634,7 +642,7 @@ router.patch('/:id/upvote', authenticateToken, async (req, res) => {
 
     const totalTime = Date.now() - startTime;
     console.log(`✅ Review ${reviewId} upvote processed in ${totalTime}ms`);
-    
+
     res.json(reviewObj);
   } catch (error) {
     console.error('Error upvoting review:', error.message);
@@ -663,16 +671,16 @@ router.patch('/:id/view', async (req, res, next) => {
     if (!review) {
       return res.status(404).json({ message: 'Review not found' });
     }
-    
+
     // Get user identifier (either from auth token or from request body)
     let userId = null;
     let shouldTrackView = true;
-    
+
     if (req.user?.userId) {
       // Authenticated user
       userId = req.user.userId;
       console.log('View request from authenticated user:', userId);
-      
+
       // Skip view tracking for admin users (admin userId is not a valid ObjectId)
       if (userId === 'admin') {
         shouldTrackView = false;
@@ -684,56 +692,84 @@ router.patch('/:id/view', async (req, res, next) => {
       shouldTrackView = false; // Anonymous users also can't be tracked in viewedBy (ObjectId required)
       console.log('Anonymous user detected:', userId);
     }
-    
+
     if (userId && shouldTrackView) {
       // Check if user has already viewed this review
-      const hasViewed = review.viewedBy.some(view => 
+      const hasViewed = review.viewedBy.some(view =>
         view.userId.toString() === userId.toString()
       );
-      
+
       if (!hasViewed) {
         // Add new view (only for regular users with valid ObjectId)
-        review.viewedBy.push({ 
-          userId: userId, 
-          viewedAt: new Date() 
+        review.viewedBy.push({
+          userId: userId,
+          viewedAt: new Date()
         });
         review.views = review.viewedBy.length;
         await review.save();
-        
-        res.json({ 
-          success: true, 
+
+        res.json({
+          success: true,
           views: review.views,
-          newView: true 
+          newView: true
         });
       } else {
         // User already viewed, return current count
-        res.json({ 
-          success: true, 
+        res.json({
+          success: true,
           views: review.views,
-          newView: false 
+          newView: false
         });
       }
     } else if (userId && !shouldTrackView) {
       // Admin users or anonymous users - increment view count but don't track individually
       review.views = (review.views || 0) + 1;
       await review.save();
-      
-      res.json({ 
-        success: true, 
+
+      res.json({
+        success: true,
         views: review.views,
         newView: true,
         tracked: false // Indicate that this view wasn't individually tracked
       });
     } else {
       // No user identifier, just return current count
-      res.json({ 
-        success: true, 
+      res.json({
+        success: true,
         views: review.views,
-        newView: false 
+        newView: false
       });
     }
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+});
+
+// On-demand translation endpoint
+router.get('/:id/translate/:targetLang', async (req, res) => {
+  try {
+    const { id, targetLang } = req.params;
+
+    // Validate language code (2-3 letter codes)
+    if (!/^[a-z]{2,3}$/.test(targetLang)) {
+      return res.status(400).json({ message: 'Invalid language code' });
+    }
+
+    const result = await translateAndCache(id, targetLang);
+
+    if (!result) {
+      return res.status(404).json({ message: 'Review not found or translation failed' });
+    }
+
+    res.json({
+      translatedText: result.translatedText,
+      originalLanguage: result.originalLanguage,
+      targetLanguage: targetLang,
+      cached: result.cached
+    });
+  } catch (error) {
+    console.error('Translation endpoint error:', error.message);
+    res.status(500).json({ message: 'Translation failed' });
   }
 });
 

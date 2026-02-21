@@ -10,6 +10,7 @@ interface User {
   phoneNumber: string;
   role: 'user' | 'admin';
   emailVerified: boolean;
+  avatar?: string;
 }
 
 interface LoginResponse {
@@ -38,11 +39,11 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  
+
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
-  
+
   return context;
 };
 
@@ -54,7 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Check for stored user data and token
     const userData = localStorage.getItem('user');
     const token = localStorage.getItem('token');
-    
+
     if (userData && token) {
       try {
         const user = JSON.parse(userData);
@@ -80,7 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           phoneNumber: userData.phoneNumber,
           secretCode: userData.passKey
         });
-        
+
         // For admin accounts, we don't need email verification
         // Return success immediately
         return response;
@@ -93,10 +94,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           lastName: userData.lastName,
           phoneNumber: userData.phoneNumber
         });
-        
+
         // Store user ID for verification
         localStorage.setItem('pendingUserId', response.userId);
-        
+
         // Email is now sent by the backend via SES
         return response;
       }
@@ -113,7 +114,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Check if this is an admin login attempt
       const ADMIN_EMAIL = 'connect.truview@gmail.com';
       let response;
-      
+
       if (email === ADMIN_EMAIL) {
         // Use admin login endpoint for admin email
         response = await api.adminLogin({ email, password });
@@ -121,24 +122,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Use regular login endpoint for regular users
         response = await api.loginUser({ email, password });
       }
-      
+
       // Check if email verification is required (only for regular users, not admins)
       if (response.requiresVerification && email !== ADMIN_EMAIL) {
         // Email is now sent by the backend via SES
         return response;
       }
-      
+
       // Store token and user data
       localStorage.setItem('token', response.token);
       localStorage.setItem('user', JSON.stringify(response.user));
-      
+
       if (response.user.role === 'admin') {
         localStorage.setItem('isAdmin', 'true');
       }
-      
+
       // Clear anonymous ID when user logs in
       clearAnonymousId();
-      
+
       setCurrentUser(response.user);
       return response;
     } catch (error) {
@@ -154,10 +155,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('token');
     localStorage.removeItem('pendingUserId');
     localStorage.removeItem('isAdmin');
-    
+
     // Clear any cached data that might contain user info
     sessionStorage.clear();
-    
+
     // Force a page reload to ensure all state is cleared
     window.location.href = '/';
   };
@@ -166,7 +167,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     try {
       const response = await api.forgotPassword(email);
-      
+
       // Email is now sent by the backend via SES
       return response;
     } catch (error) {
@@ -180,15 +181,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     try {
       const response = await api.verifyEmail(email, otp);
-      
+
       // Store token and user data
       localStorage.setItem('token', response.token);
       localStorage.setItem('user', JSON.stringify(response.user));
       localStorage.removeItem('pendingUserId');
-      
+
       // Clear anonymous ID when user verifies email
       clearAnonymousId();
-      
+
       setCurrentUser(response.user);
       return response;
     } catch (error) {
@@ -202,7 +203,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     try {
       const response: any = await api.resendVerification(email);
-      
+
       // Email is now sent by the backend via SES
       return response;
     } catch (error) {

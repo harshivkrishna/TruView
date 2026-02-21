@@ -12,11 +12,11 @@ interface LoginModalProps {
   onSwitchToForgotPassword: () => void;
 }
 
-const LoginModal: React.FC<LoginModalProps> = ({ 
-  isOpen, 
-  onClose, 
-  onSwitchToRegister, 
-  onSwitchToForgotPassword 
+const LoginModal: React.FC<LoginModalProps> = ({
+  isOpen,
+  onClose,
+  onSwitchToRegister,
+  onSwitchToForgotPassword
 }) => {
   const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
@@ -43,14 +43,14 @@ const LoginModal: React.FC<LoginModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.email || !formData.password) {
       return;
     }
-    
+
     setIsLoading(true);
     setErrorMessage('');
-    
+
     try {
       const response = await login(formData.email, formData.password);
 
@@ -87,20 +87,20 @@ const LoginModal: React.FC<LoginModalProps> = ({
 
   const handleOTPVerification = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!otpData.otp) {
       setErrorMessage('Please enter the OTP');
       return;
     }
-    
+
     if (otpData.otp.length !== 6) {
       setErrorMessage('OTP must be 6 digits');
       return;
     }
-    
+
     setIsVerifyingOTP(true);
     setErrorMessage('');
-    
+
     try {
       const response = await api.post('/auth/verify-login-otp', {
         email: otpData.email,
@@ -110,10 +110,10 @@ const LoginModal: React.FC<LoginModalProps> = ({
       // Store the token and user data
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
-      
+
       // Update auth context
       window.location.reload(); // Simple way to refresh auth state
-      
+
     } catch (error: any) {
       if (error.response?.data?.message) {
         setErrorMessage(error.response.data.message);
@@ -161,104 +161,94 @@ const LoginModal: React.FC<LoginModalProps> = ({
 
             {!showOTPVerification ? (
               <form onSubmit={handleSubmit} className="space-y-4">
-              {isLoading && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center gap-3"
-                >
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
-                  <p className="text-blue-700 text-sm">Verifying credentials...</p>
-                </motion.div>
-              )}
-              
-              <motion.div
-                initial={{ x: -20, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                transition={{ delay: 0.1 }}
-              >
-                <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input
-                    name="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    placeholder="Enter your email"
-                    required
-                  />
-                </div>
-              </motion.div>
 
-              <motion.div
-                initial={{ x: -20, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                transition={{ delay: 0.2 }}
-              >
-                <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input
-                    name="password"
-                    type={showPassword ? 'text' : 'password'}
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    placeholder="Enter your password"
-                    required
-                  />
+                <motion.div
+                  initial={{ x: -20, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ delay: 0.1 }}
+                >
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <input
+                      name="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      placeholder="Enter your email"
+                      required
+                    />
+                  </div>
+                </motion.div>
+
+                <motion.div
+                  initial={{ x: -20, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <input
+                      name="password"
+                      type={showPassword ? 'text' : 'password'}
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      placeholder="Enter your password"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
+                  </div>
+                </motion.div>
+
+                {/* Error Message */}
+                {errorMessage && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-red-50 border border-red-200 rounded-lg p-3"
+                  >
+                    <p className="text-red-600 text-sm">{errorMessage}</p>
+                  </motion.div>
+                )}
+
+                <motion.div
+                  initial={{ x: -20, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ delay: 0.3 }}
+                  className="flex items-center justify-between"
+                >
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    onClick={onSwitchToForgotPassword}
+                    className="text-sm text-orange-600 hover:text-orange-700 hover:underline"
                   >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    Forgot password?
                   </button>
-                </div>
-              </motion.div>
-
-              {/* Error Message */}
-              {errorMessage && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-red-50 border border-red-200 rounded-lg p-3"
-                >
-                  <p className="text-red-600 text-sm">{errorMessage}</p>
                 </motion.div>
-              )}
 
-              <motion.div
-                initial={{ x: -20, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                transition={{ delay: 0.3 }}
-                className="flex items-center justify-between"
-              >
-                <button
-                  type="button"
-                  onClick={onSwitchToForgotPassword}
-                  className="text-sm text-orange-600 hover:text-orange-700 hover:underline"
+                <motion.button
+                  type="submit"
+                  disabled={isLoading}
+                  initial={{ x: -20, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ delay: 0.4 }}
+                  className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
                 >
-                  Forgot password?
-                </button>
-              </motion.div>
-
-              <motion.button
-                type="submit"
-                disabled={isLoading}
-                initial={{ x: -20, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                transition={{ delay: 0.4 }}
-                className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-              >
-                {isLoading && (
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                )}
-                {isLoading ? 'Logging in...' : 'Login'}
-              </motion.button>
-            </form>
+                  {isLoading && (
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  )}
+                  {isLoading ? 'Logging in...' : 'Login'}
+                </motion.button>
+              </form>
             ) : (
               <form onSubmit={handleOTPVerification} className="space-y-4">
                 <motion.div
@@ -292,9 +282,8 @@ const LoginModal: React.FC<LoginModalProps> = ({
                           setErrorMessage('');
                         }
                       }}
-                      className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-center text-lg tracking-widest font-mono ${
-                        errorMessage ? 'border-red-500' : 'border-gray-300'
-                      }`}
+                      className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-center text-lg tracking-widest font-mono ${errorMessage ? 'border-red-500' : 'border-gray-300'
+                        }`}
                       placeholder="000000"
                       maxLength={6}
                       required

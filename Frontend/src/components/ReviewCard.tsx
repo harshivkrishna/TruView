@@ -10,6 +10,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { lazyLoadImage } from '../utils/imageOptimization';
 import { upvoteReview } from '../services/api';
 import toast from 'react-hot-toast';
+import TranslatedReviewContent from './TranslatedReviewContent';
 
 interface ReviewCardProps {
   review: {
@@ -37,6 +38,8 @@ interface ReviewCardProps {
     trustScore?: number;
     isRemovedByAdmin?: boolean;
     adminRemovalReason?: string;
+    originalLanguage?: string;
+    translations?: Record<string, string>;
   };
   showRank?: boolean;
   rank?: number;
@@ -55,14 +58,14 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
 
   // Get the most up-to-date review data from global state
   const currentReview = getReview(review._id) || review;
-  
+
   // Ensure currentReview has the correct type
   const safeReview = currentReview as typeof review;
 
   // Check if current user has upvoted this review
   React.useEffect(() => {
     if (currentUser && safeReview.upvotedBy) {
-      const upvoted = (safeReview.upvotedBy as any[]).some((userId: any) => 
+      const upvoted = (safeReview.upvotedBy as any[]).some((userId: any) =>
         userId === currentUser.id || userId.toString() === currentUser.id
       );
       setHasUpvoted(upvoted);
@@ -94,7 +97,7 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
 
   // Memoized truncated description
   const truncatedDescription = useMemo(() => {
-    return safeReview.description.length > 150 
+    return safeReview.description.length > 150
       ? safeReview.description.substring(0, 150) + '...'
       : safeReview.description;
   }, [safeReview.description]);
@@ -111,13 +114,12 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
 
   // Memoized trust score component
   const trustScoreComponent = useMemo(() => (
-    <div className={`flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-      trustLevel.level === 'High' ? 'bg-green-100 text-green-700' :
-      trustLevel.level === 'Good' ? 'bg-blue-100 text-blue-700' :
-      trustLevel.level === 'Fair' ? 'bg-yellow-100 text-yellow-700' :
-      trustLevel.level === 'Low' ? 'bg-orange-100 text-orange-700' :
-      'bg-red-100 text-red-700'
-    }`}>
+    <div className={`flex items-center px-2 py-1 rounded-full text-xs font-medium ${trustLevel.level === 'High' ? 'bg-green-100 text-green-700' :
+        trustLevel.level === 'Good' ? 'bg-blue-100 text-blue-700' :
+          trustLevel.level === 'Fair' ? 'bg-yellow-100 text-yellow-700' :
+            trustLevel.level === 'Low' ? 'bg-orange-100 text-orange-700' :
+              'bg-red-100 text-red-700'
+      }`}>
       <Award className="w-3 h-3 mr-1" />
       {trustScore}%
     </div>
@@ -129,12 +131,11 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
       {safeReview.tags.slice(0, 3).map((tag) => (
         <span
           key={tag}
-          className={`px-2 py-1 text-xs font-medium rounded-full ${
-            tag === 'Brutal' ? 'bg-red-100 text-red-700' :
-            tag === 'Honest' ? 'bg-blue-100 text-blue-700' :
-            tag === 'Praise' ? 'bg-green-100 text-green-700' :
-            'bg-gray-100 text-gray-700'
-          }`}
+          className={`px-2 py-1 text-xs font-medium rounded-full ${tag === 'Brutal' ? 'bg-red-100 text-red-700' :
+              tag === 'Honest' ? 'bg-blue-100 text-blue-700' :
+                tag === 'Praise' ? 'bg-green-100 text-green-700' :
+                  'bg-gray-100 text-gray-700'
+            }`}
         >
           {tag}
         </span>
@@ -151,63 +152,63 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
   const handleUpvote = useCallback(async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     // Check if user is logged in
     if (!currentUser) {
       toast.error('Please log in to like reviews');
       return;
     }
-    
+
     // Prevent multiple simultaneous upvotes
     if (isUpvoting) return;
-    
+
     // Store previous values for potential rollback
     const previousUpvotes = safeReview.upvotes || 0;
     const previousHasUpvoted = hasUpvoted;
-    
+
     try {
       setIsUpvoting(true);
-      
+
       // Optimistic UI update - instant feedback
       const newUpvoteCount = previousHasUpvoted ? previousUpvotes - 1 : previousUpvotes + 1;
       const newHasUpvoted = !previousHasUpvoted;
-      
+
       setHasUpvoted(newHasUpvoted);
-      
+
       // Update local state immediately
       updateReview(safeReview._id, {
         ...safeReview,
         upvotes: newUpvoteCount,
-        upvotedBy: newHasUpvoted 
+        upvotedBy: newHasUpvoted
           ? [...(safeReview.upvotedBy || []), currentUser.id]
           : (safeReview.upvotedBy || []).filter((userId: any) => userId !== currentUser.id)
       });
-      
+
       // Make API call in background
       const updatedReview = await upvoteReview(safeReview._id);
-      
+
       // Update with actual response from server
       updateReview(safeReview._id, updatedReview);
-      
+
       // Update upvote state based on the updated review
       if (updatedReview.upvotedBy) {
-        const serverHasUpvoted = (updatedReview.upvotedBy as any[]).some((userId: any) => 
+        const serverHasUpvoted = (updatedReview.upvotedBy as any[]).some((userId: any) =>
           userId === currentUser.id || userId.toString() === currentUser.id
         );
         setHasUpvoted(serverHasUpvoted);
       }
-      
+
     } catch (error: any) {
       // Rollback on error
       setHasUpvoted(previousHasUpvoted);
       updateReview(safeReview._id, {
         ...safeReview,
         upvotes: previousUpvotes,
-        upvotedBy: previousHasUpvoted 
+        upvotedBy: previousHasUpvoted
           ? [...(safeReview.upvotedBy || []), currentUser.id]
           : (safeReview.upvotedBy || []).filter((userId: any) => userId !== currentUser.id)
       });
-      
+
       if (error.response?.status === 401) {
         toast.error('Please log in to like reviews');
       } else if (error.response?.status === 403) {
@@ -247,7 +248,7 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
     const now = new Date();
     const diffTime = Math.abs(now.getTime() - date.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays === 1) return 'Today';
     if (diffDays === 2) return 'Yesterday';
     if (diffDays <= 7) return `${diffDays} days ago`;
@@ -279,19 +280,19 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
 
   return (
     <>
-      <motion.div 
+      <motion.div
         className="p-1"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        whileHover={{ 
+        whileHover={{
           y: -8,
           rotateX: 2,
           transition: { duration: 0.3 }
         }}
       >
         <div className={`bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden h-full min-h-[600px] flex flex-col relative ${isRemovedByAdmin ? 'border-2 border-red-300 bg-red-50' : ''}`}>
-          
+
           {/* Admin Removal Notice - Only visible to original author */}
           {isRemovedByAdmin && isOriginalAuthor && (
             <div className="bg-red-100 border-b-2 border-red-300 p-4">
@@ -353,11 +354,11 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
                     <span className={`px-3 py-1.5 text-xs font-semibold rounded-full bg-gradient-to-r ${getCategoryGradient(currentReview.category)} text-white`}>
                       {currentReview.category}
                     </span>
-                  {currentReview.subcategory && (
-                  <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700">
-                    {currentReview.subcategory}
-                  </span>
-                )}
+                    {currentReview.subcategory && (
+                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700">
+                        {currentReview.subcategory}
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
@@ -393,14 +394,14 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
                           </div>
                         </div>
                       )}
-                      
+
                       <video
                         src={currentReview.media[0].url}
                         className={`w-full h-full object-cover pointer-events-none transition-opacity duration-300 ${videoLoaded ? 'opacity-100' : 'opacity-0'}`}
                         preload="metadata"
                         onLoadedData={() => setVideoLoaded(true)}
                       />
-                      
+
                       {/* Play Icon Overlay - Only show when video is loaded */}
                       {videoLoaded && (
                         <>
@@ -428,7 +429,7 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
                       {!imageLoaded && (
                         <div className="absolute inset-0 bg-gray-200 animate-pulse"></div>
                       )}
-                      
+
                       <img
                         src={currentReview.media[0].url}
                         alt="Review media"
@@ -439,7 +440,7 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
                       />
                     </>
                   )}
-                  
+
                   {/* Category Badge - Only show when media is loaded */}
                   {(imageLoaded || videoLoaded) && (
                     <div className="absolute bottom-3 left-3 flex flex-col gap-1">
@@ -487,15 +488,12 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
             </div>
 
             {/* Description */}
-            <div className="text-gray-600 text-sm mb-6 h-[72px] overflow-hidden relative">
-              <p className="leading-relaxed" style={{
-                display: '-webkit-box',
-                WebkitLineClamp: 3,
-                WebkitBoxOrient: 'vertical',
-                overflow: 'hidden'
-              }}>
-                {currentReview.description}
-              </p>
+            <div className="text-gray-600 text-sm mb-6 h-[90px] overflow-hidden relative">
+              <TranslatedReviewContent
+                review={currentReview}
+                compact={true}
+                maxLength={150}
+              />
             </div>
 
             {/* Footer */}
@@ -533,10 +531,10 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
                     >
                       <User className="w-6 h-6 text-white" />
                     </motion.div>
-                    
+
 
                   </div>
-                  
+
                   <div>
                     {currentReview.author?.userId ? (
                       <motion.button
@@ -557,39 +555,36 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
                   </div>
                 </div>
               </div>
-              
+
               {/* Engagement Stats */}
               <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                 <div className="flex items-center gap-6">
                   <motion.button
                     onClick={handleUpvote}
                     disabled={!currentUser || isUpvoting}
-                    className={`flex items-center ${
-                      isUpvoting
+                    className={`flex items-center ${isUpvoting
                         ? 'text-gray-400 cursor-not-allowed'
-                        : hasUpvoted 
-                          ? 'text-green-600' 
-                          : currentUser 
-                            ? 'text-gray-600 hover:text-green-600 cursor-pointer' 
+                        : hasUpvoted
+                          ? 'text-green-600'
+                          : currentUser
+                            ? 'text-gray-600 hover:text-green-600 cursor-pointer'
                             : 'text-gray-400 cursor-not-allowed'
-                    } transition-colors`}
+                      } transition-colors`}
                     whileHover={currentUser && !isUpvoting ? { scale: 1.05 } : {}}
                     whileTap={currentUser && !isUpvoting ? { scale: 0.95 } : {}}
                     title={!currentUser ? 'Please log in to like reviews' : isUpvoting ? 'Updating...' : hasUpvoted ? 'Unlike' : 'Like'}
                   >
-                    <div className={`w-8 h-8 ${
-                      hasUpvoted 
-                        ? 'bg-gradient-to-r from-green-100 to-green-200' 
+                    <div className={`w-8 h-8 ${hasUpvoted
+                        ? 'bg-gradient-to-r from-green-100 to-green-200'
                         : 'bg-gradient-to-r from-gray-100 to-gray-200'
-                    } rounded-full flex items-center justify-center mr-2 transition-colors`}>
-                      <ThumbsUp className={`w-4 h-4 ${
-                        hasUpvoted ? 'text-green-600 fill-current' : 'text-gray-600'
-                      } ${isUpvoting ? 'animate-pulse' : ''}`} />
+                      } rounded-full flex items-center justify-center mr-2 transition-colors`}>
+                      <ThumbsUp className={`w-4 h-4 ${hasUpvoted ? 'text-green-600 fill-current' : 'text-gray-600'
+                        } ${isUpvoting ? 'animate-pulse' : ''}`} />
                     </div>
                     <span className="text-sm font-semibold">{currentReview.upvotes}</span>
                   </motion.button>
-                  
-                  <motion.div 
+
+                  <motion.div
                     className="flex items-center text-gray-600"
                     whileHover={{ scale: 1.05 }}
                   >
@@ -599,7 +594,7 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
                     <span className="text-sm font-semibold">{currentReview.views}</span>
                   </motion.div>
                 </div>
-                
+
                 {/* Share Button */}
                 <motion.button
                   whileHover={{ scale: 1.1, rotateZ: 15 }}

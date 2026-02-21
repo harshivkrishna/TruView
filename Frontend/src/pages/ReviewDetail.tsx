@@ -9,6 +9,7 @@ import { ThumbsUp, Eye, Share2, Flag, User, Calendar, ArrowLeft, Award, Shield, 
 import MediaCarousel from '../components/MediaCarousel';
 import SocialShareModal from '../components/SocialShareModal';
 import LoginModal from '../components/auth/LoginModal';
+import TranslatedReviewContent from '../components/TranslatedReviewContent';
 import { calculateTrustScore, getTrustLevel } from '../utils/trustPrediction';
 import { updateMetaTags, generateReviewStructuredData, addStructuredData } from '../utils/seo';
 import { getCachedData, reviewCache } from '../utils/cache';
@@ -293,12 +294,12 @@ const ReviewDetail = () => {
         `review-${reviewId}`,
         () => getReview(reviewId)
       );
-      
+
       setReview(reviewData);
-      
+
       // Store the review in global state for other components to access
       updateReview(reviewId, reviewData);
-      
+
       // Check if current user has upvoted this review
       if (currentUser && reviewData.upvotedBy) {
         const hasUpvoted = reviewData.upvotedBy.some((userId: any) => userId === currentUser.id);
@@ -342,9 +343,9 @@ const ReviewDetail = () => {
     if (id) {
       // Scroll to top when component mounts
       window.scrollTo(0, 0);
-      
+
       fetchReview(id);
-      
+
       // Increment view count when review page is visited
       const incrementView = async () => {
         // Prevent duplicate view increments
@@ -354,10 +355,10 @@ const ReviewDetail = () => {
 
         try {
           const result = await incrementReviewView(id);
-          
+
           // Mark as incremented regardless of API result
           setViewIncremented(true);
-          
+
           if (result) {
             // Only update view count if it's a new view
             if (result.newView) {
@@ -368,7 +369,7 @@ const ReviewDetail = () => {
                 }
                 return null;
               });
-              
+
               // Update the global review state outside of setState
               if (review) {
                 updateReview(review._id, { views: result.views });
@@ -383,7 +384,7 @@ const ReviewDetail = () => {
               }
               return null;
             });
-            
+
             // Update the global review state outside of setState
             if (review) {
               const newViews = (review.views || 0) + 1;
@@ -396,7 +397,7 @@ const ReviewDetail = () => {
           setViewIncremented(true);
         }
       };
-      
+
       // Small delay to ensure the review is loaded first
       setTimeout(incrementView, 100);
     }
@@ -415,42 +416,42 @@ const ReviewDetail = () => {
     }
 
     setIsUpvoting(true);
-    
+
     // Store previous values for potential rollback
     const previousUpvotes = review?.upvotes || 0;
     const previousHasUpvoted = hasUpvoted;
-    
+
     try {
       if (!id) return;
-      
+
       // Optimistic UI update - instant feedback
       const newUpvoteCount = previousHasUpvoted ? previousUpvotes - 1 : previousUpvotes + 1;
       const newHasUpvoted = !previousHasUpvoted;
-      
+
       setReview(prev => prev ? {
         ...prev,
         upvotes: newUpvoteCount,
-        upvotedBy: newHasUpvoted 
+        upvotedBy: newHasUpvoted
           ? [...(prev.upvotedBy || []), currentUser.id]
           : prev.upvotedBy?.filter((userId: string) => userId !== currentUser.id) || []
       } : null);
-      
+
       setHasUpvoted(newHasUpvoted);
-      
+
       // Make API call in background (don't wait for response)
       upvoteReview(id).then(updatedReview => {
         // Update with actual response from server
         setReview(updatedReview);
-        
+
         // Update upvote state based on the updated review
         if (updatedReview.upvotedBy) {
           const serverHasUpvoted = updatedReview.upvotedBy.some((userId: any) => userId === currentUser.id);
           setHasUpvoted(serverHasUpvoted);
         }
-        
+
         // Update global state
         updateReview(id, updatedReview);
-        
+
         // Update cache
         reviewCache.set(`review-${id}`, updatedReview);
       }).catch(error => {
@@ -458,12 +459,12 @@ const ReviewDetail = () => {
         setReview(prev => prev ? {
           ...prev,
           upvotes: previousUpvotes,
-          upvotedBy: previousHasUpvoted 
+          upvotedBy: previousHasUpvoted
             ? [...(prev.upvotedBy || []), currentUser.id]
             : prev.upvotedBy?.filter((userId: any) => userId !== currentUser.id) || []
         } : null);
         setHasUpvoted(previousHasUpvoted);
-        
+
         if (error.response?.status === 401) {
           setShowLoginModal(true);
         } else if (error.response?.status === 403) {
@@ -472,7 +473,7 @@ const ReviewDetail = () => {
           toast.error('Failed to like review');
         }
       });
-      
+
     } finally {
       // Allow immediate next click
       setIsUpvoting(false);
@@ -505,10 +506,10 @@ const ReviewDetail = () => {
       toast.success('Report submitted successfully');
     } catch (error: any) {
       console.error('Report submission error:', error);
-      
+
       // Check for specific error messages
       const errorMessage = error?.response?.data?.message || error?.message || 'Error submitting report';
-      
+
       if (errorMessage.includes('already reported') || errorMessage.includes('You have already reported')) {
         toast.error('You have already reported this review');
       } else if (errorMessage.includes('not found')) {
@@ -524,33 +525,30 @@ const ReviewDetail = () => {
   // Memoized trust score component
   const TrustScore = useMemo(() => {
     if (!review) return null;
-    
+
     const score = review.trustScore || calculateTrustScore(review);
     const trustLevel = getTrustLevel(score);
-    
+
     return (
-      <div className={`trust-score flex items-center sm:ml-4 px-2 sm:px-3 py-1.5 bg-white shadow-lg border-2 rounded-full ${
-        trustLevel.level === 'High' ? 'border-green-500' :
-        trustLevel.level === 'Good' ? 'border-blue-500' :
-        trustLevel.level === 'Fair' ? 'border-yellow-500' :
-        trustLevel.level === 'Low' ? 'border-orange-500' :
-        'border-red-500'
-      }`}>
+      <div className={`trust-score flex items-center sm:ml-4 px-2 sm:px-3 py-1.5 bg-white shadow-lg border-2 rounded-full ${trustLevel.level === 'High' ? 'border-green-500' :
+          trustLevel.level === 'Good' ? 'border-blue-500' :
+            trustLevel.level === 'Fair' ? 'border-yellow-500' :
+              trustLevel.level === 'Low' ? 'border-orange-500' :
+                'border-red-500'
+        }`}>
         <div className="flex items-center gap-1 sm:gap-1.5">
-          <Award className={`w-3 h-3 sm:w-4 sm:h-4 ${
-            trustLevel.level === 'High' ? 'text-green-600' :
-            trustLevel.level === 'Good' ? 'text-blue-600' :
-            trustLevel.level === 'Fair' ? 'text-yellow-600' :
-            trustLevel.level === 'Low' ? 'text-orange-600' :
-            'text-red-600'
-          }`} />
-          <span className={`text-xs sm:text-sm font-bold font-mono ${
-            trustLevel.level === 'High' ? 'text-green-700' :
-            trustLevel.level === 'Good' ? 'text-blue-700' :
-            trustLevel.level === 'Fair' ? 'text-yellow-700' :
-            trustLevel.level === 'Low' ? 'text-orange-700' :
-            'text-red-700'
-          }`}>
+          <Award className={`w-3 h-3 sm:w-4 sm:h-4 ${trustLevel.level === 'High' ? 'text-green-600' :
+              trustLevel.level === 'Good' ? 'text-blue-600' :
+                trustLevel.level === 'Fair' ? 'text-yellow-600' :
+                  trustLevel.level === 'Low' ? 'text-orange-600' :
+                    'text-red-600'
+            }`} />
+          <span className={`text-xs sm:text-sm font-bold font-mono ${trustLevel.level === 'High' ? 'text-green-700' :
+              trustLevel.level === 'Good' ? 'text-blue-700' :
+                trustLevel.level === 'Fair' ? 'text-yellow-700' :
+                  trustLevel.level === 'Low' ? 'text-orange-700' :
+                    'text-red-700'
+            }`}>
             {score}%
           </span>
         </div>
@@ -561,7 +559,7 @@ const ReviewDetail = () => {
   // Memoized rating component
   const RatingStars = useMemo(() => {
     if (!review) return null;
-    
+
     return (
       <div className="flex items-center">
         <div className="flex">
@@ -677,7 +675,7 @@ const ReviewDetail = () => {
     <div className="min-h-screen bg-gray-50">
       {/* Custom Styles */}
       <style>{customStyles}</style>
-      
+
       <div className="max-w-4xl mx-auto px-2 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-6 md:py-8">
         {/* Back Button */}
         <Link
@@ -691,7 +689,7 @@ const ReviewDetail = () => {
 
         {/* Review Content */}
         <div className={`bg-white rounded-lg shadow-sm overflow-hidden ${isRemovedByAdmin && isOriginalAuthor ? 'border-2 border-red-300 bg-red-50' : ''}`}>
-          
+
           {/* Admin Removal Notice - Only visible to original author */}
           {isRemovedByAdmin && isOriginalAuthor && (
             <div className="bg-red-100 border-b-2 border-red-300 p-4">
@@ -716,8 +714,8 @@ const ReviewDetail = () => {
               </div>
               <div className="w-full max-w-full">
                 <div className="custom-media-carousel">
-                  <MediaCarousel 
-                    files={review.media} 
+                  <MediaCarousel
+                    files={review.media}
                   />
                 </div>
               </div>
@@ -726,19 +724,18 @@ const ReviewDetail = () => {
 
           {/* Content Section - Mobile optimized padding */}
           <div className="review-content p-3 sm:p-6 md:p-8 pt-4 sm:pt-8 md:pt-10">
-            
+
             {/* Tags Section - Mobile optimized */}
             <div className="tags-section bg-gray-50 p-2 sm:p-4 rounded-lg mb-3 sm:mb-6 mt-2 sm:mt-4">
               <div className="tags-container flex items-center gap-1.5 sm:gap-2 flex-wrap">
                 {review.tags && review.tags.length > 0 && review.tags.map((tag: any) => (
                   <span
                     key={tag}
-                    className={`px-2 sm:px-3 py-1 sm:py-1.5 text-xs font-medium rounded-full ${
-                      tag === 'Brutal' ? 'bg-red-100 text-red-700' :
-                      tag === 'Honest' ? 'bg-blue-100 text-blue-700' :
-                      tag === 'Praise' ? 'bg-green-100 text-green-700' :
-                      'bg-gray-100 text-gray-700'
-                    }`}
+                    className={`px-2 sm:px-3 py-1 sm:py-1.5 text-xs font-medium rounded-full ${tag === 'Brutal' ? 'bg-red-100 text-red-700' :
+                        tag === 'Honest' ? 'bg-blue-100 text-blue-700' :
+                          tag === 'Praise' ? 'bg-green-100 text-green-700' :
+                            'bg-gray-100 text-gray-700'
+                      }`}
                   >
                     {tag}
                   </span>
@@ -751,7 +748,7 @@ const ReviewDetail = () => {
 
             {/* Title - Mobile responsive */}
             <h1 className="review-title text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-3 sm:mb-6 leading-tight">{review.title}</h1>
-            
+
             {/* Author and Metadata - Mobile optimized */}
             <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-4 text-xs sm:text-sm text-gray-600 mb-3 sm:mb-6">
               <div className="flex items-center">
@@ -786,9 +783,12 @@ const ReviewDetail = () => {
 
             {/* Description - Mobile responsive */}
             <div className="prose max-w-none mb-6 sm:mb-8">
-              <p className="review-description text-gray-700 text-base sm:text-lg leading-relaxed whitespace-pre-wrap">
-                {review.description}
-              </p>
+              <div className="review-description text-gray-700 text-base sm:text-lg leading-relaxed">
+                <TranslatedReviewContent
+                  review={review}
+                  compact={false}
+                />
+              </div>
             </div>
 
             {/* Action Buttons - Mobile responsive */}
@@ -797,21 +797,20 @@ const ReviewDetail = () => {
                 <button
                   onClick={handleUpvote}
                   disabled={!currentUser || isUpvoting}
-                  className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg transition-colors text-sm sm:text-base ${
-                    isUpvoting
+                  className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg transition-colors text-sm sm:text-base ${isUpvoting
                       ? 'text-gray-400 cursor-not-allowed bg-gray-100'
-                      : hasUpvoted 
-                        ? 'text-orange-500 bg-orange-50' 
-                        : currentUser 
-                          ? 'text-gray-600 hover:text-orange-500 hover:bg-orange-50' 
+                      : hasUpvoted
+                        ? 'text-orange-500 bg-orange-50'
+                        : currentUser
+                          ? 'text-gray-600 hover:text-orange-500 hover:bg-orange-50'
                           : 'text-gray-400 cursor-not-allowed'
-                  }`}
+                    }`}
                   title={!currentUser ? 'Please log in to like reviews' : isUpvoting ? 'Updating...' : ''}
                 >
                   <ThumbsUp className={`w-4 h-4 sm:w-5 sm:h-5 ${hasUpvoted ? 'fill-current' : ''} ${isUpvoting ? 'animate-pulse' : ''}`} />
                   <span>{review.upvotes || 0}</span>
                 </button>
-                
+
                 <button
                   onClick={handleShare}
                   className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 text-gray-600 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors text-sm sm:text-base"
@@ -819,9 +818,9 @@ const ReviewDetail = () => {
                   <Share2 className="w-4 h-4 sm:w-5 sm:h-5" />
                   <span className="hidden sm:inline">Share</span>
                 </button>
-                
+
                 {currentUser && (
-                  <button 
+                  <button
                     onClick={() => setShowReportModal(true)}
                     className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 text-gray-600 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors text-sm sm:text-base"
                   >
@@ -900,7 +899,7 @@ const ReportModal: React.FC<{
           <Flag className="w-6 h-6 text-red-500" />
           <h3 className="text-lg font-semibold text-gray-900">Report Review</h3>
         </div>
-        
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -918,7 +917,7 @@ const ReportModal: React.FC<{
               ))}
             </select>
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Additional details (optional)
@@ -931,7 +930,7 @@ const ReportModal: React.FC<{
               placeholder="Provide more details about why you're reporting this review..."
             />
           </div>
-          
+
           <div className="flex flex-col sm:flex-row gap-3 pt-4">
             <button
               type="button"
