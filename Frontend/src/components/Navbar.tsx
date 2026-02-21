@@ -107,7 +107,7 @@ const Navbar = () => {
                     </Link>
                     <button
                       onClick={handleProfileClick}
-                      className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-200 hover:bg-gray-300 transition-colors overflow-hidden"
+                      className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-200 hover:bg-gray-300 transition-colors overflow-hidden relative"
                       title={`${currentUser.firstName}'s Profile`}
                     >
                       {currentUser.avatar ? (
@@ -115,15 +115,27 @@ const Navbar = () => {
                           key={currentUser.avatar}
                           src={currentUser.avatar}
                           alt={currentUser.firstName}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-cover absolute inset-0"
+                          loading="eager"
+                          decoding="async"
+                          crossOrigin="anonymous"
                           onError={(e) => {
+                            // Hide image and show fallback icon on error
                             const t = e.target as HTMLImageElement;
                             t.style.display = 'none';
+                            const parent = t.parentElement;
+                            if (parent) {
+                              const icon = parent.querySelector('.fallback-icon');
+                              if (icon) {
+                                (icon as HTMLElement).style.display = 'flex';
+                              }
+                            }
                           }}
                         />
-                      ) : (
+                      ) : null}
+                      <div className={`fallback-icon w-full h-full flex items-center justify-center absolute inset-0 ${currentUser.avatar ? 'hidden' : ''}`}>
                         <User className="w-5 h-5 text-gray-600" />
-                      )}
+                      </div>
                     </button>
                   </>
                 )}

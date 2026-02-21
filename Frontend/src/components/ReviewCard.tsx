@@ -84,6 +84,17 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
   // Ensure currentReview has the correct type
   const safeReview = currentReview as typeof review;
 
+  // Reset loading states only when media URL actually changes (not on translation updates)
+  const mediaUrl = currentReview.media?.[0]?.url;
+  React.useEffect(() => {
+    // Don't reset if there's no media
+    if (!mediaUrl) return;
+    
+    // Reset loading states when media URL changes
+    setImageLoaded(false);
+    setVideoLoaded(false);
+  }, [mediaUrl]);
+
   // Check if current user has upvoted this review
   React.useEffect(() => {
     if (currentUser && safeReview.upvotedBy) {
@@ -91,6 +102,9 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
         userId === currentUser.id || userId.toString() === currentUser.id
       );
       setHasUpvoted(upvoted);
+    } else {
+      // Reset hasUpvoted when user is not logged in
+      setHasUpvoted(false);
     }
   }, [currentUser, safeReview.upvotedBy]);
 
@@ -343,6 +357,7 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
                       )}
 
                       <video
+                        key={currentReview.media[0].url}
                         src={currentReview.media[0].url}
                         className={`w-full h-full object-cover pointer-events-none transition-opacity duration-300 ${videoLoaded ? 'opacity-100' : 'opacity-0'}`}
                         preload="metadata"
@@ -378,10 +393,12 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
                       )}
 
                       <img
+                        key={currentReview.media[0].url}
                         src={currentReview.media[0].url}
                         alt="Review media"
                         className={`w-full h-full object-cover transition-opacity duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
-                        loading="lazy"
+                        loading="eager"
+                        decoding="async"
                         onLoad={() => setImageLoaded(true)}
                         onError={() => setImageLoaded(true)}
                       />
