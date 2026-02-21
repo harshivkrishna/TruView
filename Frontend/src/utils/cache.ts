@@ -104,8 +104,8 @@ class EnhancedCache<T> {
 
 // Cache instances for different data types
 export const reviewCache = new EnhancedCache<any>({
-  ttl: 5 * 60 * 1000, // 5 minutes
-  maxSize: 100,
+  ttl: 10 * 60 * 1000, // 10 minutes (increased from 5)
+  maxSize: 200, // Increased from 100
   strategy: 'lru'
 });
 

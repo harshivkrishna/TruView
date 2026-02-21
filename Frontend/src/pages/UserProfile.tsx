@@ -287,8 +287,6 @@ const UserProfile = () => {
     };
     reader.readAsDataURL(file);
 
-    console.log(`✅ Image selected: ${file.name} (${fileSizeMB} MB)`);
-
     // Automatically upload the photo
     try {
       setUploadingPhoto(true);

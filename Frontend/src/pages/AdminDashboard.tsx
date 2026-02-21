@@ -103,10 +103,7 @@ const AdminDashboard = () => {
     setIsLoggingIn(true);
 
     try {
-      console.log('Attempting admin login with:', { email: adminEmail, password: '***' });
       const response = await adminLogin({ email: adminEmail, password: adminPassword });
-      
-      console.log('Admin login response:', response);
       
       // Store token and user data
       localStorage.setItem('token', response.token);

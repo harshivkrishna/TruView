@@ -9,7 +9,8 @@ import { getReviews, getCategoriesWithSubcategories } from '../services/api';
 import { getCachedData, reviewCache } from '../utils/cache';
 import { updateMetaTags, generateCategoryStructuredData, addStructuredData } from '../utils/seo';
 import { useAuth } from '../contexts/AuthContext';
-import { lazyLoadImage } from '../utils/imageOptimization';
+import { preloadImage } from '../utils/imageOptimization';
+import { preloadReviewImages } from '../utils/imageCache';
 
 // Define review type
 interface Review {
@@ -114,7 +115,7 @@ const CategoryBrowser: React.FC = () => {
     fetchData();
   }, []);
 
-  // Fetch reviews function with caching
+  // Fetch reviews function with caching and image preloading
   const fetchReviews = useCallback(async (page: number, reset: boolean = false) => {
     try {
       setLoadingMore(true);
@@ -156,12 +157,12 @@ const CategoryBrowser: React.FC = () => {
 
       setHasMore(response.pagination.hasNextPage);
 
-      // Apply lazy loading to new images
+      // Preload images using advanced caching system
       if (response.reviews.length > 0) {
-        setTimeout(() => {
-          const images = document.querySelectorAll('img[data-src]');
-          images.forEach(img => lazyLoadImage(img as HTMLImageElement));
-        }, 100);
+        // Use the new image cache system for better performance
+        preloadReviewImages(response.reviews).catch(error => {
+          console.warn('Image preload error:', error);
+        });
       }
     } catch (error) {
       console.error('Error fetching reviews:', error);
@@ -348,14 +349,12 @@ const CategoryBrowser: React.FC = () => {
     setAppliedFilters({});
   };
 
-  // Render skeleton loaders
-  const renderSkeletons = (count: number) => {
+  // Render skeleton loaders - memoized for performance
+  const renderSkeletons = useCallback((count: number) => {
     return Array.from({ length: count }, (_, index) => (
-      <div key={`skeleton-${index}`} className="p-1">
-        <ReviewCardSkeleton />
-      </div>
+      <ReviewCardSkeleton key={`skeleton-${index}`} />
     ));
-  };
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -517,7 +516,7 @@ const CategoryBrowser: React.FC = () => {
 
               {/* Loading More Indicator */}
               {loadingMore && (
-                <div className="col-span-full mt-8">
+                <div className="mt-8">
                   <div className="text-center">
                     <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
@@ -527,13 +526,11 @@ const CategoryBrowser: React.FC = () => {
                 </div>
               )}
 
-
-
               {/* Intersection Observer Target */}
               {hasMore && (
                 <div
                   ref={lastReviewRef}
-                  className="col-span-full h-10 flex items-center justify-center"
+                  className="mt-4 h-10 flex items-center justify-center"
                 >
                   <div className="w-6 h-6 bg-gray-200 rounded-full"></div>
                 </div>
@@ -575,10 +572,12 @@ const CategoryBrowser: React.FC = () => {
       {showScrollTop && (
         <button
           onClick={scrollToTop}
-          className="fixed bottom-6 right-4 z-50 bg-orange-500 text-white p-3 rounded-full shadow-lg hover:bg-orange-600 transition-colors"
+          className="fixed bottom-8 right-8 bg-orange-500 text-white p-4 rounded-full shadow-2xl hover:bg-orange-600 hover:scale-110 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-orange-300"
+          style={{ zIndex: 40 }}
           title="Scroll to top"
+          aria-label="Scroll to top"
         >
-          <ArrowUp className="w-6 h-6" />
+          <ArrowUp className="w-5 h-5" />
         </button>
       )}
 

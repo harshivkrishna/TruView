@@ -60,6 +60,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const user = JSON.parse(userData);
         setCurrentUser(user);
+        
+        // If user doesn't have avatar, try to fetch it
+        if (!user.avatar && user.id) {
+          api.getUserProfile(user.id)
+            .then(profile => {
+              if (profile && profile.avatar) {
+                const updatedUser = { ...user, avatar: profile.avatar };
+                setCurrentUser(updatedUser);
+                localStorage.setItem('user', JSON.stringify(updatedUser));
+              }
+            })
+            .catch(error => {
+              console.error('Failed to fetch profile avatar on load:', error);
+            });
+        }
       } catch (error) {
         localStorage.removeItem('user');
         localStorage.removeItem('token');
@@ -141,6 +156,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       clearAnonymousId();
 
       setCurrentUser(response.user);
+      
+      // Fetch complete profile to get avatar
+      try {
+        const profile = await api.getUserProfile(response.user.id);
+        if (profile && profile.avatar) {
+          const updatedUser = { ...response.user, avatar: profile.avatar };
+          setCurrentUser(updatedUser);
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+        }
+      } catch (profileError) {
+        console.error('Failed to fetch profile avatar:', profileError);
+        // Continue anyway, avatar is not critical
+      }
+      
       return response;
     } catch (error) {
       throw error;
@@ -191,6 +220,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       clearAnonymousId();
 
       setCurrentUser(response.user);
+      
+      // Fetch complete profile to get avatar
+      try {
+        const profile = await api.getUserProfile(response.user.id);
+        if (profile && profile.avatar) {
+          const updatedUser = { ...response.user, avatar: profile.avatar };
+          setCurrentUser(updatedUser);
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+        }
+      } catch (profileError) {
+        console.error('Failed to fetch profile avatar:', profileError);
+        // Continue anyway, avatar is not critical
+      }
+      
       return response;
     } catch (error) {
       throw error;

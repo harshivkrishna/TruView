@@ -6,7 +6,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 30000, // Increased from 10s to 30s
+  timeout: 45000, // Increased from 30s to 45s for better reliability
   withCredentials: true, // Enable sending cookies and authorization headers
   headers: {
     'Content-Type': 'application/json',
@@ -255,7 +255,9 @@ export const getUserReviews = async (userId: string) => {
   try {
     const response = await api.get(`/users/${userId}/reviews`);
     return response.data;
-  } catch (error) {
+  } catch (error: any) {
+    console.error('Error fetching user reviews:', error);
+    // Return empty array on error instead of throwing
     return [];
   }
 };
@@ -380,10 +382,7 @@ export const getAdminReports = async (page = 1, limit = 50) => {
 // Trigger analytics computation
 export const computeAnalytics = async (date?: string) => {
   try {
-    console.log('Computing analytics with date:', date);
-    console.log('Making request to:', `${API_BASE_URL}/admin/analytics/compute`);
     const response = await api.post('/admin/analytics/compute', { date });
-    console.log('Analytics computation response:', response.data);
     return response.data;
   } catch (error) {
     console.error('Analytics computation error:', error);
