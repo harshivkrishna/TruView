@@ -91,15 +91,20 @@ const ReviewSchema = new mongoose.Schema({
     type: Map,
     of: String,
     default: () => new Map()
+  },
+  titleTranslations: {
+    type: Map,
+    of: String,
+    default: () => new Map()
   }
 }, {
   timestamps: true
 });
 
 // Method to add view (only once per user)
-ReviewSchema.methods.addView = function(userId) {
+ReviewSchema.methods.addView = function (userId) {
   if (!userId) return false;
-  
+
   const existingView = this.viewedBy.find(view => view.userId.toString() === userId.toString());
   if (!existingView) {
     this.viewedBy.push({ userId, viewedAt: new Date() });
@@ -110,12 +115,12 @@ ReviewSchema.methods.addView = function(userId) {
 };
 
 // Method to toggle upvote (one per user)
-ReviewSchema.methods.toggleUpvote = function(userId) {
+ReviewSchema.methods.toggleUpvote = function (userId) {
   if (!userId) return false;
-  
+
   const userIdStr = userId.toString();
   const existingUpvote = this.upvotedBy.find(id => id.toString() === userIdStr);
-  
+
   if (existingUpvote) {
     // Remove upvote
     this.upvotedBy = this.upvotedBy.filter(id => id.toString() !== userIdStr);
@@ -130,13 +135,13 @@ ReviewSchema.methods.toggleUpvote = function(userId) {
 };
 
 // Method to check if user has upvoted
-ReviewSchema.methods.hasUserUpvoted = function(userId) {
+ReviewSchema.methods.hasUserUpvoted = function (userId) {
   if (!userId) return false;
   return this.upvotedBy.some(id => id.toString() === userId.toString());
 };
 
 // Method to check if user has viewed
-ReviewSchema.methods.hasUserViewed = function(userId) {
+ReviewSchema.methods.hasUserViewed = function (userId) {
   if (!userId) return false;
   return this.viewedBy.some(view => view.userId.toString() === userId.toString());
 };

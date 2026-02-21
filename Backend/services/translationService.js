@@ -71,9 +71,9 @@ const processReviewTranslations = async (reviewId) => {
     const startTime = Date.now();
 
     try {
-        const review = await Review.findById(reviewId).select('description originalLanguage translations').lean();
-        if (!review || !review.description) {
-            console.log(`⏭️ Skipping translation for review ${reviewId}: no description`);
+        const review = await Review.findById(reviewId).select('title description originalLanguage translations titleTranslations').lean();
+        if (!review || (!review.description && !review.title)) {
+            console.log(`⏭️ Skipping translation for review ${reviewId}: no content`);
             return;
         }
 
@@ -95,16 +95,24 @@ const processReviewTranslations = async (reviewId) => {
         const translationPromises = APP_LANGUAGES
             .filter(lang => lang !== detectedLang)
             .map(async (targetLang) => {
-                const translated = await translateText(review.description, targetLang, detectedLang);
-                if (translated) {
-                    translationUpdates[`translations.${targetLang}`] = translated;
+                const [translatedDesc, translatedTitle] = await Promise.all([
+                    review.description ? translateText(review.description, targetLang, detectedLang) : Promise.resolve(null),
+                    review.title ? translateText(review.title, targetLang, detectedLang) : Promise.resolve(null)
+                ]);
+
+                if (translatedDesc) {
+                    translationUpdates[`translations.${targetLang}`] = translatedDesc;
+                }
+                if (translatedTitle) {
+                    translationUpdates[`titleTranslations.${targetLang}`] = translatedTitle;
                 }
             });
 
         await Promise.all(translationPromises);
 
         // Also store the original text under its own language key for consistency
-        translationUpdates[`translations.${detectedLang}`] = review.description;
+        if (review.description) translationUpdates[`translations.${detectedLang}`] = review.description;
+        if (review.title) translationUpdates[`titleTranslations.${detectedLang}`] = review.title;
 
         // Step 4: Batch update all translations in one DB call
         if (Object.keys(translationUpdates).length > 0) {
@@ -127,24 +135,29 @@ const processReviewTranslations = async (reviewId) => {
  * Used by the /api/reviews/:id/translate/:targetLang endpoint.
  * @param {string} reviewId - MongoDB ObjectId
  * @param {string} targetLang - Target language code
- * @returns {Promise<{translatedText: string, originalLanguage: string, cached: boolean}|null>}
+ * @returns {Promise<{translatedText: string, translatedTitle: string, originalLanguage: string, cached: boolean}|null>}
  */
 const translateAndCache = async (reviewId, targetLang) => {
     try {
         const review = await Review.findById(reviewId)
-            .select('description originalLanguage translations')
+            .select('title description originalLanguage translations titleTranslations')
             .lean();
 
         if (!review) return null;
 
-        // Check if translation already cached
+        // Check if description translation already cached
         const existingTranslation = review.translations && review.translations.get
             ? review.translations.get(targetLang)
             : review.translations?.[targetLang];
 
-        if (existingTranslation) {
+        const existingTitleTranslation = review.titleTranslations && review.titleTranslations.get
+            ? review.titleTranslations.get(targetLang)
+            : review.titleTranslations?.[targetLang];
+
+        if (existingTranslation && existingTitleTranslation) {
             return {
                 translatedText: existingTranslation,
+                translatedTitle: existingTitleTranslation,
                 originalLanguage: review.originalLanguage,
                 cached: true
             };
@@ -166,31 +179,44 @@ const translateAndCache = async (reviewId, targetLang) => {
         if (targetLang === sourceLang) {
             return {
                 translatedText: review.description,
+                translatedTitle: review.title,
                 originalLanguage: sourceLang,
                 cached: true
             };
         }
 
-        // Translate
-        const translatedText = await translateText(review.description, targetLang, sourceLang);
+        // Translate both description and title together
+        const [translatedText, translatedTitle] = await Promise.all([
+            translateText(review.description, targetLang, sourceLang),
+            review.title ? translateText(review.title, targetLang, sourceLang) : Promise.resolve(null)
+        ]);
+
         if (!translatedText) {
-            // Translation not available (no API key or API error) — return original text
             return {
                 translatedText: review.description,
+                translatedTitle: review.title,
                 originalLanguage: sourceLang || null,
                 cached: false,
                 unavailable: true
             };
         }
 
-        // Cache in DB (atomic update)
+        // Cache both in DB (atomic update)
+        const updateFields = {
+            [`translations.${targetLang}`]: translatedText
+        };
+        if (translatedTitle) {
+            updateFields[`titleTranslations.${targetLang}`] = translatedTitle;
+        }
+
         await Review.updateOne(
             { _id: reviewId },
-            { $set: { [`translations.${targetLang}`]: translatedText } }
+            { $set: updateFields }
         );
 
         return {
             translatedText,
+            translatedTitle: translatedTitle || review.title,
             originalLanguage: sourceLang,
             cached: false
         };

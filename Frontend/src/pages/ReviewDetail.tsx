@@ -15,6 +15,29 @@ import { updateMetaTags, generateReviewStructuredData, addStructuredData } from 
 import { getCachedData, reviewCache } from '../utils/cache';
 import { preloadImage } from '../utils/imageOptimization';
 
+const getTagStyle = (tag: string) => {
+  const styles = {
+    'Brutal': 'from-red-500 to-red-600 text-white shadow-red-200',
+    'Honest': 'from-blue-500 to-blue-600 text-white shadow-blue-200',
+    'Praise': 'from-green-500 to-green-600 text-white shadow-green-200',
+    'Warning': 'from-yellow-500 to-yellow-600 text-white shadow-yellow-200',
+    'default': 'from-gray-500 to-gray-600 text-white shadow-gray-200'
+  };
+  return styles[tag as keyof typeof styles] || styles.default;
+};
+
+const getCategoryGradient = (category: string) => {
+  const gradients = {
+    'Technology': 'from-blue-500 to-purple-600',
+    'Food': 'from-orange-500 to-red-600',
+    'Travel': 'from-green-500 to-teal-600',
+    'Entertainment': 'from-pink-500 to-purple-600',
+    'Shopping': 'from-indigo-500 to-blue-600',
+    'default': 'from-gray-500 to-gray-700'
+  };
+  return gradients[category as keyof typeof gradients] || gradients.default;
+};
+
 const ReviewDetail = () => {
   const { currentUser } = useAuth();
   const { updateReview } = useReviewContext();
@@ -309,7 +332,7 @@ const ReviewDetail = () => {
       // Update SEO meta tags
       updateMetaTags({
         title: `${reviewData.title} - Review by ${reviewData.author?.name || 'Anonymous'}`,
-        description: reviewData.description.substring(0, 160),
+        description: (reviewData.description || '').substring(0, 160),
         keywords: reviewData.tags?.join(', ') || reviewData.category,
         author: reviewData.author?.name || 'Anonymous',
         publishedTime: reviewData.createdAt,
@@ -531,23 +554,23 @@ const ReviewDetail = () => {
 
     return (
       <div className={`trust-score flex items-center sm:ml-4 px-2 sm:px-3 py-1.5 bg-white shadow-lg border-2 rounded-full ${trustLevel.level === 'High' ? 'border-green-500' :
-          trustLevel.level === 'Good' ? 'border-blue-500' :
-            trustLevel.level === 'Fair' ? 'border-yellow-500' :
-              trustLevel.level === 'Low' ? 'border-orange-500' :
-                'border-red-500'
+        trustLevel.level === 'Good' ? 'border-blue-500' :
+          trustLevel.level === 'Fair' ? 'border-yellow-500' :
+            trustLevel.level === 'Low' ? 'border-orange-500' :
+              'border-red-500'
         }`}>
         <div className="flex items-center gap-1 sm:gap-1.5">
           <Award className={`w-3 h-3 sm:w-4 sm:h-4 ${trustLevel.level === 'High' ? 'text-green-600' :
-              trustLevel.level === 'Good' ? 'text-blue-600' :
-                trustLevel.level === 'Fair' ? 'text-yellow-600' :
-                  trustLevel.level === 'Low' ? 'text-orange-600' :
-                    'text-red-600'
+            trustLevel.level === 'Good' ? 'text-blue-600' :
+              trustLevel.level === 'Fair' ? 'text-yellow-600' :
+                trustLevel.level === 'Low' ? 'text-orange-600' :
+                  'text-red-600'
             }`} />
           <span className={`text-xs sm:text-sm font-bold font-mono ${trustLevel.level === 'High' ? 'text-green-700' :
-              trustLevel.level === 'Good' ? 'text-blue-700' :
-                trustLevel.level === 'Fair' ? 'text-yellow-700' :
-                  trustLevel.level === 'Low' ? 'text-orange-700' :
-                    'text-red-700'
+            trustLevel.level === 'Good' ? 'text-blue-700' :
+              trustLevel.level === 'Fair' ? 'text-yellow-700' :
+                trustLevel.level === 'Low' ? 'text-orange-700' :
+                  'text-red-700'
             }`}>
             {score}%
           </span>
@@ -728,26 +751,34 @@ const ReviewDetail = () => {
             {/* Tags Section - Mobile optimized */}
             <div className="tags-section bg-gray-50 p-2 sm:p-4 rounded-lg mb-3 sm:mb-6 mt-2 sm:mt-4">
               <div className="tags-container flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                {review.tags && review.tags.length > 0 && review.tags.map((tag: any) => (
+                {Array.isArray(review.tags) && review.tags.map((tag: any) => (
                   <span
                     key={tag}
-                    className={`px-2 sm:px-3 py-1 sm:py-1.5 text-xs font-medium rounded-full ${tag === 'Brutal' ? 'bg-red-100 text-red-700' :
-                        tag === 'Honest' ? 'bg-blue-100 text-blue-700' :
-                          tag === 'Praise' ? 'bg-green-100 text-green-700' :
-                            'bg-gray-100 text-gray-700'
-                      }`}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-full bg-gradient-to-r ${getTagStyle(tag)} text-white`}
                   >
                     {tag}
                   </span>
                 ))}
-                <span className="px-2 sm:px-3 py-1 sm:py-1.5 text-xs font-medium bg-orange-100 text-orange-700 rounded-full">
-                  {review.category}
-                </span>
+                {review.category && (
+                  <span className={`px-3 py-1.5 text-xs font-semibold rounded-full bg-gradient-to-r ${getCategoryGradient(review.category)} text-white`}>
+                    {review.category}
+                  </span>
+                )}
+                {review.subcategory && (
+                  <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700">
+                    {review.subcategory}
+                  </span>
+                )}
               </div>
             </div>
 
             {/* Title - Mobile responsive */}
-            <h1 className="review-title text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-3 sm:mb-6 leading-tight">{review.title}</h1>
+            <h1 className="review-title text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-3 sm:mb-6 leading-tight">
+              <TranslatedReviewContent
+                review={review}
+                titleOnly={true}
+              />
+            </h1>
 
             {/* Author and Metadata - Mobile optimized */}
             <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-4 text-xs sm:text-sm text-gray-600 mb-3 sm:mb-6">
@@ -798,12 +829,12 @@ const ReviewDetail = () => {
                   onClick={handleUpvote}
                   disabled={!currentUser || isUpvoting}
                   className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg transition-colors text-sm sm:text-base ${isUpvoting
-                      ? 'text-gray-400 cursor-not-allowed bg-gray-100'
-                      : hasUpvoted
-                        ? 'text-orange-500 bg-orange-50'
-                        : currentUser
-                          ? 'text-gray-600 hover:text-orange-500 hover:bg-orange-50'
-                          : 'text-gray-400 cursor-not-allowed'
+                    ? 'text-gray-400 cursor-not-allowed bg-gray-100'
+                    : hasUpvoted
+                      ? 'text-orange-500 bg-orange-50'
+                      : currentUser
+                        ? 'text-gray-600 hover:text-orange-500 hover:bg-orange-50'
+                        : 'text-gray-400 cursor-not-allowed'
                     }`}
                   title={!currentUser ? 'Please log in to like reviews' : isUpvoting ? 'Updating...' : ''}
                 >

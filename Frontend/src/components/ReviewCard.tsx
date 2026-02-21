@@ -3,11 +3,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Star, ThumbsUp, Eye, Calendar, User, Share2, Award, Shield, Play, Video } from 'lucide-react';
 import SocialShareModal from './SocialShareModal';
-import MediaCarousel from './MediaCarousel';
 import { calculateTrustScore, getTrustLevel } from '../utils/trustPrediction';
 import { useReviewContext } from '../contexts/ReviewContext';
 import { useAuth } from '../contexts/AuthContext';
-import { lazyLoadImage } from '../utils/imageOptimization';
 import { upvoteReview } from '../services/api';
 import toast from 'react-hot-toast';
 import TranslatedReviewContent from './TranslatedReviewContent';
@@ -40,11 +38,35 @@ interface ReviewCardProps {
     adminRemovalReason?: string;
     originalLanguage?: string;
     translations?: Record<string, string>;
+    titleTranslations?: Record<string, string>;
   };
   showRank?: boolean;
   rank?: number;
   currentUserId?: string;
 }
+
+const getTagStyle = (tag: string) => {
+  const styles = {
+    'Brutal': 'from-red-500 to-red-600 text-white shadow-red-200',
+    'Honest': 'from-blue-500 to-blue-600 text-white shadow-blue-200',
+    'Praise': 'from-green-500 to-green-600 text-white shadow-green-200',
+    'Warning': 'from-yellow-500 to-yellow-600 text-white shadow-yellow-200',
+    'default': 'from-gray-500 to-gray-600 text-white shadow-gray-200'
+  };
+  return styles[tag as keyof typeof styles] || styles.default;
+};
+
+const getCategoryGradient = (category: string) => {
+  const gradients = {
+    'Technology': 'from-blue-500 to-purple-600',
+    'Food': 'from-orange-500 to-red-600',
+    'Travel': 'from-green-500 to-teal-600',
+    'Entertainment': 'from-pink-500 to-purple-600',
+    'Shopping': 'from-indigo-500 to-blue-600',
+    'default': 'from-gray-500 to-gray-700'
+  };
+  return gradients[category as keyof typeof gradients] || gradients.default;
+};
 
 const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = false, rank, currentUserId }) => {
   const navigate = useNavigate();
@@ -88,6 +110,7 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
 
   // Memoized formatted date
   const formattedDate = useMemo(() => {
+    if (!safeReview.createdAt) return 'Recently';
     return new Date(safeReview.createdAt).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
@@ -95,58 +118,57 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
     });
   }, [safeReview.createdAt]);
 
-  // Memoized truncated description
-  const truncatedDescription = useMemo(() => {
-    return safeReview.description.length > 150
-      ? safeReview.description.substring(0, 150) + '...'
-      : safeReview.description;
-  }, [safeReview.description]);
 
   // Memoized rating stars
   const ratingStars = useMemo(() => {
-    return [...Array(5)].map((_, i) => (
-      <Star
-        key={i}
-        className={`w-4 h-4 ${i < safeReview.rating ? 'text-orange-500 fill-current' : 'text-gray-300'}`}
-      />
-    ));
+    const rating = safeReview.rating || 0;
+    return (
+      <div className="flex items-center">
+        {[...Array(5)].map((_, i) => (
+          <Star
+            key={i}
+            className={`w-4 h-4 ${i < rating ? 'text-orange-500 fill-current' : 'text-gray-300'}`}
+          />
+        ))}
+        <span className="text-sm font-semibold text-gray-700 ml-2">({rating}/5)</span>
+      </div>
+    );
   }, [safeReview.rating]);
 
-  // Memoized trust score component
-  const trustScoreComponent = useMemo(() => (
-    <div className={`flex items-center px-2 py-1 rounded-full text-xs font-medium ${trustLevel.level === 'High' ? 'bg-green-100 text-green-700' :
-        trustLevel.level === 'Good' ? 'bg-blue-100 text-blue-700' :
-          trustLevel.level === 'Fair' ? 'bg-yellow-100 text-yellow-700' :
-            trustLevel.level === 'Low' ? 'bg-orange-100 text-orange-700' :
-              'bg-red-100 text-red-700'
-      }`}>
-      <Award className="w-3 h-3 mr-1" />
-      {trustScore}%
-    </div>
-  ), [trustScore, trustLevel]);
 
   // Memoized tags
-  const tagsComponent = useMemo(() => (
-    <div className="flex flex-wrap gap-1">
-      {safeReview.tags.slice(0, 3).map((tag) => (
-        <span
-          key={tag}
-          className={`px-2 py-1 text-xs font-medium rounded-full ${tag === 'Brutal' ? 'bg-red-100 text-red-700' :
-              tag === 'Honest' ? 'bg-blue-100 text-blue-700' :
-                tag === 'Praise' ? 'bg-green-100 text-green-700' :
-                  'bg-gray-100 text-gray-700'
-            }`}
-        >
-          {tag}
-        </span>
-      ))}
-      {safeReview.tags.length > 3 && (
-        <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700">
-          +{safeReview.tags.length - 3}
-        </span>
-      )}
-    </div>
-  ), [safeReview.tags]);
+  const tagsComponent = useMemo(() => {
+    const tags = Array.isArray(safeReview?.tags) ? safeReview.tags : [];
+    return (
+      <div className="flex items-center gap-2 flex-wrap w-full">
+        {tags.slice(0, 2).map((tag) => (
+          <span
+            key={tag}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-full bg-gradient-to-r ${getTagStyle(tag)} text-white`}
+          >
+            {tag}
+          </span>
+        ))}
+        {tags.length > 2 && (
+          <span className="px-2 py-1.5 text-xs text-gray-500 bg-gray-100 rounded-full">
+            +{tags.length - 2} more
+          </span>
+        )}
+        {!safeReview.media && safeReview.category && (
+          <div className="ml-auto flex flex-col items-end gap-1">
+            <span className={`px-3 py-1.5 text-xs font-semibold rounded-full bg-gradient-to-r ${getCategoryGradient(safeReview.category)} text-white`}>
+              {safeReview.category}
+            </span>
+            {safeReview.subcategory && (
+              <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700">
+                {safeReview.subcategory}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }, [safeReview.tags, safeReview.media, safeReview.category, safeReview.subcategory]);
 
   // Callback handlers
   const handleUpvote = useCallback(async (e: React.MouseEvent) => {
@@ -177,7 +199,6 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
 
       // Update local state immediately
       updateReview(safeReview._id, {
-        ...safeReview,
         upvotes: newUpvoteCount,
         upvotedBy: newHasUpvoted
           ? [...(safeReview.upvotedBy || []), currentUser.id]
@@ -202,7 +223,6 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
       // Rollback on error
       setHasUpvoted(previousHasUpvoted);
       updateReview(safeReview._id, {
-        ...safeReview,
         upvotes: previousUpvotes,
         upvotedBy: previousHasUpvoted
           ? [...(safeReview.upvotedBy || []), currentUser.id]
@@ -221,10 +241,6 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
     }
   }, [currentUser, isUpvoting, safeReview, hasUpvoted, updateReview]);
 
-  const handleShare = useCallback(() => {
-    setShowShareModal(true);
-  }, []);
-
   const handleAuthorClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -233,50 +249,7 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
     }
   }, [safeReview.author?.userId, navigate]);
 
-  const handleCardClick = useCallback(() => {
-    navigate(`/review/${safeReview._id}`);
-  }, [safeReview._id, navigate]);
 
-  // Memoized utility functions
-  const truncateText = useCallback((text: string, maxLength: number) => {
-    if (text.length <= maxLength) return text;
-    return text.substring(0, maxLength) + '...';
-  }, []);
-
-  const formatDate = useCallback((dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffTime = Math.abs(now.getTime() - date.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays === 1) return 'Today';
-    if (diffDays === 2) return 'Yesterday';
-    if (diffDays <= 7) return `${diffDays} days ago`;
-    return date.toLocaleDateString();
-  }, []);
-
-  const getTagStyle = (tag: string) => {
-    const styles = {
-      'Brutal': 'from-red-500 to-red-600 text-white shadow-red-200',
-      'Honest': 'from-blue-500 to-blue-600 text-white shadow-blue-200',
-      'Praise': 'from-green-500 to-green-600 text-white shadow-green-200',
-      'Warning': 'from-yellow-500 to-yellow-600 text-white shadow-yellow-200',
-      'default': 'from-gray-500 to-gray-600 text-white shadow-gray-200'
-    };
-    return styles[tag as keyof typeof styles] || styles.default;
-  };
-
-  const getCategoryGradient = (category: string) => {
-    const gradients = {
-      'Technology': 'from-blue-500 to-purple-600',
-      'Food': 'from-orange-500 to-red-600',
-      'Travel': 'from-green-500 to-teal-600',
-      'Entertainment': 'from-pink-500 to-purple-600',
-      'Shopping': 'from-indigo-500 to-blue-600',
-      'default': 'from-gray-500 to-gray-700'
-    };
-    return gradients[category as keyof typeof gradients] || gradients.default;
-  };
 
   return (
     <>
@@ -335,33 +308,7 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
           ) : (
             /* Normal Tags Section - Only top 2 tags visible */
             <div className="p-6 py-5 bg-gray-50 border-b border-gray-200 min-h-[80px] flex items-center">
-              <div className="flex items-center gap-2 flex-wrap w-full">
-                {currentReview.tags.slice(0, 2).map((tag, index) => (
-                  <span
-                    key={tag}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-full bg-gradient-to-r ${getTagStyle(tag)} text-white`}
-                  >
-                    {tag}
-                  </span>
-                ))}
-                {currentReview.tags.length > 2 && (
-                  <span className="px-2 py-1.5 text-xs text-gray-500 bg-gray-100 rounded-full">
-                    +{currentReview.tags.length - 2} more
-                  </span>
-                )}
-                {!currentReview.media && (
-                  <div className="ml-auto flex flex-col items-end gap-1">
-                    <span className={`px-3 py-1.5 text-xs font-semibold rounded-full bg-gradient-to-r ${getCategoryGradient(currentReview.category)} text-white`}>
-                      {currentReview.category}
-                    </span>
-                    {currentReview.subcategory && (
-                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700">
-                        {currentReview.subcategory}
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
+              {tagsComponent}
             </div>
           )}
 
@@ -464,27 +411,16 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
             {/* Title */}
             <Link to={`/review/${currentReview._id}`} className="block mb-3">
               <h3 className="text-lg font-bold text-gray-900 line-clamp-2 hover:text-orange-600 transition-colors h-[56px] overflow-hidden">
-                {currentReview.title}
+                <TranslatedReviewContent
+                  review={currentReview as any}
+                  titleOnly={true}
+                />
               </h3>
             </Link>
 
             {/* Rating */}
-            <div className="flex items-center mb-3">
-              <div className="flex items-center">
-                {[...Array(5)].map((_, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, scale: 0 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: i * 0.1 }}
-                  >
-                    <Star
-                      className={`w-5 h-5 ${i < currentReview.rating ? 'text-orange-500 fill-current' : 'text-gray-300'}`}
-                    />
-                  </motion.div>
-                ))}
-              </div>
-              <span className="text-sm font-semibold text-gray-700 ml-2">({currentReview.rating}/5)</span>
+            <div className="mb-3">
+              {ratingStars}
             </div>
 
             {/* Description */}
@@ -510,8 +446,8 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
                         className={`w-12 h-12 rounded-full object-cover border-2 border-white shadow-lg ${currentReview.author?.userId ? 'cursor-pointer group-hover/profile:border-orange-300' : ''}`}
                         whileHover={{ scale: 1.1 }}
                         transition={{ duration: 0.2 }}
-                        onClick={currentReview.author?.userId ? handleAuthorClick : undefined}
-                        title={currentReview.author?.userId ? `View ${currentReview.author.name}'s profile` : currentReview.author.name}
+                        onClick={safeReview.author?.userId ? handleAuthorClick : undefined}
+                        title={safeReview.author?.userId ? `View ${safeReview.author.name}'s profile` : (safeReview.author?.name || 'Anonymous')}
                         onError={(e) => {
                           // Fallback to default avatar if image fails to load
                           e.currentTarget.style.display = 'none';
@@ -550,7 +486,7 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
                     )}
                     <div className="flex items-center text-xs text-gray-500">
                       <Calendar className="w-3 h-3 mr-1" />
-                      {formatDate(currentReview.createdAt)}
+                      {formattedDate}
                     </div>
                   </div>
                 </div>
@@ -563,20 +499,20 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
                     onClick={handleUpvote}
                     disabled={!currentUser || isUpvoting}
                     className={`flex items-center ${isUpvoting
-                        ? 'text-gray-400 cursor-not-allowed'
-                        : hasUpvoted
-                          ? 'text-green-600'
-                          : currentUser
-                            ? 'text-gray-600 hover:text-green-600 cursor-pointer'
-                            : 'text-gray-400 cursor-not-allowed'
+                      ? 'text-gray-400 cursor-not-allowed'
+                      : hasUpvoted
+                        ? 'text-green-600'
+                        : currentUser
+                          ? 'text-gray-600 hover:text-green-600 cursor-pointer'
+                          : 'text-gray-400 cursor-not-allowed'
                       } transition-colors`}
                     whileHover={currentUser && !isUpvoting ? { scale: 1.05 } : {}}
                     whileTap={currentUser && !isUpvoting ? { scale: 0.95 } : {}}
                     title={!currentUser ? 'Please log in to like reviews' : isUpvoting ? 'Updating...' : hasUpvoted ? 'Unlike' : 'Like'}
                   >
                     <div className={`w-8 h-8 ${hasUpvoted
-                        ? 'bg-gradient-to-r from-green-100 to-green-200'
-                        : 'bg-gradient-to-r from-gray-100 to-gray-200'
+                      ? 'bg-gradient-to-r from-green-100 to-green-200'
+                      : 'bg-gradient-to-r from-gray-100 to-gray-200'
                       } rounded-full flex items-center justify-center mr-2 transition-colors`}>
                       <ThumbsUp className={`w-4 h-4 ${hasUpvoted ? 'text-green-600 fill-current' : 'text-gray-600'
                         } ${isUpvoting ? 'animate-pulse' : ''}`} />

@@ -174,7 +174,7 @@ router.get('/', async (req, res) => {
           select: 'firstName lastName avatar',
           options: { strictPopulate: false }
         })
-        .select('title description rating category subcategory tags author upvotes views trustScore createdAt updatedAt media isRemovedByAdmin adminRemovalReason originalLanguage translations')
+        .select('title description rating category subcategory tags author upvotes views trustScore createdAt updatedAt media isRemovedByAdmin adminRemovalReason originalLanguage translations titleTranslations')
         .sort(sortObject)
         .skip(skip)
         .limit(parseInt(limit))
@@ -263,7 +263,7 @@ router.get('/trending', async (req, res) => {
     // Optimized query with minimal fields and indexed sort
     const reviews = await Review.find(
       { isRemovedByAdmin: { $ne: true } },
-      'title description rating category subcategory tags author upvotes views trustScore createdAt media originalLanguage translations'
+      'title description rating category subcategory tags author upvotes views trustScore createdAt media originalLanguage translations titleTranslations'
     )
       .populate({
         path: 'author.userId',
@@ -351,7 +351,7 @@ router.get('/most-viewed-week', async (req, res) => {
         isRemovedByAdmin: { $ne: true },
         createdAt: { $gte: sevenDaysAgo } // Only look at recent reviews
       },
-      'title description rating category subcategory tags author upvotes views trustScore createdAt media originalLanguage translations'
+      'title description rating category subcategory tags author upvotes views trustScore createdAt media originalLanguage translations titleTranslations'
     )
       .populate({
         path: 'author.userId',
@@ -425,7 +425,7 @@ router.get('/:id', async (req, res) => {
         select: 'firstName lastName avatar',
         options: { strictPopulate: false }
       })
-      .select('title description rating category subcategory tags author upvotes views trustScore createdAt updatedAt media upvotedBy isRemovedByAdmin adminRemovalReason originalLanguage translations')
+      .select('title description rating category subcategory tags author upvotes views trustScore createdAt updatedAt media upvotedBy isRemovedByAdmin adminRemovalReason originalLanguage translations titleTranslations')
       .lean()
       .exec();
 
@@ -597,7 +597,7 @@ router.patch('/:id/upvote', authenticateToken, async (req, res) => {
       },
       {
         new: true,
-        select: 'title description rating category subcategory tags author upvotes views trustScore createdAt updatedAt media upvotedBy isRemovedByAdmin adminRemovalReason'
+        select: 'title description rating category subcategory tags author upvotes views trustScore createdAt updatedAt media upvotedBy isRemovedByAdmin adminRemovalReason originalLanguage translations titleTranslations'
       }
     )
       .populate({
@@ -763,6 +763,7 @@ router.get('/:id/translate/:targetLang', async (req, res) => {
 
     res.json({
       translatedText: result.translatedText,
+      translatedTitle: result.translatedTitle,
       originalLanguage: result.originalLanguage,
       targetLanguage: targetLang,
       cached: result.cached
