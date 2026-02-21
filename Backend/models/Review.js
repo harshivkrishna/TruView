@@ -82,6 +82,15 @@ const ReviewSchema = new mongoose.Schema({
   adminRemovalReason: {
     type: String,
     maxLength: 500
+  },
+  originalLanguage: {
+    type: String,
+    default: null
+  },
+  translations: {
+    type: Map,
+    of: String,
+    default: () => new Map()
   }
 }, {
   timestamps: true

@@ -25,12 +25,12 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  
+
   // For file uploads, don't set Content-Type - let browser handle it
   if (config.data instanceof FormData && config.headers) {
     delete config.headers['Content-Type'];
   }
-  
+
   return config;
 });
 
@@ -92,7 +92,7 @@ export const getReviews = async (params = {}) => {
         }
       }
     });
-    
+
     const response = await api.get(`/reviews?${queryParams.toString()}`);
     return response.data;
   } catch (error) {
@@ -132,11 +132,11 @@ export const incrementReviewView = async (id: string) => {
   try {
     // Get anonymous ID for unauthenticated users
     const anonymousId = getAnonymousId();
-    
+
     const response = await api.patch(`/reviews/${id}/view`, {
       anonymousId: anonymousId
     });
-    
+
     return response.data;
   } catch (error: any) {
     // Don't throw error for view increment - it shouldn't break the page
@@ -164,6 +164,17 @@ export const upvoteReview = async (id: string) => {
     return response.data;
   } catch (error) {
     throw error;
+  }
+};
+
+// Translation API
+export const translateReview = async (reviewId: string, targetLang: string) => {
+  try {
+    const response = await api.get(`/reviews/${reviewId}/translate/${targetLang}`);
+    return response.data;
+  } catch (error) {
+    console.error('Translation API error:', error);
+    return null;
   }
 };
 

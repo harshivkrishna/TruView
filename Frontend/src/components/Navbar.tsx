@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, User, Settings } from 'lucide-react';
+import { Menu, X, User, Settings, Globe } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage, SUPPORTED_LANGUAGES } from '../contexts/LanguageContext';
 import LoginModal from './auth/LoginModal';
 import RegisterModal from './auth/RegisterModal';
 import ForgotPasswordModal from './auth/ForgotPasswordModal';
@@ -15,8 +16,24 @@ const Navbar = () => {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
+  const [showLangPopup, setShowLangPopup] = useState(false);
+  const langPopupRef = useRef<HTMLDivElement>(null);
+  const { reviewLanguage, setReviewLanguage, getNativeLanguageName } = useLanguage();
 
   const isAdmin = currentUser?.role === 'admin';
+
+  // Close language popup on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (langPopupRef.current && !langPopupRef.current.contains(e.target as Node)) {
+        setShowLangPopup(false);
+      }
+    };
+    if (showLangPopup) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showLangPopup]);
 
   // Prevent body scroll when sidebar is open
   useEffect(() => {
@@ -25,7 +42,7 @@ const Navbar = () => {
     } else {
       document.body.style.overflow = 'unset';
     }
-    
+
     // Cleanup on unmount
     return () => {
       document.body.style.overflow = 'unset';
@@ -42,7 +59,7 @@ const Navbar = () => {
     <nav className="bg-white border-b border-gray-200 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          <motion.div 
+          <motion.div
             className="flex items-center"
             initial={{ x: -20, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
@@ -55,7 +72,7 @@ const Navbar = () => {
             </Link>
           </motion.div>
 
-          <motion.div 
+          <motion.div
             className="hidden md:flex items-center space-x-8"
             initial={{ y: -20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -70,21 +87,65 @@ const Navbar = () => {
             <Link to="/discover" className="text-gray-700 hover:text-orange-500 transition-colors">
               Discovery
             </Link>
-            
-            
+
+            {/* Language Selector */}
+            <div className="relative" ref={langPopupRef}>
+              <button
+                onClick={() => setShowLangPopup(!showLangPopup)}
+                className="flex items-center gap-1.5 text-gray-600 hover:text-orange-500 transition-colors px-2 py-1.5 rounded-lg hover:bg-orange-50"
+                title="Change review language"
+              >
+                <Globe className="w-4 h-4" />
+                <span className="text-xs font-medium">{getNativeLanguageName(reviewLanguage)}</span>
+              </button>
+
+              <AnimatePresence>
+                {showLangPopup && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -8, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.95 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute right-0 top-full mt-2 w-52 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50"
+                  >
+                    <div className="p-3 border-b border-gray-100">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Review Language</p>
+                    </div>
+                    <div className="p-1.5">
+                      {SUPPORTED_LANGUAGES.map((lang) => (
+                        <button
+                          key={lang.code}
+                          onClick={() => {
+                            setReviewLanguage(lang.code);
+                            setShowLangPopup(false);
+                          }}
+                          className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-colors ${reviewLanguage === lang.code
+                            ? 'bg-orange-50 text-orange-600 font-semibold'
+                            : 'text-gray-700 hover:bg-gray-50'
+                            }`}
+                        >
+                          <span>{lang.name}</span>
+                          <span className="text-xs text-gray-400">{lang.nativeName}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
             {(currentUser && currentUser.emailVerified) || isAdmin ? (
               <>
                 {isAdmin ? (
-                  <Link 
-                    to="/admin" 
+                  <Link
+                    to="/admin"
                     className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors"
                   >
                     Admin Dashboard
                   </Link>
                 ) : (
                   <>
-                    <Link 
-                      to="/submit" 
+                    <Link
+                      to="/submit"
                       className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors"
                     >
                       Write Review
@@ -95,8 +156,8 @@ const Navbar = () => {
                       title={`${currentUser.firstName}'s Profile`}
                     >
                       {currentUser.avatar ? (
-                        <img 
-                          src={currentUser.avatar} 
+                        <img
+                          src={currentUser.avatar}
                           alt={currentUser.firstName}
                           className="w-full h-full object-cover"
                         />
@@ -151,7 +212,7 @@ const Navbar = () => {
               className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
               onClick={() => setIsMenuOpen(false)}
             />
-            
+
             {/* Sliding Sidebar */}
             <motion.div
               initial={{ x: '-100%' }}
@@ -176,37 +237,55 @@ const Navbar = () => {
 
               {/* Sidebar Navigation - Main content area */}
               <div className="flex-1 flex flex-col p-4 space-y-2 overflow-y-auto">
-                <Link 
-                  to="/" 
+                <Link
+                  to="/"
                   className="block px-4 py-3 text-gray-700 hover:bg-orange-50 hover:text-orange-500 rounded-lg transition-colors font-medium text-lg"
                   onClick={() => setIsMenuOpen(false)}
                 >
                   Home
                 </Link>
-                <Link 
-                  to="/categories" 
+                <Link
+                  to="/categories"
                   className="block px-4 py-3 text-gray-700 hover:bg-orange-50 hover:text-orange-500 rounded-lg transition-colors font-medium text-lg"
                   onClick={() => setIsMenuOpen(false)}
                 >
                   Categories
                 </Link>
-                <Link 
-                  to="/discover" 
+                <Link
+                  to="/discover"
                   className="block px-4 py-3 text-gray-700 hover:bg-orange-50 hover:text-orange-500 rounded-lg transition-colors font-medium text-lg"
                   onClick={() => setIsMenuOpen(false)}
                 >
                   Discovery
                 </Link>
-                
-                
+
+                {/* Language Selector in Mobile */}
+                <div className="border-t border-gray-200 mt-2 pt-2">
+                  <p className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">Review Language</p>
+                  <div className="flex gap-2 px-4 pb-2">
+                    {SUPPORTED_LANGUAGES.map((lang) => (
+                      <button
+                        key={lang.code}
+                        onClick={() => setReviewLanguage(lang.code)}
+                        className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${reviewLanguage === lang.code
+                          ? 'bg-orange-500 text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
+                      >
+                        {lang.nativeName}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Logged in user actions */}
                 {(currentUser && currentUser.emailVerified) || isAdmin ? (
                   <>
                     {isAdmin ? (
                       <>
                         {/* Admin Dashboard */}
-                        <Link 
-                          to="/admin" 
+                        <Link
+                          to="/admin"
                           className="flex items-center gap-2 px-4 py-3 bg-orange-500 text-white hover:bg-orange-600 rounded-lg transition-colors font-medium text-lg"
                           onClick={() => setIsMenuOpen(false)}
                         >
@@ -226,9 +305,9 @@ const Navbar = () => {
                         >
                           My Profile
                         </button>
-                        
-                        <Link 
-                          to="/submit" 
+
+                        <Link
+                          to="/submit"
                           className="flex items-center justify-center gap-2 bg-orange-500 text-white px-4 py-3 rounded-lg hover:bg-orange-600 transition-colors text-center font-semibold mt-2"
                           onClick={() => setIsMenuOpen(false)}
                         >
@@ -243,7 +322,7 @@ const Navbar = () => {
                     <>
                       {/* Divider */}
                       <div className="border-t border-gray-200 my-3"></div>
-                      
+
                       <button
                         onClick={() => {
                           setShowLoginModal(true);
@@ -265,21 +344,21 @@ const Navbar = () => {
                     </>
                   )
                 )}
-                
+
                 {/* Spacer to push footer links to bottom */}
                 <div className="flex-1"></div>
-                
+
                 {/* Footer Links */}
                 <div className="border-t border-gray-200 pt-3 mt-auto space-y-1">
-                  <Link 
-                    to="/privacy" 
+                  <Link
+                    to="/privacy"
                     className="block px-4 py-2 text-gray-600 hover:text-orange-500 transition-colors text-sm"
                     onClick={() => setIsMenuOpen(false)}
                   >
                     Privacy Policy
                   </Link>
-                  <Link 
-                    to="/terms" 
+                  <Link
+                    to="/terms"
                     className="block px-4 py-2 text-gray-600 hover:text-orange-500 transition-colors text-sm"
                     onClick={() => setIsMenuOpen(false)}
                   >
@@ -305,7 +384,7 @@ const Navbar = () => {
           setShowForgotPasswordModal(true);
         }}
       />
-      
+
       <RegisterModal
         isOpen={showRegisterModal}
         onClose={() => setShowRegisterModal(false)}

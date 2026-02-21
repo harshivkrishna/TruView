@@ -21,6 +21,8 @@ export interface Review {
   trustScore: number;
   isRemovedByAdmin?: boolean;
   adminRemovalReason?: string;
+  originalLanguage?: string;
+  translations?: Record<string, string>;
   createdAt: string;
   updatedAt: string;
 }
@@ -82,8 +84,8 @@ export const ReviewProvider: React.FC<ReviewProviderProps> = ({ children }) => {
   const hasUserViewed = (reviewId: string, userId: string) => {
     const review = reviews[reviewId];
     if (!review || !review.viewedBy) return false;
-    
-    return review.viewedBy.some((view: any) => 
+
+    return review.viewedBy.some((view: any) =>
       view.userId.toString() === userId.toString()
     );
   };
