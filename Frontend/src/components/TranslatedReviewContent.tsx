@@ -99,6 +99,7 @@ const TranslatedReviewContent: React.FC<TranslatedReviewContentProps> = ({
         if (!needsTranslation) return;
         if (translating) return;
         if (lastFetchedLang === reviewLanguage) return;
+        if (!review._id) return; // Guard: don't call API if _id is undefined
 
         const langToFetch = reviewLanguage;
         setTranslating(true);
@@ -113,7 +114,7 @@ const TranslatedReviewContent: React.FC<TranslatedReviewContentProps> = ({
                 }
 
                 // Sync with global context so all cards/views get the translation
-                if (result && !result.unavailable) {
+                if (result && !result.unavailable && review._id) {
                     updateReview(review._id, {
                         translations: {
                             ...(review.translations as Record<string, string> || {}),

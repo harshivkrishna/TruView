@@ -79,7 +79,7 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
   const { getReview, updateReview } = useReviewContext();
 
   // Get the most up-to-date review data from global state
-  const currentReview = getReview(review._id) || review;
+  const currentReview = (review._id ? getReview(review._id) : null) || review;
 
   // Ensure currentReview has the correct type
   const safeReview = currentReview as typeof review;
