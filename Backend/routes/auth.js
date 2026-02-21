@@ -8,7 +8,7 @@ const router = express.Router();
 // Register user
 router.post('/register', async (req, res) => {
   const startTime = Date.now();
-  
+
   try {
     // Check MongoDB connection
     if (mongoose.connection.readyState !== 1) {
@@ -71,7 +71,7 @@ router.post('/register', async (req, res) => {
     const totalTime = Date.now() - startTime;
     console.log(`✅ Registration completed in ${totalTime}ms for ${email}`);
 
-    res.status(201).json({ 
+    res.status(201).json({
       message: 'Registration successful. Please check your email for verification OTP.',
       userId: user._id,
       email: email,
@@ -86,7 +86,7 @@ router.post('/register', async (req, res) => {
 // Verify email with OTP
 router.post('/verify-email', async (req, res) => {
   const startTime = Date.now();
-  
+
   try {
     // Check MongoDB connection
     if (mongoose.connection.readyState !== 1) {
@@ -99,7 +99,7 @@ router.post('/verify-email', async (req, res) => {
     const user = await User.findOne({ email })
       .select('email firstName lastName phoneNumber role emailVerified verificationOTP')
       .exec();
-      
+
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -123,7 +123,7 @@ router.post('/verify-email', async (req, res) => {
     // Mark email as verified using updateOne for better performance
     await User.updateOne(
       { _id: user._id },
-      { 
+      {
         $set: { emailVerified: true },
         $unset: { verificationOTP: '' }
       }
@@ -185,10 +185,10 @@ router.post('/resend-verification', async (req, res) => {
     emailService.sendVerificationOTP(email, otp, user.firstName).catch(err => {
       console.error('Failed to send verification email:', err.message);
     });
-    
+
     console.log(`✅ Verification OTP resent for: ${email}`);
 
-    res.json({ 
+    res.json({
       message: 'Verification OTP sent successfully',
       email: email,
       firstName: user.firstName
@@ -203,42 +203,42 @@ router.post('/admin/login', async (req, res) => {
   try {
     console.log('🔐 Admin login attempt received');
     console.log('Request body:', req.body);
-    
+
     const { email, password } = req.body;
-    
+
     if (!email || !password) {
       console.log('❌ Missing email or password');
       return res.status(400).json({ message: 'Email and password are required' });
     }
-    
+
     // Hardcoded admin credentials
     const ADMIN_EMAIL = 'connect@truviews.in';
     const ADMIN_PASSWORD = 'Admin@1009';
-    
+
     // Validate admin credentials
     if (email !== ADMIN_EMAIL) {
       return res.status(404).json({ message: 'Admin email not recognized' });
     }
-    
+
     if (password !== ADMIN_PASSWORD) {
       return res.status(401).json({ message: 'Incorrect admin password' });
     }
-    
+
     // Create admin JWT token
     const jwtSecret = process.env.JWT_SECRET || 'your-secret-key';
     const token = jwt.sign(
-      { 
-        userId: 'admin', 
-        email: ADMIN_EMAIL, 
+      {
+        userId: 'admin',
+        email: ADMIN_EMAIL,
         role: 'admin',
-        isAdmin: true 
+        isAdmin: true
       },
       jwtSecret,
       { expiresIn: '24h' }
     );
-    
+
     console.log('✅ Admin login successful');
-    
+
     res.json({
       message: 'Admin login successful',
       token,
@@ -260,7 +260,7 @@ router.post('/admin/login', async (req, res) => {
 // Login
 router.post('/login', async (req, res) => {
   const startTime = Date.now();
-  
+
   try {
     // Check MongoDB connection
     if (mongoose.connection.readyState !== 1) {
@@ -292,20 +292,20 @@ router.post('/login', async (req, res) => {
         code: otp,
         expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
       };
-      
+
       // Save user and send email in parallel for faster response
       const savePromise = user.save();
       const emailPromise = emailService.sendVerificationOTP(user.email, otp, user.firstName).catch(err => {
         console.error('Failed to send verification email:', err.message);
       });
-      
+
       // Wait for save to complete, but don't wait for email
       await savePromise;
-      
+
       const totalTime = Date.now() - startTime;
       console.log(`✅ Verification OTP generated in ${totalTime}ms for unverified user: ${user.email}`);
-      
-      return res.status(200).json({ 
+
+      return res.status(200).json({
         message: 'Email verification required. OTP sent to your email.',
         requiresVerification: true,
         email: user.email,
@@ -373,7 +373,7 @@ router.post('/forgot-password', async (req, res) => {
 
     const user = await User.findOne({ email: emailStr });
     if (!user) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         message: 'No account found with this email address. Please check your email or create a new account.',
         code: 'USER_NOT_FOUND'
       });
@@ -381,7 +381,7 @@ router.post('/forgot-password', async (req, res) => {
 
     // Generate OTP
     const otp = user.generateOTP();
-    
+
     user.resetPasswordOTP = {
       code: otp,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
@@ -395,7 +395,7 @@ router.post('/forgot-password', async (req, res) => {
     });
 
     console.log(`✅ Password reset OTP sent for: ${emailStr}`);
-    res.json({ 
+    res.json({
       message: 'Password reset OTP sent successfully',
       email: emailStr,
       firstName: user.firstName
@@ -410,7 +410,7 @@ router.post('/forgot-password', async (req, res) => {
 router.post('/verify-login-otp', async (req, res) => {
   try {
     console.log('🔐 Login OTP verification request received');
-    
+
     // Check MongoDB connection
     if (mongoose.connection.readyState !== 1) {
       console.error('MongoDB not connected during OTP verification');
@@ -418,11 +418,11 @@ router.post('/verify-login-otp', async (req, res) => {
     }
 
     const { email, otp } = req.body;
-    
+
     console.log('Extracted values:');
     console.log('- email:', email, '(type:', typeof email, ')');
     console.log('- otp:', otp, '(type:', typeof otp, ')');
-    
+
     if (!email || !otp) {
       return res.status(400).json({ message: 'Email and OTP are required' });
     }
@@ -504,11 +504,11 @@ router.post('/reset-password', async (req, res) => {
   console.log('='.repeat(70));
   console.log('Request body:', JSON.stringify(req.body, null, 2));
   console.log('Request body type:', typeof req.body);
-  
+
   try {
     // Handle nested object structure from frontend
     let emailStr, otp, newPassword;
-    
+
     if (req.body.email && typeof req.body.email === 'object') {
       // Frontend sent nested object: { email: { email: "actual@email.com", otp: "123456", newPassword: "pass" } }
       emailStr = req.body.email.email?.trim();
@@ -522,16 +522,16 @@ router.post('/reset-password', async (req, res) => {
       newPassword = req.body.newPassword;
       console.log('Extracted from flat object:');
     }
-    
+
     console.log('- email:', emailStr);
     console.log('- otp:', otp);
     console.log('- newPassword:', newPassword ? '[PROVIDED]' : '[MISSING]');
-    
+
     if (!emailStr || !otp || !newPassword) {
       console.log('❌ Missing required fields');
       return res.status(400).json({ message: 'Email, OTP, and new password are required' });
     }
-    
+
     console.log(`🔍 Looking for user: ${emailStr}`);
 
     const user = await User.findOne({ email: emailStr });

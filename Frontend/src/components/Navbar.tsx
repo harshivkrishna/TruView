@@ -112,9 +112,14 @@ const Navbar = () => {
                     >
                       {currentUser.avatar ? (
                         <img
+                          key={currentUser.avatar}
                           src={currentUser.avatar}
                           alt={currentUser.firstName}
                           className="w-full h-full object-cover"
+                          onError={(e) => {
+                            const t = e.target as HTMLImageElement;
+                            t.style.display = 'none';
+                          }}
                         />
                       ) : (
                         <User className="w-5 h-5 text-gray-600" />
