@@ -51,7 +51,7 @@ api.interceptors.response.use(
       if (message === 'Invalid token' || message === 'Token expired') {
         // Only handle token expiration if we're on a protected route
         const currentPath = window.location.pathname;
-        const isProtectedRoute = ['/submit', '/profile', '/admin'].some(route =>
+        const isProtectedRoute = ['/profile', '/admin'].some(route =>
           currentPath.startsWith(route)
         );
 

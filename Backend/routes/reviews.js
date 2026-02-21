@@ -196,20 +196,22 @@ router.get('/', async (req, res) => {
           reviewObj.author.name = `${userId.firstName} ${userId.lastName}`;
           reviewObj.author.avatar = userId.avatar;
           reviewObj.author.userId = userId._id;
-        } else {
+        } else if (typeof userId === 'object' && !userId.firstName) {
           // Handle case where user was deleted or not found
-          reviewObj.author.name = 'Anonymous';
+          reviewObj.author.name = reviewObj.author.name || 'Anonymous';
           reviewObj.author.avatar = null;
           reviewObj.author.userId = null;
         }
-      } else {
-        // Handle missing author
+        // If userId is a plain ObjectId (not populated), keep author.name as-is
+      } else if (!reviewObj.author) {
+        // Handle completely missing author
         reviewObj.author = {
           name: 'Anonymous',
           avatar: null,
           userId: null
         };
       }
+      // If author exists but userId is null (guest review), keep the saved author.name as-is
 
       // URLs should already be CloudFront URLs from upload
       return reviewObj;
@@ -296,14 +298,12 @@ router.get('/trending', async (req, res) => {
           reviewObj.author.name = `${userId.firstName} ${userId.lastName}`;
           reviewObj.author.avatar = userId.avatar;
           reviewObj.author.userId = userId._id;
-        } else {
-          // Handle case where user was deleted or not found
-          reviewObj.author.name = 'Anonymous';
+        } else if (typeof userId === 'object' && !userId.firstName) {
+          reviewObj.author.name = reviewObj.author.name || 'Anonymous';
           reviewObj.author.avatar = null;
           reviewObj.author.userId = null;
         }
-      } else {
-        // Handle missing author
+      } else if (!reviewObj.author) {
         reviewObj.author = {
           name: 'Anonymous',
           avatar: null,
@@ -375,12 +375,12 @@ router.get('/most-viewed-week', async (req, res) => {
           reviewObj.author.name = `${userId.firstName} ${userId.lastName}`;
           reviewObj.author.avatar = userId.avatar;
           reviewObj.author.userId = userId._id;
-        } else {
-          reviewObj.author.name = 'Anonymous';
+        } else if (typeof userId === 'object' && !userId.firstName) {
+          reviewObj.author.name = reviewObj.author.name || 'Anonymous';
           reviewObj.author.avatar = null;
           reviewObj.author.userId = null;
         }
-      } else {
+      } else if (!reviewObj.author) {
         reviewObj.author = {
           name: 'Anonymous',
           avatar: null,
@@ -445,20 +445,22 @@ router.get('/:id', async (req, res) => {
         reviewObj.author.name = `${userId.firstName} ${userId.lastName}`;
         reviewObj.author.avatar = userId.avatar;
         reviewObj.author.userId = userId._id;
-      } else {
+      } else if (typeof userId === 'object' && !userId.firstName) {
         // Handle case where user was deleted or not found
-        reviewObj.author.name = 'Anonymous';
+        reviewObj.author.name = reviewObj.author.name || 'Anonymous';
         reviewObj.author.avatar = null;
         reviewObj.author.userId = null;
       }
-    } else {
-      // Handle missing author
+      // If userId is a plain ObjectId (not populated), keep author.name as-is
+    } else if (!reviewObj.author) {
+      // Handle completely missing author
       reviewObj.author = {
         name: 'Anonymous',
         avatar: null,
         userId: null
       };
     }
+    // If author exists but userId is null (guest review), keep the saved author.name as-is
 
     // Add view count asynchronously (don't wait for it)
     const userId = req.user?.userId;
@@ -485,21 +487,47 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Create new review with cache invalidation
-router.post('/', authenticateToken, async (req, res) => {
-  try {
-    // Fetch user information to get avatar
-    const User = require('../models/User');
-    const user = await User.findById(req.user.userId);
-
-    const reviewData = {
-      ...req.body,
-      author: {
-        name: user ? `${user.firstName} ${user.lastName}` : 'Anonymous',
-        avatar: user?.avatar || null,
-        userId: req.user.userId
+// Create new review with cache invalidation (auth is optional for guest reviews)
+router.post('/', async (req, res, next) => {
+  // Optional authentication - allow guests to submit reviews
+  if (req.headers.authorization) {
+    return authenticateToken(req, res, (err) => {
+      if (err) {
+        req.user = null;
       }
-    };
+      next();
+    });
+  }
+  next();
+}, async (req, res) => {
+  try {
+    let reviewData;
+
+    if (req.user && req.user.userId) {
+      // Authenticated user - fetch their profile info
+      const User = require('../models/User');
+      const user = await User.findById(req.user.userId);
+
+      reviewData = {
+        ...req.body,
+        author: {
+          name: user ? `${user.firstName} ${user.lastName}` : 'Anonymous',
+          avatar: user?.avatar || null,
+          userId: req.user.userId
+        }
+      };
+    } else {
+      // Guest user - use the provided authorName
+      const authorName = req.body.authorName?.trim() || 'Anonymous';
+      reviewData = {
+        ...req.body,
+        author: {
+          name: authorName,
+          avatar: null,
+          userId: null
+        }
+      };
+    }
 
     // Calculate AI trust score
     const trustScore = calculateTrustScore(reviewData);
@@ -512,31 +540,39 @@ router.post('/', authenticateToken, async (req, res) => {
     cacheService.delete('trending-reviews');
     cacheService.delete('most-viewed-week');
 
-    // Update user's review count and trust score
-    if (user) {
-      user.reviewCount = (user.reviewCount || 0) + 1;
+    // Update user's review count and trust score (only for authenticated users)
+    if (req.user && req.user.userId) {
+      const User = require('../models/User');
+      const user = await User.findById(req.user.userId);
+      if (user) {
+        user.reviewCount = (user.reviewCount || 0) + 1;
 
-      // Recalculate user's overall trust score based on all their reviews
-      const userReviews = await Review.find({ 'author.userId': req.user.userId });
-      const totalTrustScore = userReviews.reduce((sum, rev) => sum + (rev.trustScore || 0), 0);
-      user.trustScore = Math.round(totalTrustScore / userReviews.length);
+        // Recalculate user's overall trust score based on all their reviews
+        const userReviews = await Review.find({ 'author.userId': req.user.userId });
+        const totalTrustScore = userReviews.reduce((sum, rev) => sum + (rev.trustScore || 0), 0);
+        user.trustScore = Math.round(totalTrustScore / userReviews.length);
 
-      await user.save();
+        await user.save();
+      }
     }
 
-    // Populate and format the response
-    const populatedReview = await Review.findById(review._id)
-      .populate('author.userId', 'firstName lastName avatar');
+    // Format the response
+    if (req.user && req.user.userId) {
+      // Populate and format the response for authenticated users
+      const populatedReview = await Review.findById(review._id)
+        .populate('author.userId', 'firstName lastName avatar');
 
-    const reviewObj = populatedReview.toObject();
-    if (reviewObj.author && reviewObj.author.userId) {
-      reviewObj.author.name = `${reviewObj.author.userId.firstName} ${reviewObj.author.userId.lastName}`;
-      reviewObj.author.avatar = reviewObj.author.userId.avatar;
-      reviewObj.author.userId = reviewObj.author.userId._id;
+      const reviewObj = populatedReview.toObject();
+      if (reviewObj.author && reviewObj.author.userId) {
+        reviewObj.author.name = `${reviewObj.author.userId.firstName} ${reviewObj.author.userId.lastName}`;
+        reviewObj.author.avatar = reviewObj.author.userId.avatar;
+        reviewObj.author.userId = reviewObj.author.userId._id;
+      }
+      res.status(201).json(reviewObj);
+    } else {
+      // For guest reviews, return the review as-is
+      res.status(201).json(review.toObject());
     }
-
-    // URLs should already be CloudFront URLs from upload
-    res.status(201).json(reviewObj);
 
     // Non-blocking: trigger background translation after response is sent
     process.nextTick(() => {
