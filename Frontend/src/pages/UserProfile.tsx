@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { 
-  Edit, 
-  Save, 
-  X, 
-  User, 
-  Mail, 
-  Phone, 
-  MapPin, 
-  Calendar, 
-  FileText, 
+import {
+  Edit,
+  Save,
+  X,
+  User,
+  Mail,
+  Phone,
+  MapPin,
+  Calendar,
+  FileText,
   Star,
   Eye,
   EyeOff,
@@ -49,7 +49,7 @@ const UserProfile = () => {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
   const { currentUser, logout, updateCurrentUser } = useAuth();
-  
+
   // Helper function to format dates
   const formatDate = (dateString: string | undefined) => {
     if (!dateString) return 'Not specified';
@@ -63,7 +63,7 @@ const UserProfile = () => {
       return 'Invalid date';
     }
   };
-  
+
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState('profile');
   const [loading, setLoading] = useState(true);
@@ -73,7 +73,7 @@ const UserProfile = () => {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [forceUpdate, setForceUpdate] = useState(0);
-  
+
   const [editForm, setEditForm] = useState({
     firstName: '',
     lastName: '',
@@ -89,11 +89,11 @@ const UserProfile = () => {
   // Optimized data fetching with caching
   const fetchUserData = useCallback(async () => {
     if (!userId) return;
-    
+
     try {
       setLoading(true);
       setError(null);
-      
+
       // Try to get from cache first
       const [profileData, reviewsData] = await Promise.all([
         getCachedData(
@@ -107,10 +107,10 @@ const UserProfile = () => {
           () => getUserReviews(userId)
         )
       ]);
-      
+
       setProfile(profileData);
       setUserReviews(reviewsData);
-      
+
       // Initialize edit form with profile data
       setEditForm({
         firstName: profileData.firstName || '',
@@ -147,7 +147,7 @@ const UserProfile = () => {
           // Ignore preload errors
         });
       }
-      
+
     } catch (error) {
       console.error('Error fetching user data:', error);
       setError('Failed to load user profile');
@@ -172,21 +172,21 @@ const UserProfile = () => {
               getUserProfile(userId),
               getUserReviews(userId)
             ]);
-            
+
             setProfile(profileData);
             setUserReviews(reviewsData);
           } catch (error) {
             // Handle error silently
           }
         };
-        
+
         refreshData();
       }
     };
 
     // Listen for page focus events
     window.addEventListener('focus', handleFocus);
-    
+
     // Also refresh when component mounts (in case user navigated back)
     if (userId) {
       handleFocus();
@@ -210,7 +210,7 @@ const UserProfile = () => {
   const handleSave = useCallback(async () => {
     try {
       setIsEditing(false);
-      
+
       // Prepare profile data for API
       const profileData = {
         firstName: editForm.firstName,
@@ -225,30 +225,30 @@ const UserProfile = () => {
         bio: editForm.bio,
         isPublicProfile: editForm.isPublicProfile
       };
-      
+
       // Update profile in backend
       const updatedUser = await updateUserProfile(profileData);
-      
+
       // Update local profile state with the backend response (most accurate)
       if (updatedUser) {
         setProfile(updatedUser);
       }
-      
+
       // Clear cache to prevent stale data
       if (userId) {
         reviewCache.delete(`user-profile-${userId}`);
       }
-      
+
       // Update AuthContext with new user data
       updateCurrentUser({
         firstName: editForm.firstName,
         lastName: editForm.lastName,
         phoneNumber: editForm.phoneNumber
       });
-      
+
       // Force a re-render by updating a dummy state
       setForceUpdate(prev => prev + 1);
-      
+
     } catch (error) {
       // Revert to editing mode on error
       setIsEditing(true);
@@ -258,18 +258,18 @@ const UserProfile = () => {
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
+
     // Check file size (5MB = 5 * 1024 * 1024 bytes)
     const maxSize = 5 * 1024 * 1024; // 5MB
     const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
-    
+
     if (file.size > maxSize) {
       const errorMessage = `File size is too large (${fileSizeMB} MB). Please select an image smaller than 5 MB.`;
       setError(errorMessage);
       e.target.value = ''; // Clear the input
       return;
     }
-    
+
     // Check if it's an image
     if (!file.type.startsWith('image/')) {
       const errorMessage = 'Please select an image file (JPEG, PNG, GIF, etc.)';
@@ -277,27 +277,27 @@ const UserProfile = () => {
       e.target.value = '';
       return;
     }
-    
+
     setError(null); // Clear any previous errors
-    
+
     // Create preview immediately so user can see what they selected
     const reader = new FileReader();
     reader.onloadend = () => {
       setPhotoPreview(reader.result as string);
     };
     reader.readAsDataURL(file);
-    
+
     console.log(`✅ Image selected: ${file.name} (${fileSizeMB} MB)`);
-    
+
     // Automatically upload the photo
     try {
       setUploadingPhoto(true);
-      
+
       const formData = new FormData();
       formData.append('profilePhoto', file);
-      
+
       const response = await uploadProfilePhoto(formData);
-      
+
       // Update profile with new photo URL - handle different response structures
       let newPhotoUrl = '';
       if (response.photoUrl) {
@@ -313,20 +313,20 @@ const UserProfile = () => {
       } else if (typeof response === 'string') {
         newPhotoUrl = response;
       }
-      
+
       if (newPhotoUrl && profile) {
-        // Add cache-busting timestamp to force reload
+        // Add cache-busting timestamp to force reload in local profile view
         const cacheBustedUrl = `${newPhotoUrl}?t=${Date.now()}`;
-        
-        // Update the profile state with the new photo URL immediately
+
+        // Update the profile state with the cache-busted URL (forces browser reload)
         setProfile(prev => prev ? { ...prev, avatar: cacheBustedUrl } : null);
-        
-        // Update AuthContext with new avatar
-        updateCurrentUser({ avatar: cacheBustedUrl } as any);
-        
+
+        // Update AuthContext with the CLEAN URL (no cache buster) so navbar shows it correctly
+        updateCurrentUser({ avatar: newPhotoUrl } as any);
+
         // Clear preview after successful upload
         setPhotoPreview(null);
-        
+
         // Force a complete refresh of the profile data
         try {
           const refreshedProfile = await getUserProfile(userId || '');
@@ -340,7 +340,7 @@ const UserProfile = () => {
         } catch (refreshError) {
           console.error('Error refreshing profile:', refreshError);
         }
-        
+
         // Trigger a force update to re-render
         setForceUpdate(prev => prev + 1);
       } else {
@@ -348,13 +348,13 @@ const UserProfile = () => {
         setError('Failed to get photo URL. Please try again.');
         setPhotoPreview(null);
       }
-      
+
     } catch (error: any) {
       console.error('Photo upload error:', error);
-      
+
       // Show detailed error message to user
       let errorMessage = 'Failed to upload photo. Please try again.';
-      
+
       if (error.response?.status === 413) {
         errorMessage = error.response?.data?.message || 'File size is too large. Please select an image smaller than 5 MB.';
       } else if (error.response?.status === 404) {
@@ -368,9 +368,9 @@ const UserProfile = () => {
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       setError(errorMessage);
-      
+
       // Clear preview on error
       setPhotoPreview(null);
     } finally {
@@ -388,13 +388,13 @@ const UserProfile = () => {
   // Manual refresh function for profile data
   const refreshProfileData = async () => {
     if (!userId) return;
-    
+
     try {
       const [profileData, reviewsData] = await Promise.all([
         getUserProfile(userId),
         getUserReviews(userId)
       ]);
-      
+
       setProfile(profileData);
       setUserReviews(reviewsData);
     } catch (error) {
@@ -480,22 +480,22 @@ const UserProfile = () => {
               <LogOut className="w-5 h-5" />
             </button>
           )}
-          
+
           <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-4 sm:space-y-0 sm:space-x-6">
             <div className="relative">
               <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
                 {/* Show photo preview first if available (when user selects a new photo) */}
                 {photoPreview ? (
-                  <img 
-                    src={photoPreview} 
-                    alt="Preview" 
+                  <img
+                    src={photoPreview}
+                    alt="Preview"
                     className="w-full h-full object-cover"
                   />
                 ) : profile.avatar ? (
                   /* Show uploaded avatar if available and no preview */
-                  <img 
+                  <img
                     key={profile.avatar} // Force re-render when avatar changes
-                    src={profile.avatar} 
+                    src={profile.avatar}
                     alt={`${profile.firstName} ${profile.lastName}`}
                     className="w-full h-full object-cover"
                     onError={(e) => {
@@ -510,9 +510,9 @@ const UserProfile = () => {
                   <User className="w-8 h-8 sm:w-12 sm:h-12 text-gray-400" />
                 )}
               </div>
-              
+
               {canEditProfile && isEditing && (
-                <label 
+                <label
                   className="absolute -bottom-1 -right-1 sm:bottom-0 sm:right-0 bg-orange-500 text-white p-1.5 sm:p-2 rounded-full hover:bg-orange-600 cursor-pointer transition-colors"
                   title="Click to change profile photo"
                 >
@@ -531,7 +531,7 @@ const UserProfile = () => {
                 </label>
               )}
             </div>
-            
+
             <div className="flex-1 w-full text-center sm:text-left">
               <div className="flex flex-col sm:flex-row justify-between items-center sm:items-start space-y-3 sm:space-y-0">
                 <div>
@@ -540,7 +540,7 @@ const UserProfile = () => {
                   </h1>
                   <p className="text-gray-600 text-sm sm:text-base">{profile.email}</p>
                 </div>
-                
+
                 {/* Desktop buttons - hidden on mobile */}
                 <div className="hidden sm:flex flex-wrap justify-center sm:justify-end gap-2 sm:gap-3">
                   {canEditProfile && isEditing ? (
@@ -571,7 +571,7 @@ const UserProfile = () => {
                       <span>Edit Profile</span>
                     </button>
                   ) : null}
-                  
+
                   {/* Logout button only for own profile */}
                   {canEditProfile && (
                     <button
@@ -583,7 +583,7 @@ const UserProfile = () => {
                     </button>
                   )}
                 </div>
-                
+
                 {/* Mobile-only edit button */}
                 <div className="flex sm:hidden gap-2">
                   {canEditProfile && !isEditing && (
@@ -597,7 +597,7 @@ const UserProfile = () => {
                   )}
                 </div>
               </div>
-              
+
               <div className="mt-4 flex flex-wrap justify-center sm:justify-start items-center gap-3 sm:gap-6 text-sm sm:text-base">
                 <div className="flex items-center space-x-1 sm:space-x-2">
                   <Star className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500" />
@@ -622,7 +622,7 @@ const UserProfile = () => {
             {/* Personal Information */}
             <div>
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Personal Information</h2>
-              
+
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
@@ -638,7 +638,7 @@ const UserProfile = () => {
                     <p className="text-gray-900">{profile.firstName}</p>
                   )}
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
                   {canEditProfile && isEditing ? (
@@ -653,7 +653,7 @@ const UserProfile = () => {
                     <p className="text-gray-900">{profile.lastName}</p>
                   )}
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
                   {canEditProfile && isEditing ? (
@@ -668,7 +668,7 @@ const UserProfile = () => {
                     <p className="text-gray-900">{profile.phoneNumber}</p>
                   )}
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
                   {canEditProfile && isEditing ? (
@@ -685,11 +685,11 @@ const UserProfile = () => {
                 </div>
               </div>
             </div>
-            
+
             {/* Location & Bio */}
             <div>
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Location & Bio</h2>
-              
+
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
@@ -705,7 +705,7 @@ const UserProfile = () => {
                     <p className="text-gray-900">{profile.location?.city || 'Not specified'}</p>
                   )}
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
                   {canEditProfile && isEditing ? (
@@ -720,7 +720,7 @@ const UserProfile = () => {
                     <p className="text-gray-900">{profile.location?.state || 'Not specified'}</p>
                   )}
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
                   {canEditProfile && isEditing ? (
@@ -735,7 +735,7 @@ const UserProfile = () => {
                     <p className="text-gray-900">{profile.location?.country || 'Not specified'}</p>
                   )}
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Bio</label>
                   {canEditProfile && isEditing ? (
@@ -750,7 +750,7 @@ const UserProfile = () => {
                     <p className="text-gray-900">{profile.bio || 'No bio added yet.'}</p>
                   )}
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Public Profile</label>
                   {canEditProfile && isEditing ? (
@@ -802,8 +802,8 @@ const UserProfile = () => {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
             <div>
               <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-1">
-            {canEditProfile ? 'My Reviews' : `${profile.firstName}'s Reviews`}
-          </h2>
+                {canEditProfile ? 'My Reviews' : `${profile.firstName}'s Reviews`}
+              </h2>
               <p className="text-sm text-gray-600">
                 {userReviews.length} review{userReviews.length !== 1 ? 's' : ''} • {profile.trustScore}% trust score
               </p>
@@ -818,8 +818,8 @@ const UserProfile = () => {
               </Link>
             )}
           </div>
-          
-                      {loading ? (
+
+          {loading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {[...Array(6)].map((_, i) => (
                 <div
@@ -829,9 +829,9 @@ const UserProfile = () => {
                   <div className="h-4 bg-gray-200 rounded mb-4"></div>
                   <div className="h-20 bg-gray-200 rounded mb-4"></div>
                   <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                  </div>
-                ))}
-              </div>
+                </div>
+              ))}
+            </div>
           ) : userReviews.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {userReviews.slice(0, 6).map((review: any, index: number) => (
@@ -839,14 +839,14 @@ const UserProfile = () => {
                   key={review._id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ 
-                    duration: 0.5, 
+                  transition={{
+                    duration: 0.5,
                     delay: index * 0.1,
                     type: "spring",
                     stiffness: 100
                   }}
                 >
-                  <ReviewCard 
+                  <ReviewCard
                     review={review}
                     currentUserId={currentUser?.id}
                   />
@@ -858,8 +858,8 @@ const UserProfile = () => {
               <FileText className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-3 sm:mb-4" />
               <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">No reviews yet</h3>
               <p className="text-gray-600 mb-4 text-sm sm:text-base">
-                {canEditProfile 
-                  ? 'Start sharing your experiences with the community!' 
+                {canEditProfile
+                  ? 'Start sharing your experiences with the community!'
                   : `${profile.firstName} hasn't written any reviews yet.`
                 }
               </p>
