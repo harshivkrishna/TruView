@@ -40,11 +40,7 @@ const App: React.FC = () => {
               <Suspense fallback={<PageLoader />}>
                 <Routes>
                   <Route path="/" element={<HomePage />} />
-                  <Route path="/submit" element={
-                    <ProtectedRoute>
-                      <ReviewSubmission />
-                    </ProtectedRoute>
-                  } />
+                  <Route path="/submit" element={<ReviewSubmission />} />
                   <Route path="/categories" element={<CategoryBrowser />} />
                   <Route path="/review/:id" element={<ReviewDetail />} />
                   <Route path="/discover" element={<DiscoveryEngine />} />

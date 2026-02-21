@@ -2,7 +2,7 @@ const { Translate } = require('@google-cloud/translate').v2;
 const Review = require('../models/Review');
 
 // Target languages for background translation
-const APP_LANGUAGES = ['en', 'hi', 'ta'];
+const APP_LANGUAGES = ['en', 'hi', 'ta', 'te', 'mr'];
 
 // Initialize the translate client with API key
 let translate = null;

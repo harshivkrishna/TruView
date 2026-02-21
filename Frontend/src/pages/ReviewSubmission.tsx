@@ -20,7 +20,7 @@ const ReviewSubmission = () => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -30,7 +30,7 @@ const ReviewSubmission = () => {
     tags: [] as string[],
     authorName: ''
   });
-  
+
   const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -58,7 +58,7 @@ const ReviewSubmission = () => {
   // Fetch categories on component mount
   useEffect(() => {
     fetchCategories();
-    
+
     // Update SEO meta tags
     updateMetaTags({
       title: 'Submit a Review - TruView',
@@ -128,25 +128,25 @@ const ReviewSubmission = () => {
 
   const handleFileUpload = useCallback(async (files: FileList) => {
     setUploadError('');
-    
+
     // Validate file types and count
     const fileArray = Array.from(files);
     const images = fileArray.filter(file => file.type.startsWith('image/'));
     const videos = fileArray.filter(file => file.type.startsWith('video/'));
-    
+
     // Check if trying to upload multiple videos
     if (videos.length > 1) {
       setUploadError('You can only upload one video at a time');
       return;
     }
-    
+
     // Check if trying to upload video with existing video
     const existingVideos = uploadedFiles.filter(file => file.type === 'video');
     if (videos.length > 0 && existingVideos.length > 0) {
       setUploadError('You can only upload one video per review');
       return;
     }
-    
+
     // Check total file count (max 5 images + 1 video)
     const existingImages = uploadedFiles.filter(file => file.type === 'image');
     if (existingImages.length + images.length > 5) {
@@ -156,7 +156,7 @@ const ReviewSubmission = () => {
 
     try {
       const formData = new FormData();
-      
+
       // Process images with compression
       for (const image of images) {
         try {
@@ -167,7 +167,7 @@ const ReviewSubmission = () => {
           formData.append('media', image);
         }
       }
-      
+
       // Add videos as-is (no compression for videos)
       videos.forEach(video => {
         formData.append('media', video);
@@ -203,9 +203,18 @@ const ReviewSubmission = () => {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    
+
     if (!formData.title || !formData.description || !formData.category || !formData.subcategory || !formData.rating) {
       toast.error('Please fill in all required fields', {
+        duration: 3000,
+        icon: '⚠️',
+      });
+      return;
+    }
+
+    // Require name for guest users
+    if (!currentUser && !formData.authorName.trim()) {
+      toast.error('Please enter your name', {
         duration: 3000,
         icon: '⚠️',
       });
@@ -241,7 +250,7 @@ const ReviewSubmission = () => {
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-white rounded-lg shadow-sm p-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-8">Share Your Experience</h1>
-          
+
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Media Upload */}
             <div>
@@ -249,9 +258,8 @@ const ReviewSubmission = () => {
                 Upload Photos or Videos
               </label>
               <div
-                className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-                  isDragging ? 'border-orange-500 bg-orange-50' : 'border-gray-300'
-                }`}
+                className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${isDragging ? 'border-orange-500 bg-orange-50' : 'border-gray-300'
+                  }`}
                 onDrop={handleDrop}
                 onDragOver={(e: React.DragEvent) => e.preventDefault()}
                 onDragEnter={() => setIsDragging(true)}
@@ -280,16 +288,16 @@ const ReviewSubmission = () => {
                   className="hidden"
                 />
               </div>
-              
+
               {/* Uploaded Files Preview */}
               <div className="mt-4">
-                <MediaCarousel 
-                  files={uploadedFiles} 
+                <MediaCarousel
+                  files={uploadedFiles}
                   onRemove={removeFile}
                   editable={true}
                 />
               </div>
-              
+
               {uploadError && (
                 <div className="mt-2 text-red-600 text-sm">
                   {uploadError}
@@ -342,9 +350,8 @@ const ReviewSubmission = () => {
                     key={rating}
                     type="button"
                     onClick={() => handleRatingClick(rating)}
-                    className={`p-1 ${
-                      formData.rating >= rating ? 'text-orange-500' : 'text-gray-300'
-                    } hover:text-orange-500 transition-colors`}
+                    className={`p-1 ${formData.rating >= rating ? 'text-orange-500' : 'text-gray-300'
+                      } hover:text-orange-500 transition-colors`}
                   >
                     <Star className="w-8 h-8 fill-current" />
                   </button>
@@ -411,20 +418,19 @@ const ReviewSubmission = () => {
                 {sentimentTags.map(tag => {
                   const isSelected = formData.tags.includes(tag);
                   const isDisabled = !isSelected && formData.tags.length >= 2;
-                  
+
                   return (
                     <button
                       key={tag}
                       type="button"
                       onClick={() => handleTagToggle(tag)}
                       disabled={isDisabled}
-                      className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                        isSelected
+                      className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${isSelected
                           ? getTagStyle(tag, true)
                           : isDisabled
                             ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                             : getTagStyle(tag, false)
-                      }`}
+                        }`}
                       title={isDisabled ? 'Maximum 2 tags allowed. Deselect a tag first.' : ''}
                     >
                       {tag}
@@ -434,24 +440,44 @@ const ReviewSubmission = () => {
               </div>
             </div>
 
-            {/* Author Name - Now auto-filled and read-only */}
+            {/* Author Name */}
             <div>
               <label htmlFor="authorName" className="block text-sm font-medium text-gray-700 mb-2">
-                Your Name
+                Your Name {!currentUser && <span className="text-red-500">*</span>}
               </label>
-              <input
-                type="text"
-                id="authorName"
-                name="authorName"
-                value={formData.authorName}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-gray-50"
-                readOnly
-                disabled
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Your name is automatically filled from your profile
-              </p>
+              {currentUser ? (
+                <>
+                  <input
+                    type="text"
+                    id="authorName"
+                    name="authorName"
+                    value={formData.authorName}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-gray-50"
+                    readOnly
+                    disabled
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Your name is automatically filled from your profile
+                  </p>
+                </>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    id="authorName"
+                    name="authorName"
+                    value={formData.authorName}
+                    onChange={handleInputChange}
+                    placeholder="Enter your name"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    required
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    This name will be displayed with your review
+                  </p>
+                </>
+              )}
             </div>
 
             {/* Submit Button */}
@@ -471,18 +497,18 @@ const ReviewSubmission = () => {
   );
 };
 
-  const getTagStyle = (tag: string, isSelected: boolean) => {
-    const styles: Record<string, string> = {
-      'Honest': isSelected ? 'bg-blue-500 text-white' : 'bg-blue-100 text-blue-700 hover:bg-blue-200',
-      'Brutal': isSelected ? 'bg-red-500 text-white' : 'bg-red-100 text-red-700 hover:bg-red-200',
-      'Fair': isSelected ? 'bg-green-500 text-white' : 'bg-green-100 text-green-700 hover:bg-green-200',
-      'Rant': isSelected ? 'bg-purple-500 text-white' : 'bg-purple-100 text-purple-700 hover:bg-purple-200',
-      'Praise': isSelected ? 'bg-yellow-500 text-white' : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200',
-      'Caution': isSelected ? 'bg-orange-500 text-white' : 'bg-orange-100 text-orange-700 hover:bg-orange-200',
-      'Warning': isSelected ? 'bg-red-600 text-white' : 'bg-red-200 text-red-800 hover:bg-red-300',
-      'Recommended': isSelected ? 'bg-emerald-500 text-white' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
-    };
-    return styles[tag] || (isSelected ? 'bg-gray-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200');
+const getTagStyle = (tag: string, isSelected: boolean) => {
+  const styles: Record<string, string> = {
+    'Honest': isSelected ? 'bg-blue-500 text-white' : 'bg-blue-100 text-blue-700 hover:bg-blue-200',
+    'Brutal': isSelected ? 'bg-red-500 text-white' : 'bg-red-100 text-red-700 hover:bg-red-200',
+    'Fair': isSelected ? 'bg-green-500 text-white' : 'bg-green-100 text-green-700 hover:bg-green-200',
+    'Rant': isSelected ? 'bg-purple-500 text-white' : 'bg-purple-100 text-purple-700 hover:bg-purple-200',
+    'Praise': isSelected ? 'bg-yellow-500 text-white' : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200',
+    'Caution': isSelected ? 'bg-orange-500 text-white' : 'bg-orange-100 text-orange-700 hover:bg-orange-200',
+    'Warning': isSelected ? 'bg-red-600 text-white' : 'bg-red-200 text-red-800 hover:bg-red-300',
+    'Recommended': isSelected ? 'bg-emerald-500 text-white' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
   };
+  return styles[tag] || (isSelected ? 'bg-gray-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200');
+};
 
 export default ReviewSubmission;
