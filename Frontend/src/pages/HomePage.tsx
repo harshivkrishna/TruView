@@ -21,6 +21,7 @@ import { FaFacebookF, FaInstagram, FaXTwitter, FaReddit } from 'react-icons/fa6'
 import ReviewCard from '../components/ReviewCard';
 import Footer from '../components/Footer';
 import { getMostViewedReviewsWeek } from '../services/api';
+import { preloadReviewImages } from '../utils/imageCache';
 import { getCachedData, reviewCache } from '../utils/cache';
 import { updateMetaTags, generateOrganizationStructuredData, addStructuredData } from '../utils/seo';
 import { useAuth } from '../contexts/AuthContext';
@@ -61,17 +62,12 @@ const HomePage: React.FC = () => {
       
       setMostViewedReviews(reviews);
       
-      // Preload images for better UX
-      reviews.slice(0, 6).forEach((review: any) => {
-        if (review.media && review.media.length > 0) {
-          const firstImage = review.media.find((media: any) => media.type === 'image');
-          if (firstImage) {
-            preloadImage(firstImage.url).catch(() => {
-              // Ignore preload errors
-            });
-          }
-        }
-      });
+      // Preload images for better UX using optimized cache system
+      if (reviews.length > 0) {
+        preloadReviewImages(reviews, 6).catch(() => {
+          // Ignore preload errors
+        });
+      }
     } catch (error) {
       console.error('Error fetching most viewed reviews:', error);
       setError('Failed to load trending reviews');

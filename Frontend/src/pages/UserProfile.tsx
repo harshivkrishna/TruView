@@ -23,6 +23,7 @@ import { motion } from 'framer-motion';
 import { getCachedData, reviewCache } from '../utils/cache';
 import { updateMetaTags, generateUserProfileStructuredData, addStructuredData } from '../utils/seo';
 import { preloadImage } from '../utils/imageOptimization';
+import { preloadReviewImages } from '../utils/imageCache';
 import toast from 'react-hot-toast';
 
 interface UserProfileData {
@@ -110,6 +111,13 @@ const UserProfile = () => {
 
       setProfile(profileData);
       setUserReviews(reviewsData);
+
+      // Preload review images for better UX
+      if (reviewsData.length > 0) {
+        preloadReviewImages(reviewsData, 6).catch(() => {
+          // Ignore preload errors
+        });
+      }
 
       // Initialize edit form with profile data
       setEditForm({
