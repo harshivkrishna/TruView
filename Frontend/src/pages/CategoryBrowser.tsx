@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Search, SlidersHorizontal, Filter, X, ArrowUp } from 'lucide-react';
+import { Search, SlidersHorizontal, Filter, X } from 'lucide-react';
 import ReviewCard from '../components/ReviewCard';
 import ReviewCardSkeleton from '../components/ReviewCardSkeleton';
 import AdvancedSearch from '../components/AdvancedSearch';
@@ -9,7 +9,6 @@ import { getReviews, getCategoriesWithSubcategories } from '../services/api';
 import { getCachedData, reviewCache } from '../utils/cache';
 import { updateMetaTags, generateCategoryStructuredData, addStructuredData } from '../utils/seo';
 import { useAuth } from '../contexts/AuthContext';
-import { preloadImage } from '../utils/imageOptimization';
 import { preloadReviewImages } from '../utils/imageCache';
 
 // Define review type
@@ -88,7 +87,6 @@ const CategoryBrowser: React.FC = () => {
     hasNextPage: false,
     hasPrevPage: false
   });
-  const [showScrollTop, setShowScrollTop] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const lastReviewRef = useRef<HTMLDivElement | null>(null);
@@ -157,10 +155,10 @@ const CategoryBrowser: React.FC = () => {
 
       setHasMore(response.pagination.hasNextPage);
 
-      // Preload images using advanced caching system
+      // Preload images using advanced caching system with higher priority
       if (response.reviews.length > 0) {
-        // Use the new image cache system for better performance
-        preloadReviewImages(response.reviews).catch(error => {
+        // Preload first 9 images immediately (3 rows in grid), rest in background
+        preloadReviewImages(response.reviews, 9).catch(error => {
           console.warn('Image preload error:', error);
         });
       }
@@ -270,20 +268,6 @@ const CategoryBrowser: React.FC = () => {
       }
     };
   }, [loading, loadingMore, hasMore, pagination.currentPage, fetchReviews]);
-
-  // Show/hide scroll to top button
-  useEffect(() => {
-    const handleScroll = () => {
-      setShowScrollTop(window.scrollY > 300);
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
 
   const handleAdvancedSearch = (filters: AdvancedFilters) => {
     setAppliedFilters(filters);
@@ -567,20 +551,6 @@ const CategoryBrowser: React.FC = () => {
           initialFilters={selectedCategory ? { category: selectedCategory } : {}}
         />
       )}
-
-      {/* Scroll to Top Button */}
-      {showScrollTop && (
-        <button
-          onClick={scrollToTop}
-          className="fixed bottom-8 right-8 bg-orange-500 text-white p-4 rounded-full shadow-2xl hover:bg-orange-600 hover:scale-110 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-orange-300"
-          style={{ zIndex: 40 }}
-          title="Scroll to top"
-          aria-label="Scroll to top"
-        >
-          <ArrowUp className="w-5 h-5" />
-        </button>
-      )}
-
       <Footer />
     </div>
   );

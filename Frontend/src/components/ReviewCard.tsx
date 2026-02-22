@@ -76,6 +76,7 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
   const [videoLoaded, setVideoLoaded] = useState(false);
   const [isUpvoting, setIsUpvoting] = useState(false);
   const [hasUpvoted, setHasUpvoted] = useState(false);
+  const [cardReady, setCardReady] = useState(false);
   const { getReview, updateReview } = useReviewContext();
 
   // Get the most up-to-date review data from global state
@@ -87,13 +88,28 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
   // Reset loading states only when media URL actually changes (not on translation updates)
   const mediaUrl = currentReview.media?.[0]?.url;
   React.useEffect(() => {
-    // Don't reset if there's no media
-    if (!mediaUrl) return;
+    // If no media, card is ready immediately
+    if (!mediaUrl) {
+      setCardReady(true);
+      return;
+    }
     
     // Reset loading states when media URL changes
     setImageLoaded(false);
     setVideoLoaded(false);
+    setCardReady(false);
   }, [mediaUrl]);
+
+  // Mark card as ready when media is loaded
+  React.useEffect(() => {
+    if (!currentReview.media || currentReview.media.length === 0) {
+      setCardReady(true);
+    } else if (currentReview.media[0].type === 'video' && videoLoaded) {
+      setCardReady(true);
+    } else if (currentReview.media[0].type === 'image' && imageLoaded) {
+      setCardReady(true);
+    }
+  }, [imageLoaded, videoLoaded, currentReview.media]);
 
   // Check if current user has upvoted this review
   React.useEffect(() => {
@@ -265,6 +281,108 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
 
 
 
+  // Show skeleton loader until card is ready
+  if (!cardReady) {
+    return (
+      <motion.div
+        className="p-1"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
+        <div className="bg-white rounded-2xl shadow-lg overflow-hidden h-full min-h-[600px] flex flex-col">
+          {/* Tags Skeleton */}
+          <div className="p-6 py-5 bg-gray-50 border-b border-gray-200 min-h-[80px] flex items-center">
+            <div className="flex items-center gap-2 flex-wrap w-full">
+              <div className="h-7 w-20 bg-gray-200 rounded-full animate-pulse"></div>
+              <div className="h-7 w-24 bg-gray-200 rounded-full animate-pulse"></div>
+            </div>
+          </div>
+
+          {/* Media Skeleton */}
+          {currentReview.media && currentReview.media.length > 0 && (
+            <div className="relative h-48 bg-gray-200 animate-pulse">
+              <div className="absolute inset-0 flex items-center justify-center">
+                {currentReview.media[0].type === 'video' ? (
+                  <div className="w-16 h-16 bg-gray-300 rounded-full"></div>
+                ) : (
+                  <div className="w-12 h-12 bg-gray-300 rounded"></div>
+                )}
+              </div>
+              {/* Hidden image/video for preloading */}
+              {currentReview.media[0].type === 'video' ? (
+                <video
+                  src={currentReview.media[0].url}
+                  className="hidden"
+                  preload="metadata"
+                  onLoadedData={() => setVideoLoaded(true)}
+                />
+              ) : (
+                <img
+                  src={currentReview.media[0].url}
+                  alt="Loading"
+                  className="hidden"
+                  loading="eager"
+                  decoding="async"
+                  onLoad={() => setImageLoaded(true)}
+                  onError={() => setImageLoaded(true)}
+                />
+              )}
+            </div>
+          )}
+
+          {/* Content Skeleton */}
+          <div className="p-4 flex-1 flex flex-col">
+            {/* Title Skeleton */}
+            <div className="mb-3 space-y-2">
+              <div className="h-5 bg-gray-200 rounded animate-pulse w-full"></div>
+              <div className="h-5 bg-gray-200 rounded animate-pulse w-3/4"></div>
+            </div>
+
+            {/* Rating Skeleton */}
+            <div className="mb-3 flex items-center gap-1">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="w-4 h-4 bg-gray-200 rounded animate-pulse"></div>
+              ))}
+            </div>
+
+            {/* Description Skeleton */}
+            <div className="mb-6 space-y-2">
+              <div className="h-4 bg-gray-200 rounded animate-pulse w-full"></div>
+              <div className="h-4 bg-gray-200 rounded animate-pulse w-full"></div>
+              <div className="h-4 bg-gray-200 rounded animate-pulse w-2/3"></div>
+            </div>
+
+            {/* Footer Skeleton */}
+            <div className="mt-auto space-y-4">
+              <div className="flex items-center">
+                <div className="w-12 h-12 bg-gray-200 rounded-full animate-pulse mr-3"></div>
+                <div className="space-y-2">
+                  <div className="h-4 bg-gray-200 rounded animate-pulse w-24"></div>
+                  <div className="h-3 bg-gray-200 rounded animate-pulse w-20"></div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                <div className="flex items-center gap-6">
+                  <div className="flex items-center">
+                    <div className="w-8 h-8 bg-gray-200 rounded-full animate-pulse mr-2"></div>
+                    <div className="h-4 bg-gray-200 rounded animate-pulse w-8"></div>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-8 h-8 bg-gray-200 rounded-full animate-pulse mr-2"></div>
+                    <div className="h-4 bg-gray-200 rounded animate-pulse w-8"></div>
+                  </div>
+                </div>
+                <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
+
   return (
     <>
       <motion.div
@@ -347,77 +465,52 @@ const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review, showRank = f
                   {currentReview.media[0].type === 'video' ? (
                     /* Video Thumbnail with Play Icon */
                     <>
-                      {/* Skeleton Loader for Video */}
-                      {!videoLoaded && (
-                        <div className="absolute inset-0 bg-gray-200 animate-pulse">
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="w-16 h-16 bg-gray-300 rounded-full"></div>
-                          </div>
-                        </div>
-                      )}
-
                       <video
                         key={currentReview.media[0].url}
                         src={currentReview.media[0].url}
-                        className={`w-full h-full object-cover pointer-events-none transition-opacity duration-300 ${videoLoaded ? 'opacity-100' : 'opacity-0'}`}
+                        className="w-full h-full object-cover pointer-events-none"
                         preload="metadata"
-                        onLoadedData={() => setVideoLoaded(true)}
                       />
 
-                      {/* Play Icon Overlay - Only show when video is loaded */}
-                      {videoLoaded && (
-                        <>
-                          <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 hover:bg-opacity-40 transition-all">
-                            <motion.div
-                              className="w-16 h-16 bg-white bg-opacity-90 rounded-full flex items-center justify-center shadow-xl"
-                              whileHover={{ scale: 1.1 }}
-                              transition={{ duration: 0.2 }}
-                            >
-                              <Play className="w-8 h-8 text-orange-500 ml-1" />
-                            </motion.div>
-                          </div>
-                          {/* Video Badge */}
-                          <div className="absolute top-3 left-3 px-2 py-1 bg-black bg-opacity-70 text-white text-xs font-medium rounded-full flex items-center gap-1">
-                            <Video className="w-3 h-3" />
-                            Video
-                          </div>
-                        </>
-                      )}
+                      {/* Play Icon Overlay */}
+                      <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 hover:bg-opacity-40 transition-all">
+                        <motion.div
+                          className="w-16 h-16 bg-white bg-opacity-90 rounded-full flex items-center justify-center shadow-xl"
+                          whileHover={{ scale: 1.1 }}
+                          transition={{ duration: 0.2 }}
+                        >
+                          <Play className="w-8 h-8 text-orange-500 ml-1" />
+                        </motion.div>
+                      </div>
+                      {/* Video Badge */}
+                      <div className="absolute top-3 left-3 px-2 py-1 bg-black bg-opacity-70 text-white text-xs font-medium rounded-full flex items-center gap-1">
+                        <Video className="w-3 h-3" />
+                        Video
+                      </div>
                     </>
                   ) : (
-                    /* Image with Skeleton Loader */
-                    <>
-                      {/* Skeleton Loader for Image */}
-                      {!imageLoaded && (
-                        <div className="absolute inset-0 bg-gray-200 animate-pulse"></div>
-                      )}
-
-                      <img
-                        key={currentReview.media[0].url}
-                        src={currentReview.media[0].url}
-                        alt="Review media"
-                        className={`w-full h-full object-cover transition-opacity duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
-                        loading="eager"
-                        decoding="async"
-                        onLoad={() => setImageLoaded(true)}
-                        onError={() => setImageLoaded(true)}
-                      />
-                    </>
+                    /* Image */
+                    <img
+                      key={currentReview.media[0].url}
+                      src={currentReview.media[0].url}
+                      alt="Review media"
+                      className="w-full h-full object-cover"
+                      loading="eager"
+                      decoding="async"
+                    />
                   )}
 
-                  {/* Category Badge - Only show when media is loaded */}
-                  {(imageLoaded || videoLoaded) && (
-                    <div className="absolute bottom-3 left-3 flex flex-col gap-1">
-                      <div className="px-2 py-1 bg-black bg-opacity-70 text-white text-xs font-medium rounded-full">
-                        {currentReview.category}
-                      </div>
-                      {currentReview.subcategory && (
-                        <div className="px-2 py-1 bg-black bg-opacity-50 text-white text-xs font-medium rounded-full">
-                          {currentReview.subcategory}
-                        </div>
-                      )}
+                  {/* Category Badge */}
+                  <div className="absolute bottom-3 left-3 flex flex-col gap-1">
+                    <div className="px-2 py-1 bg-black bg-opacity-70 text-white text-xs font-medium rounded-full">
+                      {currentReview.category}
                     </div>
-                  )}
+                    {currentReview.subcategory && (
+                      <div className="px-2 py-1 bg-black bg-opacity-50 text-white text-xs font-medium rounded-full">
+                        {currentReview.subcategory}
+                      </div>
+                    )}
+                  </div>
                 </Link>
               )}
             </>

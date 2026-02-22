@@ -6,7 +6,7 @@ import Footer from '../components/Footer';
 import { getReviews, getLeaderboard, getMostViewedReviewsWeek } from '../services/api';
 import { getCachedData, reviewCache } from '../utils/cache';
 import { updateMetaTags } from '../utils/seo';
-import { preloadImage } from '../utils/imageOptimization';
+import { preloadReviewImages } from '../utils/imageCache';
 import { useAuth } from '../contexts/AuthContext';
 
 // Type assertions for Lucide icons to fix TypeScript compatibility
@@ -72,17 +72,12 @@ const DiscoveryEngine = () => {
       
       setReviews(reviewsData);
       
-      // Preload images for better UX
-      reviewsData.slice(0, 6).forEach((review: any) => {
-        if (review.media && review.media.length > 0) {
-          const firstImage = review.media.find((media: any) => media.type === 'image');
-          if (firstImage) {
-            preloadImage(firstImage.url).catch(() => {
-              // Ignore preload errors
-            });
-          }
-        }
-      });
+      // Preload images for better UX using optimized cache system
+      if (reviewsData.length > 0) {
+        preloadReviewImages(reviewsData, 6).catch(() => {
+          // Ignore preload errors
+        });
+      }
     } catch (error) {
       console.error('Error fetching reviews:', error);
       setReviews([]);

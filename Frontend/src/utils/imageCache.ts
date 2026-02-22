@@ -240,24 +240,62 @@ export function useCachedImage(url: string | undefined) {
 }
 
 /**
- * Preload images for better UX
+ * Preload images for better UX with priority loading
+ * @param reviews - Array of reviews to preload images from
+ * @param priorityCount - Number of images to load with high priority (default: 6)
  */
-export async function preloadReviewImages(reviews: any[]): Promise<void> {
+export async function preloadReviewImages(reviews: any[], priorityCount: number = 6): Promise<void> {
   const imageUrls: string[] = [];
+  const videoUrls: string[] = [];
   
   reviews.forEach(review => {
     if (review.media && Array.isArray(review.media)) {
       review.media.forEach((media: any) => {
         if (media.type === 'image' && media.url) {
           imageUrls.push(media.url);
+        } else if (media.type === 'video' && media.url) {
+          videoUrls.push(media.url);
         }
       });
     }
   });
 
-  if (imageUrls.length > 0) {
-    await imageCache.preloadImages(imageUrls);
+  if (imageUrls.length === 0 && videoUrls.length === 0) return;
+
+  // Load priority images immediately (first visible items)
+  const priorityImages = imageUrls.slice(0, priorityCount);
+  const remainingImages = imageUrls.slice(priorityCount);
+
+  // Load priority images first
+  if (priorityImages.length > 0) {
+    await Promise.allSettled(
+      priorityImages.map(url => imageCache.loadImage(url).catch(() => null))
+    );
   }
+
+  // Load remaining images in background (don't await)
+  if (remainingImages.length > 0) {
+    imageCache.preloadImages(remainingImages).catch(() => {
+      // Silent fail for background loading
+    });
+  }
+
+  // Preload video thumbnails by creating hidden video elements
+  videoUrls.slice(0, priorityCount).forEach(url => {
+    const video = document.createElement('video');
+    video.src = url;
+    video.preload = 'metadata';
+    video.style.display = 'none';
+    document.body.appendChild(video);
+    
+    // Remove after loading
+    video.addEventListener('loadeddata', () => {
+      setTimeout(() => document.body.removeChild(video), 100);
+    });
+    video.addEventListener('error', () => {
+      setTimeout(() => document.body.removeChild(video), 100);
+    });
+  });
 }
 
 export default imageCache;
